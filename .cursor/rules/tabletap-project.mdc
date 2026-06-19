@@ -1,0 +1,68 @@
+---
+description: TableTap project context, stack, and design system.
+alwaysApply: true
+---
+
+# TableTap — project rules
+
+PRODUCT: multi-tenant restaurant ordering SaaS with two customer channels + staff dashboards.
+- In-venue: guest scans a table QR -> menu -> order -> live status; can call waiter/manager. No login.
+- Online: public site; customer signs up/in -> picks a branch -> delivery, pickup, OR table reservation -> pays/tracks orders; reservations book a table slot.
+- Staff roles: waiter, chef (kitchen), manager, owner. One owner account with staff sub-accounts; owner sees all reports and manages everything.
+- Orders route to the chosen branch and flow: Placed/Received -> Acknowledged/Accepted -> Preparing -> Ready -> (Out for delivery) -> Served/Completed. A 5-minute SLA timer escalates un-started orders to the manager.
+
+STACK (use exactly this):
+- Next.js (App Router) + TypeScript; sensible Server/Client component split.
+- Tailwind CSS, shadcn/ui primitives, lucide-react icons, recharts for charts, framer-motion for subtle motion, zustand for cart/session state, @google/model-viewer for 3D menu items (lazy-loaded).
+- FRONTEND PHASE = NO BACKEND. All data comes from typed mock modules in /lib/mock. Types in /lib/types.ts. Simulate async with small delays. Route every data call through /lib/api.ts so it can later be swapped to a real API in one place.
+- qrcode.react for rendering table QR codes client-side (use QRCodeCanvas so PNGs can be downloaded via canvas.toDataURL()).
+
+TABLES & QR (data + behaviour):
+- Branch has: floors (optional list of floor names) and tables[].
+- Table: { id, branchId, label, floor (optional), seats (optional), qrToken (unique), status }.
+- When a branch is created/edited, the user defines tables per floor; the app auto-generates each table with a label and a UNIQUE, hard-to-guess qrToken (crypto.randomUUID() or nanoid).
+- Each table QR encodes {appUrl}/t/{qrToken}; the /t/[token] route resolves the token to its branch + table for in-venue ordering.
+- Owner can view, download (PNG), and print all table QR codes for a branch.
+- Table seat capacity (`seats`) is used for reservation matching: only tables with `seats >= partySize` and no conflicting CONFIRMED/SEATED hold for the slot window are bookable.
+
+RESERVATIONS / TABLE BOOKING (third online fulfillment option alongside Delivery & Pickup):
+- Reservation: { id, branchId, tableId, partySize, date, time (slot start), durationMins (turn time, default 90), guestName, guestPhone, guestEmail?, specialRequests?, preOrder? (cart items), status, source, createdAt, confirmedBy?, confirmedAt?, seatedAt?, completedAt? }.
+- ReservationStatus: Requested | Confirmed | Seated | Completed | NoShow | Cancelled.
+- Online flow: customer picks branch -> Reservation (alongside Delivery / Pickup) -> party size + date/time -> available tables -> guest details -> optional pre-order -> submit as Requested.
+- Availability: only tables with capacity >= partySize AND free for [time, time + durationMins] are bookable. A CONFIRMED reservation HOLDS its table for the full slot window — no other online booking, walk-in, or QR seating can take it during that window.
+- Manager tasks (configurable lead time, default 30 min before slot):
+  - Booking made > lead time before slot -> reminder task activates at (slot − lead time).
+  - Booking made < lead time before slot -> immediately create an URGENT "call & confirm" task.
+  - After slot + 15 min grace with no seating -> auto NoShow and free the table.
+- After manager confirms: optional pre-order is sent to kitchen with a "prepare/fire at" time near guest arrival (never cook hours early).
+- Reservations visible to manager and owner dashboards; waiter sees today's seated reservations for their floor.
+
+CONVENTIONS:
+- Reusable UI in /components/ui (shadcn) and /components. Never duplicate a component — reuse or extend.
+- Keep files small and focused. Mobile-first. Always include loading skeletons, empty states, error states, and basic a11y (labels, focus rings, contrast).
+- Do not add libraries beyond those listed without asking.
+
+MENU DISPLAY MODE (tenant-level):
+- Tenant setting menuDisplayMode: "simple" | "3d" (owner/manager picks in Settings).
+- MenuItem optional model3dUrl (.glb/.gltf). Use @google/model-viewer (lazy-loaded) with orbit, zoom, auto-rotate, and AR on supported phones.
+- In "3d" mode the customer full-screen product view shows the 3D model when model3dUrl exists, else photo. "simple" mode always shows the photo.
+
+WHITE-LABEL / BRANDING (tenant-level):
+- TenantBranding: { logoDataUrl?, logoUrl?, primaryColor (hex), accentColor? (hex) }, stored on the tenant (mock + zustand settings store).
+- ThemeProvider applies tenant colors as CSS variables (--brand, --brand-foreground, --accent, plus Tailwind --color-brand/*) on customer-facing layouts only: /t/[token] and the public online site (storefront). --brand-foreground is computed automatically (black or white) for readable contrast.
+- Customer-facing headers use TenantLogo (tenant logo, or icon + restaurant name as fallback). Staff /app keeps TableTap product branding — no ThemeProvider on staff routes.
+
+DESIGN SYSTEM (make it look premium and distinctive — NOT a generic AI/admin template):
+- Default brand teal: primary #0F766E (hover #0D9488, deep #115E59, tint #F0FDFA). Accent amber #F59E0B. Ink #0F172A, muted #64748B. Surface #FFFFFF, subtle #F8FAFC, border #E2E8F0. Tenants can override primary/accent via branding.
+- Kitchen Display uses a DARK theme: bg #0B1220, panels #0E1A2B, teal/amber status accents, large legible cards.
+- Fonts via next/font/google: "Sora" for headings/display, "Inter" for body.
+- Radius: cards rounded-2xl; buttons/inputs rounded-xl. Soft shadows (shadow-sm, shadow-md on hover). Generous whitespace, strong hierarchy, large tap targets.
+- Hospitality feel: appetizing food imagery (placeholder image URLs/gradients ok), warm and clean, tasteful micro-interactions on hover/press.
+- One consistent motif: color-coded status pills, icon-in-rounded-square section headers, soft elevated cards.
+
+ROUTES:
+- In-venue: /t/[token]  (menu + cart + status in one mobile flow)
+- Public: /  /login  /signup  /order (branch picker)  /order/[branchId] (menu+cart)  /reserve (branch picker)  /reserve/[branchId] (book table)  /checkout  /track/[orderId]  /account
+- Staff: /app/login, /app (redirect by role), /app/kitchen, /app/waiter, /app/manager, /app/owner, /app/menu, /app/staff, /app/settings, /app/reservations — shared app shell with role-aware sidebar + topbar.
+
+CORE TYPES (mock): Branch (floors, tables[]), Table (id, branchId, label, floor, seats, qrToken, status), Reservation (branchId, tableId, partySize, date, time, durationMins, guest details, preOrder?, status, source, timestamps), ReservationStatus, TenantBranding, TenantSettings (includes branding, menuDisplayMode, reservationLeadMins?), MenuCategory, MenuItem (modifiers, tags, imageUrl, model3dUrl?, isAvailable), CartItem, Order (channel, fulfillmentType, branchId, status, items, customerName, timestamps, total, fireAt?), OrderStatus enum, ServiceRequest, StaffUser (role), CustomerAccount, Address, SalesPoint (for charts).

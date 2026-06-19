@@ -1,0 +1,113 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+  TableTap design system tokens.
+  Brand colors use @theme inline + runtime --brand/* tokens so tenant theming works.
+*/
+@layer base {
+  :root {
+    --brand: #0f766e;
+    --brand-hover: #0d9488;
+    --brand-deep: #115e59;
+    --brand-tint: #f0fdfa;
+    --brand-foreground: #ffffff;
+    --accent: #f59e0b;
+    --accent-tint: #fffbeb;
+  }
+}
+
+@theme inline {
+  /* Brand — resolved from runtime tokens above (overridden by ThemeProvider) */
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-tint: var(--brand-tint);
+  --color-accent: var(--accent);
+  --color-accent-tint: var(--accent-tint);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--brand-foreground);
+  --color-ring: var(--brand);
+}
+
+@theme {
+  /* Neutrals */
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-surface: #ffffff;
+  --color-subtle: #f8fafc;
+  --color-line: #e2e8f0;
+
+  /* Kitchen display (dark) */
+  --color-kitchen-bg: #0b1220;
+  --color-kitchen-panel: #0e1a2b;
+  --color-kitchen-line: #1e293b;
+
+  /* Semantic aliases (shadcn-compatible) */
+  --color-background: var(--color-surface);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-secondary: var(--color-subtle);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted-foreground: var(--color-muted);
+  --color-accent-foreground: #422006;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #16a34a;
+  --color-border: var(--color-line);
+  --color-input: var(--color-line);
+
+  /* Typography */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sora), var(--font-inter), ui-sans-serif, sans-serif;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-elevated: 0 8px 24px -6px rgb(15 23 42 / 0.12), 0 2px 6px -2px rgb(15 23 42 / 0.08);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-subtle);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: var(--color-primary-foreground);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .bg-hero-glow {
+    background:
+      radial-gradient(
+        60% 60% at 15% 10%,
+        color-mix(in srgb, var(--brand) 10%, transparent) 0%,
+        transparent 60%
+      ),
+      radial-gradient(
+        50% 50% at 95% 5%,
+        color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+        transparent 55%
+      ),
+      var(--color-surface);
+  }
+}
