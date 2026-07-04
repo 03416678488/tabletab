@@ -57,7 +57,7 @@ export function OrderModePicker({ value, onChange }: OrderModePickerProps) {
             <span
               className={cn(
                 "flex size-10 items-center justify-center rounded-xl",
-                selected ? "bg-brand text-white" : "bg-subtle text-muted-foreground",
+                selected ? "bg-brand text-primary-foreground" : "bg-subtle text-muted-foreground",
               )}
             >
               <Icon className="size-5" />

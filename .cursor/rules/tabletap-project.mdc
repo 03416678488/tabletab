@@ -48,9 +48,11 @@ MENU DISPLAY MODE (tenant-level):
 - In "3d" mode the customer full-screen product view shows the 3D model when model3dUrl exists, else photo. "simple" mode always shows the photo.
 
 WHITE-LABEL / BRANDING (tenant-level):
-- TenantBranding: { logoDataUrl?, logoUrl?, primaryColor (hex), accentColor? (hex) }, stored on the tenant (mock + zustand settings store).
-- ThemeProvider applies tenant colors as CSS variables (--brand, --brand-foreground, --accent, plus Tailwind --color-brand/*) on customer-facing layouts only: /t/[token] and the public online site (storefront). --brand-foreground is computed automatically (black or white) for readable contrast.
+- TenantBranding: { logoDataUrl?, logoUrl?, primaryColor (hex), accentColor? (hex) } on the tenant (mock + zustand), persisted across refresh.
+- ThemeProvider applies tenant colors as CSS variables (--brand, --brand-foreground, --accent) on customer-facing layouts (/t/[token] and the public site). Auto-pick black/white foreground for contrast.
+- Customer-facing components must use these variables, never hard-coded teal.
 - Customer-facing headers use TenantLogo (tenant logo, or icon + restaurant name as fallback). Staff /app keeps TableTap product branding — no ThemeProvider on staff routes.
+- Responsive: ONE adaptive UI (mobile-first) — elements switch per breakpoint (e.g. bottom nav on mobile / sidebar on desktop), not two separate UIs.
 
 DESIGN SYSTEM (make it look premium and distinctive — NOT a generic AI/admin template):
 - Default brand teal: primary #0F766E (hover #0D9488, deep #115E59, tint #F0FDFA). Accent amber #F59E0B. Ink #0F172A, muted #64748B. Surface #FFFFFF, subtle #F8FAFC, border #E2E8F0. Tenants can override primary/accent via branding.

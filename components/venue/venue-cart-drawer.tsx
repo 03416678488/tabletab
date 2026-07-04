@@ -141,7 +141,7 @@ export function VenueCartDrawer({ onCheckout }: VenueCartDrawerProps) {
               </div>
             </div>
 
-            <SheetFooter className="px-6">
+            <SheetFooter className="sticky bottom-0 border-t border-border bg-surface px-6 pb-safe">
               <Button
                 className="w-full"
                 size="lg"

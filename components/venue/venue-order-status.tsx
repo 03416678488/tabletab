@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { VenueTimeline } from "@/components/venue/venue-timeline";
 import { Button } from "@/components/ui/button";
@@ -67,8 +68,16 @@ export function VenueOrderStatus() {
   const canAddMore = !["served", "completed", "cancelled"].includes(order.status);
 
   return (
-    <div className="px-4 pt-4">
-      <Card className="border-brand/20 bg-gradient-to-br from-brand-tint/80 to-surface">
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={order.status}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.25 }}
+        className="px-4 pt-4"
+      >
+      <Card className="border-brand/20 bg-gradient-to-br from-brand-tint/80 to-surface shadow-[var(--shadow-card)]">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="font-display text-base">Order {order.reference}</CardTitle>
@@ -94,6 +103,7 @@ export function VenueOrderStatus() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

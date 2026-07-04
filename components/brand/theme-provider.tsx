@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
 import { useSettingsStore } from "@/hooks/use-settings-store";
 import {
@@ -27,37 +27,52 @@ interface ThemeProviderProps {
  */
 export function ThemeProvider({ children, className, branding: override }: ThemeProviderProps) {
   const hydrated = useSettingsStore((s) => s.hydrated);
-  const savedKey = useSettingsStore((s) => brandingKey(s.tenant.branding));
-
+  const tenantBranding = useSettingsStore((s) => s.tenant.branding);
   const isPreview = override !== undefined;
-  const branding = resolveBranding(
-    override ?? (hydrated ? useSettingsStore.getState().tenant.branding : DEFAULT_BRANDING),
+
+  const branding = useMemo(
+    () =>
+      resolveBranding(
+        override ?? (hydrated ? tenantBranding : DEFAULT_BRANDING),
+      ),
+    [override, hydrated, tenantBranding],
   );
-  const activeKey = isPreview ? brandingKey(override) : savedKey;
+
+  const brandingSignature = isPreview ? brandingKey(override) : brandingKey(tenantBranding);
 
   useLayoutEffect(() => {
     if (isPreview) return;
 
-    const applyFromStore = () => {
+    const apply = () => {
       const current = resolveBranding(useSettingsStore.getState().tenant.branding);
       mountTenantTheme(current);
     };
 
-    applyFromStore();
+    apply();
 
-    const onSaved = () => applyFromStore();
+    const unsub = useSettingsStore.subscribe((state, prev) => {
+      if (brandingKey(state.tenant.branding) !== brandingKey(prev.tenant.branding)) {
+        apply();
+      }
+      if (!prev.hydrated && state.hydrated) {
+        apply();
+      }
+    });
+
+    const onSaved = () => apply();
     window.addEventListener("tabletap-branding-saved", onSaved);
 
     return () => {
+      unsub();
       window.removeEventListener("tabletap-branding-saved", onSaved);
       unmountTenantTheme();
     };
-  }, [activeKey, isPreview]);
+  }, [isPreview, brandingSignature, hydrated]);
 
   const style = brandingCssVars(branding) as CSSProperties;
 
   return (
-    <div className={cn("customer-theme", className)} style={style}>
+    <div className={cn("customer-theme min-h-0", className)} style={style}>
       {children}
     </div>
   );

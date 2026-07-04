@@ -220,7 +220,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
               <span
                 className={cn(
                   "flex size-5 items-center justify-center rounded-full text-[10px] font-bold",
-                  i < stepIndex ? "bg-brand text-white" : i === stepIndex ? "bg-brand text-white" : "bg-border",
+                  i < stepIndex ? "bg-brand text-primary-foreground" : i === stepIndex ? "bg-brand text-primary-foreground" : "bg-border",
                 )}
               >
                 {i < stepIndex ? <Check className="size-3" /> : i + 1}
@@ -280,7 +280,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
                       className={cn(
                         "rounded-full px-4 py-2 text-sm font-medium transition-colors",
                         date === d.value
-                          ? "bg-brand text-white"
+                          ? "bg-brand text-primary-foreground"
                           : "bg-subtle text-muted-foreground hover:bg-secondary",
                       )}
                     >

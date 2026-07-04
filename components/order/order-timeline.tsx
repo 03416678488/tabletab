@@ -76,7 +76,7 @@ export function OrderTimeline({ status, fulfillmentType }: OrderTimelineProps) {
               <span
                 className={cn(
                   "flex size-8 items-center justify-center rounded-full border-2 transition-colors",
-                  done && "border-brand bg-brand text-white",
+                  done && "border-brand bg-brand text-primary-foreground",
                   current && "border-brand bg-brand-tint text-brand-deep",
                   upcoming && "border-border bg-surface text-muted-foreground",
                 )}

@@ -23,8 +23,10 @@
   --color-brand-hover: var(--brand-hover);
   --color-brand-deep: var(--brand-deep);
   --color-brand-tint: var(--brand-tint);
+  --color-brand-foreground: var(--brand-foreground);
   --color-accent: var(--accent);
   --color-accent-tint: var(--accent-tint);
+  --color-accent-foreground: var(--accent-foreground);
   --color-primary: var(--brand);
   --color-primary-foreground: var(--brand-foreground);
   --color-ring: var(--brand);
@@ -53,7 +55,6 @@
   --color-secondary: var(--color-subtle);
   --color-secondary-foreground: var(--color-ink);
   --color-muted-foreground: var(--color-muted);
-  --color-accent-foreground: #422006;
   --color-destructive: #dc2626;
   --color-destructive-foreground: #ffffff;
   --color-success: #16a34a;
@@ -109,5 +110,13 @@
         transparent 55%
       ),
       var(--color-surface);
+  }
+
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
   }
 }

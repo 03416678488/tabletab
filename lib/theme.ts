@@ -13,6 +13,7 @@ export const BRAND_TOKEN_KEYS = [
   "--brand-deep",
   "--brand-tint",
   "--accent",
+  "--accent-foreground",
   "--accent-tint",
 ] as const;
 
@@ -108,6 +109,7 @@ export function brandingCssVars(branding: TenantBranding): Record<string, string
   const primary = resolved.primaryColor;
   const accent = resolved.accentColor ?? DEFAULT_BRANDING.accentColor ?? "#F59E0B";
   const foreground = contrastForeground(primary);
+  const accentForeground = contrastForeground(accent);
 
   return {
     "--brand": primary,
@@ -116,6 +118,7 @@ export function brandingCssVars(branding: TenantBranding): Record<string, string
     "--brand-deep": mixHex(primary, "#000000", 0.18),
     "--brand-tint": mixHex(primary, "#ffffff", 0.92),
     "--accent": accent,
+    "--accent-foreground": accentForeground,
     "--accent-tint": mixHex(accent, "#ffffff", 0.9),
   };
 }

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { MenuItem } from "@/lib/types";
@@ -71,8 +72,16 @@ export function MenuItemRow({ item, token }: MenuItemRowProps) {
   if (disabled) return content;
 
   return (
-    <Link href={`/t/${token}/item/${item.id}`} className="block outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-2xl">
-      {content}
-    </Link>
+    <motion.div
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+    >
+      <Link
+        href={`/t/${token}/item/${item.id}`}
+        className="block outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-2xl"
+      >
+        {content}
+      </Link>
+    </motion.div>
   );
 }

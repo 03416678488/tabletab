@@ -174,7 +174,7 @@ export default function BranchMenuPage({
                     className={cn(
                       "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
                       activeCategory === cat.id
-                        ? "bg-brand text-white"
+                        ? "bg-brand text-primary-foreground"
                         : "bg-surface text-muted-foreground hover:bg-secondary",
                     )}
                   >
@@ -213,7 +213,7 @@ export default function BranchMenuPage({
       </div>
 
       {/* Mobile sticky checkout bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface p-4 shadow-[var(--shadow-elevated)] lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface p-4 pb-safe shadow-[var(--shadow-elevated)] lg:hidden">
         <Button className="w-full" size="lg" onClick={() => router.push("/checkout")}>
           View cart &amp; checkout
         </Button>

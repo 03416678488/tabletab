@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -27,7 +28,10 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
   const hasModifiers = item.modifiers.length > 0;
 
   return (
-    <article
+    <motion.article
+      layout
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={cn(
         "flex gap-4 rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-elevated)]",
         !item.isAvailable && "opacity-60",
@@ -76,6 +80,6 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
           </Button>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }

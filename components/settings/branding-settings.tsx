@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ImageIcon, Palette, RotateCcw, X } from "lucide-react";
 import { ThemeProvider } from "@/components/brand/theme-provider";
+import { PhonePreviewFrame } from "@/components/brand/phone-preview-frame";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -200,23 +201,40 @@ export function BrandingSettings() {
         </div>
 
         <div className="rounded-2xl border border-border bg-subtle p-4">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Live preview (unsaved)
           </p>
-          <ThemeProvider branding={previewBranding} className="rounded-xl border border-border bg-surface p-4">
-            <TenantLogo showTagline branding={previewBranding} />
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="rounded-full bg-brand px-3 py-1 text-xs font-medium text-primary-foreground">
-                Primary
-              </span>
-              <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-medium text-brand-deep">
-                Brand tint
-              </span>
-              <span className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
-                Accent
-              </span>
-            </div>
-          </ThemeProvider>
+          <PhonePreviewFrame>
+            <ThemeProvider branding={previewBranding} className="min-h-[380px] bg-subtle">
+              <div className="border-b border-border bg-surface/95 px-4 py-3 backdrop-blur-sm">
+                <TenantLogo showTagline branding={previewBranding} variant="compact" />
+              </div>
+              <div className="space-y-3 p-4">
+                <div className="rounded-2xl border border-border bg-surface p-3 shadow-[var(--shadow-card)]">
+                  <p className="font-display text-sm font-semibold text-ink">Menu item</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Fresh ingredients, house-made</p>
+                  <p className="mt-2 text-sm font-semibold text-brand">$14.00</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-brand px-3 py-1.5 text-xs font-medium text-primary-foreground">
+                    Primary button
+                  </span>
+                  <span className="rounded-full bg-brand-tint px-3 py-1.5 text-xs font-medium text-brand-deep">
+                    Brand tint
+                  </span>
+                  <span className="rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
+                    Accent
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="w-full rounded-xl bg-brand py-2.5 text-sm font-medium text-primary-foreground shadow-sm"
+                >
+                  Add to cart
+                </button>
+              </div>
+            </ThemeProvider>
+          </PhonePreviewFrame>
         </div>
       </CardContent>
 

@@ -316,7 +316,7 @@ function CheckoutContent() {
                       className={cn(
                         "rounded-full border px-4 py-2 text-sm font-medium transition-colors",
                         pickupTime === slot
-                          ? "border-brand bg-brand text-white"
+                          ? "border-brand bg-brand text-primary-foreground"
                           : "border-border hover:bg-secondary",
                       )}
                     >
