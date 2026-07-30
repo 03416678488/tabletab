@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, ShoppingBag, User } from "lucide-react";
+import { NearestBranch } from "@/components/storefront/nearest-branch";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +15,10 @@ import {
 } from "@/components/ui/sheet";
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { href: "/order", label: "Order" },
   { href: "/account", label: "Account", auth: true },
 ];
 
@@ -25,13 +26,16 @@ export function StorefrontHeader() {
   const pathname = usePathname();
   const itemCount = useCart((s) => s.itemCount());
   const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
-
-  const showCart = pathname.startsWith("/order/") || pathname === "/checkout";
+  const hydrated = useHydrated();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <TenantLogo href="/" showTagline />
+        <div className="flex min-w-0 items-center gap-3">
+          <TenantLogo href="/" showTagline />
+          {/* Landing has its own branch context bar — avoid showing it twice. */}
+          {pathname !== "/" && <NearestBranch variant="inline" className="hidden md:flex" />}
+        </div>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
           {navLinks.map((link) => {
@@ -54,20 +58,6 @@ export function StorefrontHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {showCart && (
-            <Button asChild variant="outline" size="sm" className="relative">
-              <Link href="/checkout">
-                <ShoppingBag className="size-4" />
-                <span className="hidden sm:inline">Cart</span>
-                {itemCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-primary-foreground">
-                    {itemCount}
-                  </span>
-                )}
-              </Link>
-            </Button>
-          )}
-
           {isAuthenticated ? (
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
               <Link href="/account">
@@ -81,8 +71,16 @@ export function StorefrontHeader() {
             </Button>
           )}
 
-          <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link href="/order">Order now</Link>
+          <Button asChild variant="outline" size="sm" className="relative">
+            <Link href="/checkout" aria-label="View cart">
+              <ShoppingBag className="size-4" />
+              <span className="hidden sm:inline">Cart</span>
+              {hydrated && itemCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-primary-foreground">
+                  {itemCount}
+                </span>
+              )}
+            </Link>
           </Button>
 
           <Sheet>
@@ -114,16 +112,18 @@ export function StorefrontHeader() {
                     </Link>
                   </>
                 )}
-                {showCart && (
-                  <Link href="/checkout" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
-                    Checkout ({itemCount})
-                  </Link>
-                )}
+                <Link href="/checkout" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                  Cart ({itemCount})
+                </Link>
               </nav>
             </SheetContent>
           </Sheet>
         </div>
       </div>
+
+      {/* Mobile: full-width nearest-branch bar under the main row.
+          Hidden on the landing, which shows its own branch context bar. */}
+      {pathname !== "/" && <NearestBranch variant="bar" className="md:hidden" />}
     </header>
   );
 }

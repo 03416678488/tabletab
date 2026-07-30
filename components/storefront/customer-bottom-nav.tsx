@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, ShoppingBag, User } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -23,6 +24,7 @@ export function CustomerBottomNav() {
   const pathname = usePathname();
   const itemCount = useCart((s) => s.itemCount());
   const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
+  const hydrated = useHydrated();
 
   return (
     <nav
@@ -50,7 +52,7 @@ export function CustomerBottomNav() {
           }
           const active = link.match(pathname);
           const Icon = link.icon;
-          const showBadge = link.href === "/order" && itemCount > 0;
+          const showBadge = hydrated && link.href === "/order" && itemCount > 0;
 
           return (
             <Link

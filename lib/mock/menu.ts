@@ -1,9 +1,47 @@
 import { DEMO_MODELS } from "@/lib/mock/menu-3d";
 import type { MenuCategory, MenuItem } from "@/lib/types";
 
-/** Reliable seeded placeholder imagery (swap for real assets later). */
+/**
+ * Real dish photography from Unsplash's CDN (stable, permanent URLs), keyed by
+ * dish so every menu item shows a relevant plate. Swap an id here to change a
+ * photo. Falls back to a seeded placeholder if a key is ever missing.
+ */
+const PHOTOS: Record<string, string> = {
+  // Starters
+  bruschetta: "1506280754576-f6fa8a873550",
+  burrata: "1608897013039-887f21d8c804",
+  calamari: "1604909052743-94e838986d24",
+  soup: "1547592180-85f173990554",
+  wings: "1608039755401-742074f0548d",
+  // Mains
+  ribeye: "1600891964092-4316c288032e",
+  salmon: "1467003909585-2f8a72700288",
+  risotto: "1476124369491-e7addf5db371",
+  burger: "1568901346375-23c9450c58cd",
+  chicken: "1598103442097-8b74394b95c6",
+  gnocchi: "1621996346565-e3dbc646d9a9",
+  // Pizza
+  margherita: "1574071318508-1cdbab80d002",
+  pepperoni: "1628840042765-356cda07504e",
+  funghi: "1513104890138-7c749659a591",
+  veggie: "1571407970349-bc81e7e96d47",
+  diavola: "1595854341625-f33ee10dbf94",
+  // Desserts
+  tiramisu: "1571877227200-a0d98ea607e9",
+  lava: "1606313564200-e75d5e30476c",
+  cheesecake: "1533134242443-d4fd215305ad",
+  sorbet: "1567206563064-6f60f40a2b57",
+  // Drinks
+  negroni: "1551024709-8f23befc6f87",
+  spritz: "1560512823-829485b8bf24",
+  coldbrew: "1461023058943-07fcbe16d735",
+  lemonade: "1621263764928-df1444c5e859",
+};
+
 const img = (seed: string) =>
-  `https://picsum.photos/seed/tabletap-${seed}/640/480`;
+  PHOTOS[seed]
+    ? `https://images.unsplash.com/photo-${PHOTOS[seed]}?auto=format&fit=crop&w=640&h=480&q=70`
+    : `https://picsum.photos/seed/tabletap-${seed}/640/480`;
 
 export const categories: MenuCategory[] = [
   { id: "cat-starters", name: "Starters", description: "Small plates to share", sortOrder: 1 },

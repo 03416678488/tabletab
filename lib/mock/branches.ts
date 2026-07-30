@@ -23,6 +23,8 @@ export const branches: Branch[] = [
     phone: "+1 (503) 555-0142",
     imageUrl: "https://picsum.photos/seed/tabletap-riverside/1200/640",
     isOpen: true,
+    lat: 45.5231,
+    lng: -122.6765,
     floors: ["Main Floor", "Terrace"],
     tables: tablesFor("br-riverside", [
       { label: "T1", floor: "Main Floor", seats: 2, token: "qr_8f3a1c7d9e", status: "seated" },
@@ -43,6 +45,8 @@ export const branches: Branch[] = [
     phone: "+1 (503) 555-0188",
     imageUrl: "https://picsum.photos/seed/tabletap-uptown/1200/640",
     isOpen: false,
+    lat: 45.5385,
+    lng: -122.687,
     floors: ["Ground", "Mezzanine"],
     tables: tablesFor("br-uptown", [
       { label: "A1", floor: "Ground", seats: 2, token: "qr_4c7a1f9e22" },

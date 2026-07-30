@@ -43,6 +43,9 @@ export interface Branch {
   phone: string;
   imageUrl: string;
   isOpen: boolean;
+  /** Geo coordinates used to find the customer's nearest branch. */
+  lat?: number;
+  lng?: number;
   /** Optional named floors used when laying out tables. */
   floors?: string[];
   tables: Table[];

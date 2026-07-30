@@ -8,27 +8,11 @@ export type OrderMode = "delivery" | "pickup" | "reserve";
 const MODES: {
   id: OrderMode;
   label: string;
-  description: string;
   icon: typeof Truck;
 }[] = [
-  {
-    id: "delivery",
-    label: "Delivery",
-    description: "To your door",
-    icon: Truck,
-  },
-  {
-    id: "pickup",
-    label: "Pickup",
-    description: "Collect in person",
-    icon: ShoppingBag,
-  },
-  {
-    id: "reserve",
-    label: "Reserve a table",
-    description: "Book ahead & pre-order",
-    icon: CalendarDays,
-  },
+  { id: "delivery", label: "Delivery", icon: Truck },
+  { id: "pickup", label: "Pickup", icon: ShoppingBag },
+  { id: "reserve", label: "Reserve", icon: CalendarDays },
 ];
 
 interface OrderModePickerProps {
@@ -36,9 +20,14 @@ interface OrderModePickerProps {
   onChange: (mode: OrderMode) => void;
 }
 
+/** Compact segmented control for delivery / pickup / reserve (foodpanda-style). */
 export function OrderModePicker({ value, onChange }: OrderModePickerProps) {
   return (
-    <div className="mb-8 grid gap-3 sm:grid-cols-3">
+    <div
+      role="tablist"
+      aria-label="Order mode"
+      className="inline-flex w-full items-center gap-1 rounded-full border border-border bg-surface p-1 shadow-[var(--shadow-card)] sm:w-auto"
+    >
       {MODES.map((mode) => {
         const Icon = mode.icon;
         const selected = value === mode.id;
@@ -46,24 +35,18 @@ export function OrderModePicker({ value, onChange }: OrderModePickerProps) {
           <button
             key={mode.id}
             type="button"
+            role="tab"
+            aria-selected={selected}
             onClick={() => onChange(mode.id)}
             className={cn(
-              "flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all",
+              "flex flex-1 items-center justify-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors sm:flex-none",
               selected
-                ? "border-brand bg-brand-tint/60 shadow-[var(--shadow-card)] ring-2 ring-brand/30"
-                : "border-border bg-surface hover:border-brand/40 hover:bg-subtle/50",
+                ? "bg-brand text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-ink",
             )}
           >
-            <span
-              className={cn(
-                "flex size-10 items-center justify-center rounded-xl",
-                selected ? "bg-brand text-primary-foreground" : "bg-subtle text-muted-foreground",
-              )}
-            >
-              <Icon className="size-5" />
-            </span>
-            <span className="font-display font-semibold text-ink">{mode.label}</span>
-            <span className="text-sm text-muted-foreground">{mode.description}</span>
+            <Icon className="size-4" />
+            {mode.label}
           </button>
         );
       })}

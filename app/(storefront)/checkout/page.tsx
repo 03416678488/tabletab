@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreditCard, MapPin, ShoppingBag, Truck } from "lucide-react";
 import { CartSummary } from "@/components/order/cart-summary";
-import { AuthGuard } from "@/components/storefront/auth-guard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,6 +22,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 function CheckoutContent() {
   const router = useRouter();
   const user = useCustomerSession((s) => s.user);
+  const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
   const addAddress = useCustomerSession((s) => s.addAddress);
 
   const branchId = useCart((s) => s.branchId);
@@ -50,19 +50,19 @@ function CheckoutContent() {
     isDefault: false,
   });
 
-  useEffect(() => {
-    if (!user?.addresses.length) return;
-    const defaultAddr = user.addresses.find((a) => a.isDefault) ?? user.addresses[0];
-    setSelectedAddressId(defaultAddr.id);
-  }, [user]);
+  // Default to the customer's default (or first) address until they pick one.
+  const effectiveAddressId =
+    selectedAddressId ??
+    (user?.addresses.find((a) => a.isDefault) ?? user?.addresses[0])?.id ??
+    null;
 
   useEffect(() => {
-    if (!branchId) {
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     (async () => {
+      if (!branchId) {
+        setLoading(false);
+        return;
+      }
       try {
         const [b, cfg] = await Promise.all([
           api.getBranch(branchId),
@@ -103,7 +103,7 @@ function CheckoutContent() {
 
   const handlePay = async () => {
     if (!user || !branchId || items.length === 0) return;
-    if (fulfillmentType === "delivery" && !selectedAddressId) {
+    if (fulfillmentType === "delivery" && !effectiveAddressId) {
       toast("Select a delivery address", { tone: "error" });
       return;
     }
@@ -127,7 +127,8 @@ function CheckoutContent() {
         })),
         customerId: user.id,
         customerName: user.name,
-        deliveryAddressId: fulfillmentType === "delivery" ? selectedAddressId ?? undefined : undefined,
+        deliveryAddressId:
+          fulfillmentType === "delivery" ? effectiveAddressId ?? undefined : undefined,
         pickupTime: fulfillmentType === "pickup" ? pickupTime ?? undefined : undefined,
         subtotal,
         deliveryFee,
@@ -223,8 +224,8 @@ function CheckoutContent() {
             </CardContent>
           </Card>
 
-          {/* Delivery address */}
-          {fulfillmentType === "delivery" && (
+          {/* Delivery address — needs an account */}
+          {fulfillmentType === "delivery" && isAuthenticated && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Delivery address</CardTitle>
@@ -240,7 +241,7 @@ function CheckoutContent() {
                     onClick={() => setSelectedAddressId(addr.id)}
                     className={cn(
                       "w-full rounded-xl border p-4 text-left text-sm transition-colors",
-                      selectedAddressId === addr.id
+                      effectiveAddressId === addr.id
                         ? "border-brand bg-brand-tint"
                         : "border-border hover:bg-secondary",
                     )}
@@ -339,18 +340,34 @@ function CheckoutContent() {
             </CardContent>
           </Card>
 
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={paying}
-            onClick={handlePay}
-          >
-            <CreditCard className="size-4" />
-            {paying ? "Processing…" : `Pay now · ${formatCurrency(total)}`}
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Mock payment — no card charged.
-          </p>
+          {isAuthenticated ? (
+            <>
+              <Button className="w-full" size="lg" disabled={paying} onClick={handlePay}>
+                <CreditCard className="size-4" />
+                {paying ? "Processing…" : `Pay now · ${formatCurrency(total)}`}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Mock payment — no card charged.
+              </p>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="p-5 text-center">
+                <p className="font-display font-semibold text-ink">Almost there!</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Sign in or create an account to place your order — your cart is saved.
+                </p>
+                <div className="mt-4 flex flex-col gap-2">
+                  <Button asChild className="w-full" size="lg">
+                    <Link href="/login?returnUrl=/checkout">Sign in</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full" size="lg">
+                    <Link href="/signup?returnUrl=/checkout">Create account</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
@@ -358,9 +375,5 @@ function CheckoutContent() {
 }
 
 export default function CheckoutPage() {
-  return (
-    <AuthGuard>
-      <CheckoutContent />
-    </AuthGuard>
-  );
+  return <CheckoutContent />;
 }
