@@ -1,0 +1,45 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Use npm install if package-lock.json doesn't exist, otherwise use npm ci
+RUN if [ -f package-lock.json ]; then \
+        npm ci && npm cache clean --force; \
+    else \
+        npm install && npm cache clean --force; \
+    fi
+
+COPY . .
+
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine
+
+RUN apk add --no-cache wget
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Install production dependencies only
+RUN if [ -f package-lock.json ]; then \
+        npm ci --omit=dev && npm cache clean --force; \
+    else \
+        npm install --omit=dev && npm cache clean --force; \
+    fi
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/cor/scripts ./dist/cor/scripts
+COPY --from=builder /app/src/database/seeds ./dist/database/seeds
+
+EXPOSE 3000
+
+USER node
+
+CMD ["node", "dist/main"]

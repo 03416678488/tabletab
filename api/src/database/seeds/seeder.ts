@@ -1,0 +1,195 @@
+import { DataSource } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+import { Role } from '@modules/role/entities/role.entity';
+import { Permission } from '@modules/permissions/entities/permission.entity';
+import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
+import { PermissionsEnum } from '@modules/permissions/enums/permissions.enum';
+
+import { PERMISSIONS_SEED } from './permissions.seed';
+import { ROLES_SEED } from './roles.seed';
+import { USERS_SEED } from './users.seed';
+import { ROLE_PERMISSIONS_SEED } from './role-permissions.seed';
+import { CodeAttemptLog } from '@modules/user/entities/code-attempt-log.entity';
+import { User } from '@modules/user/entities/users.entity';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.POSTGRES_HOST || 'tabletap-postgres',
+  port: parseInt(process.env.POSTGRES_PORT, 10) || 5432,
+  username: process.env.POSTGRES_USER || 'tabletap_user',
+  password: process.env.POSTGRES_PASSWORD || 'secret',
+  database: process.env.POSTGRES_DATABASE || 'tabletap_db',
+  entities: [
+    User,
+    Role,
+    Permission,
+    UserRolePermissions,
+    CodeAttemptLog,
+  ],
+  synchronize: false,
+});
+
+function getPermissionKey(resource: string, actions: PermissionsEnum[]): string {
+  return `${resource}:${[...actions].sort().join(',')}`;
+}
+
+function actionsMatch(a: PermissionsEnum[], b: PermissionsEnum[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((val, idx) => val === sortedB[idx]);
+}
+
+async function seed() {
+  let isConnected = false;
+
+  try {
+    console.log('🔌 Connecting to database...');
+    console.log(`   Host: ${process.env.POSTGRES_HOST || 'tabletap-postgres'}`);
+    console.log(`   Port: ${process.env.POSTGRES_PORT || 5435}`);
+    console.log(`   Database: ${process.env.POSTGRES_DATABASE || 'tabletap_db'}`);
+
+    await AppDataSource.initialize();
+    isConnected = true;
+    console.log('📦 Database connected\n');
+
+    const permissionRepo = AppDataSource.getRepository(Permission);
+    const roleRepo = AppDataSource.getRepository(Role);
+    const userRepo = AppDataSource.getRepository(User);
+    const userRolePermissionsRepo = AppDataSource.getRepository(UserRolePermissions);
+
+    // Seed Permissions
+    console.log('🔐 Seeding permissions...');
+    const permissionsMap = new Map<string, Permission>();
+
+    for (const permData of PERMISSIONS_SEED) {
+      const key = getPermissionKey(permData.resource, permData.actions);
+
+      const existingPerms = await permissionRepo.find({
+        where: { resource: permData.resource },
+      });
+
+      const existingPerm = existingPerms.find((p) => actionsMatch(p.actions, permData.actions));
+
+      if (!existingPerm) {
+        const permission = permissionRepo.create({
+          resource: permData.resource,
+          actions: permData.actions,
+        });
+        const saved = await permissionRepo.save(permission);
+        permissionsMap.set(key, saved);
+        console.log(`  ✅ Created: ${permData.resource} [${permData.actions.join(', ')}]`);
+      } else {
+        permissionsMap.set(key, existingPerm);
+        console.log(`  ⏭️  Exists: ${permData.resource} [${permData.actions.join(', ')}]`);
+      }
+    }
+
+    // Seed Roles
+    console.log('\n👔 Seeding roles...');
+    const rolesMap = new Map<string, Role>();
+
+    for (const roleData of ROLES_SEED) {
+      const existingRole = await roleRepo.findOne({
+        where: { name: roleData.name },
+      });
+
+      if (!existingRole) {
+        const role = roleRepo.create(roleData);
+        const saved = await roleRepo.save(role);
+        rolesMap.set(roleData.name, saved);
+        console.log(`  ✅ Created: ${roleData.name}`);
+      } else {
+        rolesMap.set(roleData.name, existingRole);
+        console.log(`  ⏭️  Exists: ${roleData.name}`);
+      }
+    }
+
+    // Seed Users
+    console.log('\n👤 Seeding users...');
+
+    for (const userData of USERS_SEED) {
+      let user = await userRepo.findOne({
+        where: { email: userData.email },
+      });
+
+      if (!user) {
+        const hashedPassword = await bcrypt.hash(userData.password, 10);
+
+        user = userRepo.create({
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email: userData.email,
+          password: hashedPassword,
+          phoneNumber: userData.phoneNumber,
+          emailVerified: userData.emailVerified,
+          isActive: userData.isActive,
+        });
+
+        user = await userRepo.save(user);
+        console.log(`  ✅ Created: ${userData.email}`);
+      } else {
+        console.log(`  ⏭️  Exists: ${userData.email}`);
+      }
+
+      // Assign role and permissions
+      const role = rolesMap.get(userData.role);
+
+      if (!role) {
+        console.log(`  ⚠️  Role not found: ${userData.role}`);
+        continue;
+      }
+
+      const rolePermissions = ROLE_PERMISSIONS_SEED[userData.role] || [];
+
+      for (const permMapping of rolePermissions) {
+        const key = getPermissionKey(permMapping.resource, permMapping.actions);
+        const permission = permissionsMap.get(key);
+
+        if (!permission) {
+          console.log(
+            `  ⚠️  Permission not found: ${permMapping.resource} [${permMapping.actions.join(', ')}]`,
+          );
+          continue;
+        }
+
+        const existingMapping = await userRolePermissionsRepo.findOne({
+          where: {
+            userId: user.id,
+            roleId: role.id,
+            permissionId: permission.id,
+          },
+        });
+
+        if (!existingMapping) {
+          await userRolePermissionsRepo.save({
+            userId: user.id,
+            roleId: role.id,
+            permissionId: permission.id,
+          });
+          console.log(
+            `    🔗 Assigned: ${role.name} -> ${permMapping.resource} [${permMapping.actions.join(', ')}]`,
+          );
+        } else {
+          console.log(`    ⏭️  Mapping exists: ${role.name} -> ${permMapping.resource}`);
+        }
+      }
+    }
+
+    console.log('\n✅ Seeding completed successfully!');
+  } catch (error) {
+    console.error('❌ Seeding failed:', error.message || error);
+  } finally {
+    if (isConnected) {
+      await AppDataSource.destroy();
+    }
+    process.exit(0);
+  }
+}
+
+seed();
