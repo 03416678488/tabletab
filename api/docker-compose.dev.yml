@@ -1,0 +1,102 @@
+services:
+  tabletap-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: tabletap-api
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    environment:
+      APP_NAME: ${APP_NAME}
+      APP_DESCRIPTION: ${APP_DESCRIPTION}
+      APP_VERSION: ${APP_VERSION}
+      APP_PORT: ${APP_PORT}
+      APP_ENV: ${APP_ENV}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      REFRESH_JWT_SECRET: ${REFRESH_JWT_SECRET}
+      REFRESH_JWT_EXPIRE_IN: ${REFRESH_JWT_EXPIRE_IN}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_USERNAME: ${REDIS_USERNAME}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      FRONTEND_URL: ${FRONTEND_URL}
+      FRONTEND_URL_NETWORK: ${FRONTEND_URL_NETWORK}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USER: ${MAIL_USER}
+      MAIL_PASS: ${MAIL_PASS}
+      MAIL_FROM: ${MAIL_FROM}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - tabletap-backend
+    stdin_open: true
+    tty: true
+    command: sh -c "npm install && npm run start:dev"
+
+  tabletap-seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tabletap-seed
+    volumes:
+      - .:/app
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      - postgres
+    networks:
+      - tabletap-backend
+    command: sh -c "npm install && npm run db:seed"
+    profiles:
+      - seed
+
+  postgres:
+    image: postgres:15
+    container_name: ${POSTGRES_HOST}
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - tabletap_postgres_data:/var/lib/postgresql/data
+    networks:
+      - tabletap-backend
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: ${REDIS_HOST}
+    restart: unless-stopped
+    ports:
+      - "${REDIS_HOST_PORT}:6379"
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    volumes:
+      - ./.config/redis.conf:/etc/redis/redis.conf
+      - tabletap_redis_data:/data
+    networks:
+      - tabletap-backend
+
+volumes:
+  tabletap_postgres_data:
+  tabletap_redis_data:
+
+networks:
+  tabletap-backend:
+    name: tabletap_network

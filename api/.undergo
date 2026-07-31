@@ -1,0 +1,2 @@
+fix subscriber issue - not working in production
+fix issue of nanoID - add default value of nanoID, right now a common abstract DTO will work as it.
