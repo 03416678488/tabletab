@@ -88,7 +88,7 @@ export function MenuDisplaySettings() {
         <p className="rounded-xl border border-border bg-subtle px-4 py-3 text-xs leading-relaxed text-muted-foreground">
           <strong className="font-medium text-ink">3D mode</strong> needs a{" "}
           <code className="text-ink">.glb</code> model uploaded per item in{" "}
-          <Link href="/menu" className="font-medium text-brand hover:underline">
+          <Link href="/admin/menu" className="font-medium text-brand hover:underline">
             Menu
           </Link>
           . Items without a model automatically fall back to their photo.

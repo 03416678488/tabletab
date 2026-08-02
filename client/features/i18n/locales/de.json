@@ -1,0 +1,19 @@
+{
+  "settings.title": "Einstellungen",
+  "settings.company": "Unternehmen",
+  "settings.site": "Seite",
+  "settings.currencies": "Währungen",
+  "settings.taxes": "Steuern",
+  "settings.languages": "Sprachen",
+  "common.save": "Speichern",
+  "common.add": "Hinzufügen",
+  "common.edit": "Bearbeiten",
+  "common.delete": "Löschen",
+  "common.cancel": "Abbrechen",
+  "common.name": "Name",
+  "common.code": "Code",
+  "common.status": "Status",
+  "common.actions": "Aktionen",
+  "common.active": "Aktiv",
+  "common.inactive": "Inaktiv"
+}

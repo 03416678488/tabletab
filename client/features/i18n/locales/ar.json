@@ -1,0 +1,19 @@
+{
+  "settings.title": "الإعدادات",
+  "settings.company": "الشركة",
+  "settings.site": "الموقع",
+  "settings.currencies": "العملات",
+  "settings.taxes": "الضرائب",
+  "settings.languages": "اللغات",
+  "common.save": "حفظ",
+  "common.add": "إضافة",
+  "common.edit": "تعديل",
+  "common.delete": "حذف",
+  "common.cancel": "إلغاء",
+  "common.name": "الاسم",
+  "common.code": "الرمز",
+  "common.status": "الحالة",
+  "common.actions": "الإجراءات",
+  "common.active": "نشط",
+  "common.inactive": "غير نشط"
+}

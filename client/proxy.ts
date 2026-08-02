@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { AUTH_ROUTES } from "@/features/auth/constants/auth.constants";
+import { mapApiRolesToStaffRole } from "@/lib/roles";
 
 /**
  * Route protection for the staff/admin dashboard.
@@ -15,10 +16,11 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isLoginPage = nextUrl.pathname === AUTH_ROUTES.login;
 
-  // Already signed in but sitting on the login page → send to the dashboard.
+  // Already signed in but sitting on the login page → send to their dashboard.
   if (isLoginPage) {
     if (isLoggedIn) {
-      return NextResponse.redirect(new URL(AUTH_ROUTES.afterLogin, nextUrl));
+      const role = mapApiRolesToStaffRole(req.auth?.user?.roleNames ?? []);
+      return NextResponse.redirect(new URL(`/${role}/dashboard`, nextUrl));
     }
     return NextResponse.next();
   }
@@ -39,15 +41,12 @@ export const config = {
   // /api/auth endpoints are intentionally excluded.
   matcher: [
     "/login",
-    "/dashboard/:path*",
+    // role-prefixed dashboard: /{role}/{feature}
     "/admin/:path*",
-    "/kitchen/:path*",
-    "/waiter/:path*",
     "/manager/:path*",
-    // exact: the storefront owns the public /menu/[itemId] item pages
-    "/menu",
-    "/staff/:path*",
-    "/settings/:path*",
+    "/chef/:path*",
+    "/waiter/:path*",
+    // print QR route (admin-only) lives outside the role prefix
     "/branches/:path*",
   ],
 };

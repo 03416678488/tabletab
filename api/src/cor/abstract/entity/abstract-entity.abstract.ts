@@ -1,5 +1,5 @@
 import { CreateDateColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { toDefaultFormatDate } from '@cor/helpers/date.helpers';
+import { toIsoTimestamp } from '@cor/helpers/date.helpers';
 
 export abstract class AbstractEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -8,7 +8,7 @@ export abstract class AbstractEntity {
   @CreateDateColumn({
     transformer: {
       to: (value) => value,
-      from: (value) => toDefaultFormatDate(value),
+      from: (value) => toIsoTimestamp(value),
     },
     default: () => 'CURRENT_TIMESTAMP',
   })
@@ -17,7 +17,7 @@ export abstract class AbstractEntity {
   @UpdateDateColumn({
     transformer: {
       to: (value) => value,
-      from: (value) => toDefaultFormatDate(value),
+      from: (value) => toIsoTimestamp(value),
     },
     default: () => 'CURRENT_TIMESTAMP',
     nullable: true,

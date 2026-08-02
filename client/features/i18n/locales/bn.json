@@ -1,0 +1,19 @@
+{
+  "settings.title": "সেটিংস",
+  "settings.company": "কোম্পানি",
+  "settings.site": "সাইট",
+  "settings.currencies": "মুদ্রা",
+  "settings.taxes": "কর",
+  "settings.languages": "ভাষা",
+  "common.save": "সংরক্ষণ",
+  "common.add": "যোগ করুন",
+  "common.edit": "সম্পাদনা",
+  "common.delete": "মুছুন",
+  "common.cancel": "বাতিল",
+  "common.name": "নাম",
+  "common.code": "কোড",
+  "common.status": "অবস্থা",
+  "common.actions": "ক্রিয়া",
+  "common.active": "সক্রিয়",
+  "common.inactive": "নিষ্ক্রিয়"
+}

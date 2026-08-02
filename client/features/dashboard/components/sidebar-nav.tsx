@@ -1,67 +1,191 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navItemsForRole } from "@/lib/nav";
+import {
+  NAV_SECTIONS,
+  hrefFor,
+  navItemsForRole,
+  type NavItem,
+} from "@/lib/nav";
 import { useSession } from "@/hooks/use-session";
+import { useMyAccess } from "@/features/role-permission/hooks/use-my-access";
+import type { StaffRole } from "@/lib/types";
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const role = useSession((s) => s.user!.role);
-  const items = navItemsForRole(role);
+  const { canView } = useMyAccess();
 
-  const sections = ["Operations", "Management"] as const;
+  // Role-visible items, then filtered by the user's module permissions.
+  const items = navItemsForRole(role)
+    .map((item) =>
+      item.children
+        ? { ...item, children: item.children.filter((c) => canView(c.module)) }
+        : item,
+    )
+    .filter((item) =>
+      item.children ? item.children.length > 0 : canView(item.module),
+    );
+
+  const linkClass = (active: boolean) =>
+    cn(
+      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      active
+        ? "bg-brand-tint text-brand-deep"
+        : "text-slate-600 hover:bg-secondary hover:text-ink",
+    );
 
   return (
-    <nav className="flex flex-col gap-6 px-3 py-4" aria-label="Staff navigation">
-      {sections.map((section) => {
+    <nav className="flex flex-col gap-5 px-3 py-4" aria-label="Staff navigation">
+      {NAV_SECTIONS.map((section) => {
         const sectionItems = items.filter((i) => i.section === section);
         if (sectionItems.length === 0) return null;
         return (
           <div key={section}>
-            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
               {section}
             </p>
-            <ul className="flex flex-col gap-1">
-              {sectionItems.map((item) => {
-                const active =
-                  item.href === "/dashboard"
-                    ? pathname === "/dashboard"
-                    : pathname.startsWith(item.href);
-                const Icon = item.icon;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onNavigate}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        active
-                          ? "bg-brand-tint text-brand-deep"
-                          : "text-slate-600 hover:bg-secondary hover:text-ink",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "flex size-8 items-center justify-center rounded-lg transition-colors",
-                          active
-                            ? "bg-brand text-white shadow-sm"
-                            : "bg-secondary text-slate-500 group-hover:text-ink",
-                        )}
-                      >
-                        <Icon className="size-4" aria-hidden />
-                      </span>
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
+            <ul className="flex flex-col gap-0.5">
+              {sectionItems.map((item) =>
+                item.children ? (
+                  <DropdownItem
+                    key={item.label}
+                    item={item}
+                    role={role}
+                    pathname={pathname}
+                    linkClass={linkClass}
+                    onNavigate={onNavigate}
+                  />
+                ) : (
+                  <LeafItem
+                    key={item.slug}
+                    item={item}
+                    role={role}
+                    pathname={pathname}
+                    linkClass={linkClass}
+                    onNavigate={onNavigate}
+                  />
+                ),
+              )}
             </ul>
           </div>
         );
       })}
     </nav>
+  );
+}
+
+function LeafItem({
+  item,
+  role,
+  pathname,
+  linkClass,
+  onNavigate,
+}: {
+  item: NavItem;
+  role: StaffRole;
+  pathname: string;
+  linkClass: (active: boolean) => string;
+  onNavigate?: () => void;
+}) {
+  const href = hrefFor(role, item.slug!);
+  const active = pathname === href || pathname.startsWith(`${href}/`);
+  const Icon = item.icon;
+  return (
+    <li>
+      <Link
+        href={href}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        className={linkClass(active)}
+      >
+        <Icon
+          className={cn(
+            "size-[18px] transition-colors",
+            active ? "text-brand-deep" : "text-slate-400 group-hover:text-ink",
+          )}
+          aria-hidden
+        />
+        {item.label}
+      </Link>
+    </li>
+  );
+}
+
+function DropdownItem({
+  item,
+  role,
+  pathname,
+  linkClass,
+  onNavigate,
+}: {
+  item: NavItem;
+  role: StaffRole;
+  pathname: string;
+  linkClass: (active: boolean) => string;
+  onNavigate?: () => void;
+}) {
+  const children = item.children ?? [];
+  const childHref = (slug: string) => hrefFor(role, slug);
+  const hasActiveChild = children.some((c) => {
+    const h = childHref(c.slug);
+    return pathname === h || pathname.startsWith(`${h}/`);
+  });
+  const [open, setOpen] = useState(hasActiveChild);
+  const Icon = item.icon;
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={cn(linkClass(false), "w-full")}
+      >
+        <Icon
+          className={cn(
+            "size-[18px] transition-colors",
+            hasActiveChild ? "text-brand-deep" : "text-slate-400 group-hover:text-ink",
+          )}
+          aria-hidden
+        />
+        {item.label}
+        <ChevronDown
+          className={cn(
+            "ml-auto size-4 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      {open && (
+        <ul className="mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3 ml-[18px]">
+          {children.map((child) => {
+            const href = childHref(child.slug);
+            const active = pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <li key={child.label}>
+                <Link
+                  href={href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "block rounded-lg px-3 py-1.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active
+                      ? "bg-brand-tint font-medium text-brand-deep"
+                      : "text-slate-500 hover:bg-secondary hover:text-ink",
+                  )}
+                >
+                  {child.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
   );
 }

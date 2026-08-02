@@ -98,6 +98,48 @@ export class UserService extends AbstractService<User> {
     });
   }
 
+  /** List users (optionally scoped to a role) with their role name. Powers the Users screens. */
+  async listUsers(params: { role?: string; search?: string }): Promise<
+    {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string | null;
+      isActive: boolean;
+      roleName: string | null;
+      createdAt: Date;
+    }[]
+  > {
+    const qb = this._userRepo
+      .createQueryBuilder('u')
+      .leftJoin('u.userRolePermissions', 'urp')
+      .leftJoin('urp.role', 'r')
+      .where('u.isDeleted = :deleted', { deleted: false })
+      .select([
+        'u.id AS id',
+        'u.firstName AS "firstName"',
+        'u.lastName AS "lastName"',
+        'u.email AS email',
+        'u.phoneNumber AS phone',
+        'u.isActive AS "isActive"',
+        'u.createdAt AS "createdAt"',
+        'r.name AS "roleName"',
+      ])
+      .distinct(true)
+      .orderBy('u.createdAt', 'DESC');
+
+    if (params.role) qb.andWhere('r.name = :role', { role: params.role });
+    if (params.search) {
+      qb.andWhere(
+        '(u.firstName ILIKE :s OR u.lastName ILIKE :s OR u.email ILIKE :s)',
+        { s: `%${params.search}%` },
+      );
+    }
+
+    return qb.getRawMany();
+  }
+
   async findById(id: string, select?: string[]): Promise<User | null> {
     if (select) {
       return this._userRepo.findOne({

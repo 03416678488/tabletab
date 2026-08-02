@@ -88,7 +88,7 @@ export function AdminDashboard() {
   const { kpis } = data;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="space-y-8">
       {/* Hero header */}
       <div className="relative overflow-hidden rounded-2xl border border-brand/15 bg-gradient-to-br from-brand-deep via-brand to-brand-hover px-6 py-8 text-white shadow-[var(--shadow-elevated)] sm:px-10 sm:py-10">
         <div className="absolute -right-16 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />

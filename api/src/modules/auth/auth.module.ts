@@ -14,13 +14,15 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '@modules/mail/mail.module';
 import { RateLimitService } from './services/rate-limit.service';
 import { User } from '@modules/user/entities/users.entity';
+import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
+import { RolePermission } from '@modules/role-permission/entities/role-permission.entity';
 import { RefreshStrategy } from './strategies/refresh.strategy';
 import jwtConfig from './config/jwt.config';
 
 @Module({
   imports: [
     PassportModule.register({ session: false }),
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, UserRolePermissions, RolePermission]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

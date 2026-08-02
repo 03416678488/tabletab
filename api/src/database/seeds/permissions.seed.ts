@@ -5,48 +5,41 @@ export interface PermissionSeed {
   actions: PermissionsEnum[];
 }
 
+const CRUD: PermissionsEnum[] = [
+  PermissionsEnum.CREATE,
+  PermissionsEnum.READ,
+  PermissionsEnum.UPDATE,
+  PermissionsEnum.DELETE,
+];
+const READ: PermissionsEnum[] = [PermissionsEnum.READ];
+
+/** App modules an admin can grant per role (mirrors the role-permission catalog). */
+export const MODULE_RESOURCES = [
+  'dashboard',
+  'orders',
+  'pos',
+  'kds',
+  'oss',
+  'menu',
+  'categories',
+  'tables',
+  'areas',
+  'qr-codes',
+  'branches',
+  'users',
+  'customers',
+  'reports',
+  'settings',
+];
+
+/**
+ * A full-CRUD row and a read-only row per module, plus a neutral `app` anchor
+ * used only to link a user to a role (it is not a real, grantable module).
+ */
 export const PERMISSIONS_SEED: PermissionSeed[] = [
-  { resource: 'users', actions: [PermissionsEnum.CREATE] },
-  { resource: 'users', actions: [PermissionsEnum.READ] },
-  { resource: 'users', actions: [PermissionsEnum.UPDATE] },
-  { resource: 'users', actions: [PermissionsEnum.DELETE] },
-  {
-    resource: 'users',
-    actions: [PermissionsEnum.CREATE, PermissionsEnum.READ, PermissionsEnum.UPDATE],
-  },
-  {
-    resource: 'users',
-    actions: [
-      PermissionsEnum.CREATE,
-      PermissionsEnum.READ,
-      PermissionsEnum.UPDATE,
-      PermissionsEnum.DELETE,
-    ],
-  },
-  { resource: 'roles', actions: [PermissionsEnum.CREATE] },
-  { resource: 'roles', actions: [PermissionsEnum.READ] },
-  { resource: 'roles', actions: [PermissionsEnum.UPDATE] },
-  { resource: 'roles', actions: [PermissionsEnum.DELETE] },
-  {
-    resource: 'roles',
-    actions: [
-      PermissionsEnum.CREATE,
-      PermissionsEnum.READ,
-      PermissionsEnum.UPDATE,
-      PermissionsEnum.DELETE,
-    ],
-  },
-  { resource: 'permissions', actions: [PermissionsEnum.CREATE] },
-  { resource: 'permissions', actions: [PermissionsEnum.READ] },
-  { resource: 'permissions', actions: [PermissionsEnum.UPDATE] },
-  { resource: 'permissions', actions: [PermissionsEnum.DELETE] },
-  {
-    resource: 'permissions',
-    actions: [
-      PermissionsEnum.CREATE,
-      PermissionsEnum.READ,
-      PermissionsEnum.UPDATE,
-      PermissionsEnum.DELETE,
-    ],
-  },
+  { resource: 'app', actions: READ },
+  ...MODULE_RESOURCES.flatMap((resource) => [
+    { resource, actions: CRUD },
+    { resource, actions: READ },
+  ]),
 ];

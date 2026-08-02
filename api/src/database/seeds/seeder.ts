@@ -6,9 +6,10 @@ import * as path from 'path';
 import { Role } from '@modules/role/entities/role.entity';
 import { Permission } from '@modules/permissions/entities/permission.entity';
 import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
+import { RolePermission } from '@modules/role-permission/entities/role-permission.entity';
 import { PermissionsEnum } from '@modules/permissions/enums/permissions.enum';
 
-import { PERMISSIONS_SEED } from './permissions.seed';
+import { PERMISSIONS_SEED, MODULE_RESOURCES } from './permissions.seed';
 import { ROLES_SEED } from './roles.seed';
 import { USERS_SEED } from './users.seed';
 import { ROLE_PERMISSIONS_SEED } from './role-permissions.seed';
@@ -29,6 +30,7 @@ const AppDataSource = new DataSource({
     Role,
     Permission,
     UserRolePermissions,
+    RolePermission,
     CodeAttemptLog,
   ],
   synchronize: false,
@@ -62,6 +64,7 @@ async function seed() {
     const roleRepo = AppDataSource.getRepository(Role);
     const userRepo = AppDataSource.getRepository(User);
     const userRolePermissionsRepo = AppDataSource.getRepository(UserRolePermissions);
+    const rolePermissionRepo = AppDataSource.getRepository(RolePermission);
 
     // Seed Permissions
     console.log('🔐 Seeding permissions...');
@@ -108,6 +111,33 @@ async function seed() {
         rolesMap.set(roleData.name, existingRole);
         console.log(`  ⏭️  Exists: ${roleData.name}`);
       }
+    }
+
+    // Seed role-scoped module permissions (the source of truth for enforcement).
+    console.log('\n🧩 Seeding role permissions (modules)...');
+    const moduleSet = new Set(MODULE_RESOURCES);
+    for (const [roleName, mappings] of Object.entries(ROLE_PERMISSIONS_SEED)) {
+      const role = rolesMap.get(roleName);
+      if (!role) continue;
+      for (const mapping of mappings) {
+        if (!moduleSet.has(mapping.resource)) continue; // skip the `app` anchor
+        const existing = await rolePermissionRepo.findOne({
+          where: { roleId: role.id, resource: mapping.resource },
+        });
+        if (existing) {
+          existing.actions = mapping.actions;
+          await rolePermissionRepo.save(existing);
+        } else {
+          await rolePermissionRepo.save(
+            rolePermissionRepo.create({
+              roleId: role.id,
+              resource: mapping.resource,
+              actions: mapping.actions,
+            }),
+          );
+        }
+      }
+      console.log(`  ✅ ${roleName}: ${mappings.length - 1} module(s)`);
     }
 
     // Seed Users

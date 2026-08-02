@@ -4,16 +4,15 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 
 import {
   loginSchema,
   type LoginFormValues,
 } from "@/features/auth/schemas/login.schema";
-import {
-  AUTH_MESSAGES,
-  AUTH_ROUTES,
-} from "@/features/auth/constants/auth.constants";
+import { AUTH_MESSAGES } from "@/features/auth/constants/auth.constants";
+import { mapApiRolesToStaffRole } from "@/lib/roles";
+import { roleHomePath } from "@/lib/nav";
 
 export function useLogin() {
   const router = useRouter();
@@ -40,8 +39,10 @@ export function useLogin() {
         return;
       }
 
-      const callbackUrl =
-        searchParams.get("callbackUrl") || AUTH_ROUTES.afterLogin;
+      // Send the user to their role's dashboard (or back to where they came from).
+      const session = await getSession();
+      const role = mapApiRolesToStaffRole(session?.user?.roleNames ?? []);
+      const callbackUrl = searchParams.get("callbackUrl") || roleHomePath(role);
       router.push(callbackUrl);
       router.refresh();
     } catch {

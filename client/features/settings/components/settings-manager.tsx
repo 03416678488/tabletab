@@ -85,7 +85,7 @@ export function SettingsManager() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10">
+    <div className="space-y-10">
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">Settings</h1>
         <p className="text-sm text-muted-foreground">Tenant configuration and branches</p>

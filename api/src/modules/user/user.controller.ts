@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -7,6 +17,12 @@ import { AccessControl } from '@cor/decorators/authorization/authorization.decor
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  /** Users, optionally filtered by role name (e.g. Waiters). */
+  @Get('list')
+  list(@Query('role') role?: string, @Query('search') search?: string) {
+    return this.userService.listUsers({ role, search });
+  }
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
