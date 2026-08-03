@@ -10,6 +10,8 @@ import {
   Query,
 } from '@nestjs/common';
 
+import { Public } from '@modules/auth/guards/public/public.decorator';
+
 import { OrderService } from './order.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
 
@@ -38,11 +40,15 @@ export class OrderController {
     return this._orderService.getActiveByTable(tableId);
   }
 
+  // Public so a storefront customer can track their order by id (UUID = unguessable).
+  @Public()
   @Get(':id')
   getOne(@Param('id', ParseUUIDPipe) id: string) {
     return this._orderService.getById(id);
   }
 
+  // Public so the storefront can place online orders (guest or signed-in customer).
+  @Public()
   @Post()
   create(@Body() dto: CreateOrderDto) {
     return this._orderService.createOrder(dto);

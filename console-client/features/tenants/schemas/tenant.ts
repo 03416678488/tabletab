@@ -12,6 +12,9 @@ export const createTenantSchema = z.object({
   // Optional (not .default) so the form's input and output types match — the
   // backend fills in "trial" when omitted.
   plan: z.string().optional(),
+  // First admin for the tenant — seeded into its database on creation.
+  adminEmail: z.string().trim().email("Enter a valid email"),
+  adminPassword: z.string().min(8, "At least 8 characters"),
 });
 
 export type CreateTenantForm = z.infer<typeof createTenantSchema>;

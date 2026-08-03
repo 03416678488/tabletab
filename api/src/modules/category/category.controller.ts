@@ -10,6 +10,8 @@ import {
   Query,
 } from '@nestjs/common';
 
+import { Public } from '@modules/auth/guards/public/public.decorator';
+
 import { CategoryService } from './category.service';
 import { CreateCategoryDto, UpdateCategoryDto, GetCategoryQueryDto } from './dto';
 
@@ -17,11 +19,14 @@ import { CreateCategoryDto, UpdateCategoryDto, GetCategoryQueryDto } from './dto
 export class CategoryController {
   constructor(private readonly _categoryService: CategoryService) {}
 
+  // Public so the storefront can group the menu by category.
+  @Public()
   @Get()
   getAll(@Query() query: GetCategoryQueryDto) {
     return this._categoryService.getAll(query);
   }
 
+  @Public()
   @Get(':id')
   getOne(@Param('id', ParseUUIDPipe) id: string) {
     return this._categoryService.getById(id);

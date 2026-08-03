@@ -15,8 +15,14 @@ export const tenantService = {
   get: (id: string) =>
     httpClient.get<Tenant>(`/tenants/${id}`, { auth: true }).then((r) => r.data),
 
-  create: (input: { name: string; slug: string; plan?: string }) =>
-    httpClient.post<Tenant>(`/tenants`, input, { auth: true }).then((r) => r.data),
+  create: (input: {
+    name: string;
+    slug: string;
+    plan?: string;
+    adminEmail?: string;
+    adminPassword?: string;
+    adminPhone?: string;
+  }) => httpClient.post<Tenant>(`/tenants`, input, { auth: true }).then((r) => r.data),
 
   update: (id: string, input: UpdateTenantInput) =>
     httpClient.put<Tenant>(`/tenants/${id}`, input, { auth: true }).then((r) => r.data),

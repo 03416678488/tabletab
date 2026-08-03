@@ -53,7 +53,7 @@ export function TenantsManager() {
     formState: { errors, isSubmitting, dirtyFields },
   } = useForm<CreateTenantForm>({
     resolver: zodResolver(createTenantSchema),
-    defaultValues: { name: "", slug: "", plan: "trial" },
+    defaultValues: { name: "", slug: "", plan: "trial", adminEmail: "", adminPassword: "" },
   });
 
   const nameValue = watch("name");
@@ -90,7 +90,7 @@ export function TenantsManager() {
         { tone: created.status === "active" ? "success" : "info" },
       );
       setDialogOpen(false);
-      reset({ name: "", slug: "", plan: "trial" });
+      reset({ name: "", slug: "", plan: "trial", adminEmail: "", adminPassword: "" });
       load();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't create tenant", { tone: "error" });
@@ -317,6 +317,39 @@ export function TenantsManager() {
                 }
               />
             </div>
+            <div className="space-y-3 rounded-xl border border-border bg-subtle/40 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                First admin
+              </p>
+              <div className="space-y-1">
+                <Label htmlFor="t-admin-email">Owner email</Label>
+                <Input
+                  id="t-admin-email"
+                  type="email"
+                  placeholder="owner@restaurant.com"
+                  {...register("adminEmail")}
+                />
+                {errors.adminEmail && (
+                  <p className="text-xs text-rose-600">{errors.adminEmail.message}</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="t-admin-pass">Temporary password</Label>
+                <Input
+                  id="t-admin-pass"
+                  type="password"
+                  placeholder="At least 8 characters"
+                  {...register("adminPassword")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Share this with the owner so they can sign in and change it.
+                </p>
+                {errors.adminPassword && (
+                  <p className="text-xs text-rose-600">{errors.adminPassword.message}</p>
+                )}
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel

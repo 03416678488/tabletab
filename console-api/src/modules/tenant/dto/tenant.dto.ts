@@ -1,4 +1,13 @@
-import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
 import type { TenantStatus } from '../entities/tenant.entity';
 import { PLAN_IDS } from '@modules/plan/plans';
 
@@ -19,6 +28,26 @@ export class CreateTenantDto {
   @IsOptional()
   @IsIn(PLAN_IDS)
   plan?: string;
+
+  // ── First admin (optional) ──
+  // When both are provided, a first admin user is seeded into the new tenant DB.
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @IsEmail()
+  adminEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(8, { message: 'Admin password must be at least 8 characters' })
+  @MaxLength(128)
+  adminPassword?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  adminPhone?: string;
 }
 
 export class UpdateTenantDto {

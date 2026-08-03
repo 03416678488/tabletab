@@ -15,6 +15,10 @@ export class Customer extends AbstractEntity {
   @Column({ type: 'varchar', nullable: true })
   address: string | null;
 
+  /** Storefront account password hash. `select: false` — never returned by default. */
+  @Column({ type: 'varchar', nullable: true, select: false })
+  password: string | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 }

@@ -7,6 +7,7 @@ import { RolePermissionModule } from '@modules/role-permission/role-permission.m
 import { TenantModule } from '@modules/tenant/tenant.module';
 import { SignupModule } from '@modules/signup/signup.module';
 import { DomainModule } from '@modules/domain/domain.module';
+import { EdgeModule } from '@modules/edge/edge.module';
 import { AuditModule } from '@modules/audit/audit.module';
 import { PlanModule } from '@modules/plan/plan.module';
 import { BillingModule } from '@modules/billing/billing.module';
@@ -31,6 +32,7 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     TenantModule,
     SignupModule,
     DomainModule,
+    EdgeModule,
     AuditModule,
     PlanModule,
     BillingModule,

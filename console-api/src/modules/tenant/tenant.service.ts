@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 
 import { Tenant } from './entities/tenant.entity';
 import { ProvisioningService } from './provisioning.service';
+import { OwnerSeedingService } from './owner-seeding.service';
 import {
   CreateTenantDto,
   UpdateTenantDto,
@@ -24,6 +25,7 @@ export class TenantService {
     @InjectRepository(Tenant)
     private readonly _repo: Repository<Tenant>,
     private readonly _provisioning: ProvisioningService,
+    private readonly _ownerSeeding: OwnerSeedingService,
   ) {}
 
   list(): Promise<Tenant[]> {
@@ -58,12 +60,26 @@ export class TenantService {
 
     // Stand up the database immediately. If it fails, the tenant stays in
     // `provisioning` and can be retried from the console — creation still succeeds.
+    let provisioned: Tenant;
     try {
-      return await this._provisioning.provision(tenant.id);
+      provisioned = await this._provisioning.provision(tenant.id);
     } catch (err) {
       this.logger.error(`Provisioning failed for ${tenant.slug}`, err as Error);
       return tenant;
     }
+
+    // Seed a first admin into the new tenant DB when credentials were supplied.
+    // The database exists, so a seeding failure shouldn't discard the tenant —
+    // surface the error and let the operator retry (e.g. with a different email).
+    if (dto.adminEmail && dto.adminPassword) {
+      await this._ownerSeeding.seedOwner(provisioned.dbName, {
+        email: dto.adminEmail,
+        password: dto.adminPassword,
+        phoneNumber: dto.adminPhone,
+      });
+    }
+
+    return provisioned;
   }
 
   /** Retry provisioning for a tenant stuck in `provisioning`. */
