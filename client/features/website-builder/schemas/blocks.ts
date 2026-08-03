@@ -9,13 +9,29 @@ import { z } from "zod";
 export const BLOCK_TYPES = [
   "hero",
   "image-slider",
+  "banner-slider",
   "promo",
-  "category-grid",
+  "menu-grid",
   "featured-categories",
   "product-carousel",
   "rich-cta",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
+
+/** Renamed block types — old stored pages are transparently remapped on read. */
+const LEGACY_BLOCK_TYPES: Record<string, BlockType> = {
+  "category-grid": "menu-grid",
+};
+
+/**
+ * Resolve a stored block-type string to a current `BlockType`, applying legacy
+ * renames. Returns null for unknown types. Use this wherever raw stored blocks
+ * are rendered without first passing through `blockSchema`.
+ */
+export function normalizeBlockType(type: string): BlockType | null {
+  const mapped = LEGACY_BLOCK_TYPES[type] ?? type;
+  return (BLOCK_TYPES as readonly string[]).includes(mapped) ? (mapped as BlockType) : null;
+}
 
 const url = z.string().trim();
 
@@ -39,6 +55,8 @@ export const sliderImageSchema = z.object({
 export const imageSliderConfigSchema = z.object({
   title: z.string().default(""),
   autoplay: z.boolean().default(true),
+  /** Seconds each slide stays before advancing (when autoplay is on). */
+  autoplaySeconds: z.coerce.number().min(1).max(30).default(4),
   images: z.array(sliderImageSchema).min(1, "Add at least one image"),
 });
 
@@ -56,10 +74,37 @@ export const promoConfigSchema = z.object({
   banners: z.array(promoBannerSchema).min(1, "Add at least one banner"),
 });
 
-export const categoryGridConfigSchema = z.object({
-  title: z.string().default("Browse by category"),
+/** A promo banner on one side + an image slider on the other. */
+export const bannerSliderConfigSchema = z.object({
+  /** Which side the promo banner sits on (the slider takes the other side). */
+  bannerSide: z.enum(["left", "right"]).default("left"),
+  // ── Banner side ──
+  eyebrow: z.string().default(""),
+  title: z.string().min(1, "Title is required"),
+  subtitle: z.string().default(""),
+  ctaLabel: z.string().default(""),
+  ctaHref: z.string().default(""),
+  tone: z.enum(["brand", "dark", "light"]).default("brand"),
+  bannerImage: url.default(""),
+  // ── Slider side ──
+  autoplay: z.boolean().default(true),
+  autoplaySeconds: z.coerce.number().min(1).max(30).default(4),
+  /** How many slides are visible at once on the slider side. */
+  perView: z.coerce.number().int().min(1).max(4).default(1),
+  images: z.array(sliderImageSchema).min(1, "Add at least one image"),
+});
+
+export const menuGridConfigSchema = z.object({
+  title: z.string().default("Our menus"),
+  /**
+   * Which menus to show, in order. Empty = every active menu. Each selected
+   * menu renders as its own section listing the dishes assigned to it.
+   */
+  menuIds: z.array(z.string()).default([]),
   layout: z.enum(["grid", "slider"]).default("grid"),
+  /** Max dishes shown per menu. */
   limit: z.coerce.number().int().min(1).max(24).default(8),
+  showViewAll: z.boolean().default(true),
 });
 
 export const featuredCategoriesConfigSchema = z.object({
@@ -73,7 +118,8 @@ export const featuredCategoriesConfigSchema = z.object({
 
 export const productCarouselConfigSchema = z.object({
   title: z.string().default("Popular right now"),
-  source: z.string().default("popular"), // "popular" | a category id
+  /** Hand-picked products to show, in order. Empty = all products (up to limit). */
+  itemIds: z.array(z.string()).default([]),
   layout: z.enum(["grid", "slider"]).default("slider"),
   limit: z.coerce.number().int().min(1).max(24).default(8),
 });
@@ -91,7 +137,8 @@ export const BLOCK_CONFIG_SCHEMAS = {
   hero: heroConfigSchema,
   "image-slider": imageSliderConfigSchema,
   promo: promoConfigSchema,
-  "category-grid": categoryGridConfigSchema,
+  "banner-slider": bannerSliderConfigSchema,
+  "menu-grid": menuGridConfigSchema,
   "featured-categories": featuredCategoriesConfigSchema,
   "product-carousel": productCarouselConfigSchema,
   "rich-cta": richCtaConfigSchema,
@@ -101,7 +148,10 @@ export const BLOCK_CONFIG_SCHEMAS = {
 
 export const blockSchema = z.object({
   id: z.string(),
-  type: z.enum(BLOCK_TYPES),
+  type: z.preprocess(
+    (v) => (typeof v === "string" && v in LEGACY_BLOCK_TYPES ? LEGACY_BLOCK_TYPES[v] : v),
+    z.enum(BLOCK_TYPES),
+  ),
   hidden: z.boolean().default(false),
   config: z.record(z.string(), z.unknown()),
 });
@@ -167,7 +217,8 @@ export type SliderImage = z.infer<typeof sliderImageSchema>;
 export type ImageSliderConfig = z.infer<typeof imageSliderConfigSchema>;
 export type PromoBanner = z.infer<typeof promoBannerSchema>;
 export type PromoConfig = z.infer<typeof promoConfigSchema>;
-export type CategoryGridConfig = z.infer<typeof categoryGridConfigSchema>;
+export type BannerSliderConfig = z.infer<typeof bannerSliderConfigSchema>;
+export type MenuGridConfig = z.infer<typeof menuGridConfigSchema>;
 export type FeaturedCategoriesConfig = z.infer<typeof featuredCategoriesConfigSchema>;
 export type ProductCarouselConfig = z.infer<typeof productCarouselConfigSchema>;
 export type RichCtaConfig = z.infer<typeof richCtaConfigSchema>;

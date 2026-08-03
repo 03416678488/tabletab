@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, LayoutTemplate, Search, Settings, type LucideIcon } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -23,9 +23,22 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "seo", label: "SEO", icon: Search },
 ];
 
+const isTabKey = (v: string | null): v is TabKey => TABS.some((t) => t.key === v);
+
 export function PageWorkspace({ slug }: { slug: string }) {
   const role = useParams<{ role: string }>().role;
-  const [tab, setTab] = useState<TabKey>("general");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The URL (?tab=…) is the source of truth, so tabs are shareable and the
+  // browser back/forward buttons move between them.
+  const tabParam = searchParams.get("tab");
+  const tab: TabKey = isTabKey(tabParam) ? tabParam : "general";
+  const setTab = (key: TabKey) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", key);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   const [page, setPage] = useState<WebsitePage | null | undefined>(undefined);
 
   const load = useCallback(() => {

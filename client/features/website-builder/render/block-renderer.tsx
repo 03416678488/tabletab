@@ -1,9 +1,10 @@
 import {
-  CategoryGridRender,
   FeaturedCategoriesRender,
+  MenuGridRender,
   ProductCarouselRender,
 } from "@/features/website-builder/render/data-blocks";
 import {
+  BannerSliderRender,
   HeroRender,
   ImageSliderRender,
   PromoRender,
@@ -12,6 +13,7 @@ import {
 import {
   type Block,
   type BlockType,
+  normalizeBlockType,
   parseBlockConfig,
 } from "@/features/website-builder/schemas/blocks";
 
@@ -19,8 +21,9 @@ import {
 const RENDERERS: Record<BlockType, (config: never) => React.ReactNode> = {
   hero: (config) => <HeroRender config={config} />,
   "image-slider": (config) => <ImageSliderRender config={config} />,
+  "banner-slider": (config) => <BannerSliderRender config={config} />,
   promo: (config) => <PromoRender config={config} />,
-  "category-grid": (config) => <CategoryGridRender config={config} />,
+  "menu-grid": (config) => <MenuGridRender config={config} />,
   "featured-categories": (config) => <FeaturedCategoriesRender config={config} />,
   "product-carousel": (config) => <ProductCarouselRender config={config} />,
   "rich-cta": (config) => <RichCtaRender config={config} />,
@@ -28,11 +31,14 @@ const RENDERERS: Record<BlockType, (config: never) => React.ReactNode> = {
 
 /** Render a single block, coercing its stored config through the zod schema. */
 export function BlockRenderer({ block }: { block: Block }) {
-  const render = RENDERERS[block.type];
+  // Raw stored blocks may still carry a legacy type string (e.g. "category-grid").
+  const type = normalizeBlockType(block.type);
+  if (!type) return null;
+  const render = RENDERERS[type];
   if (!render) return null;
   let config: unknown;
   try {
-    config = parseBlockConfig(block.type, block.config);
+    config = parseBlockConfig(type, block.config);
   } catch {
     return null; // malformed config — skip rather than crash the page
   }

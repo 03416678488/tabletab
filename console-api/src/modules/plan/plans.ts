@@ -79,3 +79,14 @@ export const PLANS: Record<PlanId, Plan> = {
 
 export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
 export const DEFAULT_PLAN: PlanId = 'trial';
+
+/** The Stripe Price id for a paid plan (from env, e.g. STRIPE_PRICE_PRO). */
+export function stripePriceFor(planId: PlanId): string | undefined {
+  return process.env[`STRIPE_PRICE_${planId.toUpperCase()}`];
+}
+
+/** Map a Stripe Price id back to a plan (for webhook → plan resolution). */
+export function planForStripePrice(priceId: string | undefined): PlanId | undefined {
+  if (!priceId) return undefined;
+  return PLAN_IDS.find((id) => stripePriceFor(id) === priceId);
+}

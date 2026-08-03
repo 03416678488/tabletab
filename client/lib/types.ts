@@ -54,6 +54,9 @@ export interface Branch {
   deliveryFee?: number;
   minOrder?: number;
   onlineOrderingEnabled?: boolean;
+  deliveryEnabled?: boolean;
+  pickupEnabled?: boolean;
+  deliveryEtaMinutes?: number;
 }
 
 /** Floor plan input when creating tables for a branch. */

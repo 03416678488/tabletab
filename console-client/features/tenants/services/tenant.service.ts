@@ -1,5 +1,9 @@
 import { httpClient } from "@/lib/httpClient";
-import type { Tenant, TenantStatus } from "@/features/tenants/types/tenant";
+import type {
+  Tenant,
+  TenantStatus,
+  UpdateTenantInput,
+} from "@/features/tenants/types/tenant";
 
 /**
  * Talks to the console (control-plane) API. Point NEXT_PUBLIC_API_BASE_URL at the
@@ -8,8 +12,14 @@ import type { Tenant, TenantStatus } from "@/features/tenants/types/tenant";
 export const tenantService = {
   list: () => httpClient.get<Tenant[]>(`/tenants`, { auth: true }).then((r) => r.data),
 
+  get: (id: string) =>
+    httpClient.get<Tenant>(`/tenants/${id}`, { auth: true }).then((r) => r.data),
+
   create: (input: { name: string; slug: string; plan?: string }) =>
     httpClient.post<Tenant>(`/tenants`, input, { auth: true }).then((r) => r.data),
+
+  update: (id: string, input: UpdateTenantInput) =>
+    httpClient.put<Tenant>(`/tenants/${id}`, input, { auth: true }).then((r) => r.data),
 
   setStatus: (id: string, status: TenantStatus) =>
     httpClient

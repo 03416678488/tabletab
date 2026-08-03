@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { Suspense, use } from "react";
 import { PageWorkspace } from "@/features/website-builder/components/page-workspace";
 
 export default function WebsitePageWorkspace({
@@ -9,5 +9,9 @@ export default function WebsitePageWorkspace({
   params: Promise<{ role: string; slug: string }>;
 }) {
   const { slug } = use(params);
-  return <PageWorkspace slug={slug} />;
+  return (
+    <Suspense fallback={null}>
+      <PageWorkspace slug={slug} />
+    </Suspense>
+  );
 }

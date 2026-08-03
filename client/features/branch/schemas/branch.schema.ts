@@ -15,7 +15,10 @@ export const branchSchema = z.object({
   // Converted from the text input via register({ setValueAs }) in the form.
   deliveryFee: z.number().min(0, "Must be 0 or more").optional(),
   minOrder: z.number().min(0, "Must be 0 or more").optional(),
+  deliveryEtaMinutes: z.number().min(0, "Must be 0 or more").optional(),
   onlineOrderingEnabled: z.boolean(),
+  deliveryEnabled: z.boolean(),
+  pickupEnabled: z.boolean(),
 });
 
 export type BranchFormValues = z.infer<typeof branchSchema>;

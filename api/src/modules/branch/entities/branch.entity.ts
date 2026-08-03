@@ -40,4 +40,13 @@ export class Branch extends AbstractEntity {
 
   @Column({ type: 'boolean', default: true })
   onlineOrderingEnabled: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  deliveryEnabled: boolean;
+
+  @Column({ type: 'boolean', default: true })
+  pickupEnabled: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  deliveryEtaMinutes: number;
 }

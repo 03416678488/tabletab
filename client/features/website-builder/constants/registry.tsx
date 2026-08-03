@@ -1,9 +1,10 @@
 import {
-  CategoryGridConfigForm,
+  BannerSliderConfigForm,
   type ConfigFormProps,
   FeaturedCategoriesConfigForm,
   HeroConfigForm,
   ImageSliderConfigForm,
+  MenuGridConfigForm,
   ProductCarouselConfigForm,
   PromoConfigForm,
   RichCtaConfigForm,
@@ -19,8 +20,9 @@ export interface BlockRegistryEntry extends BlockMeta {
 export const BLOCK_REGISTRY: Record<BlockType, BlockRegistryEntry> = {
   hero: { ...BLOCK_META.hero, ConfigForm: HeroConfigForm },
   "image-slider": { ...BLOCK_META["image-slider"], ConfigForm: ImageSliderConfigForm },
+  "banner-slider": { ...BLOCK_META["banner-slider"], ConfigForm: BannerSliderConfigForm },
   promo: { ...BLOCK_META.promo, ConfigForm: PromoConfigForm },
-  "category-grid": { ...BLOCK_META["category-grid"], ConfigForm: CategoryGridConfigForm },
+  "menu-grid": { ...BLOCK_META["menu-grid"], ConfigForm: MenuGridConfigForm },
   "featured-categories": {
     ...BLOCK_META["featured-categories"],
     ConfigForm: FeaturedCategoriesConfigForm,

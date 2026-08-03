@@ -14,6 +14,8 @@ interface ConfigPanelProps {
   mode: PanelMode;
   block: Block | null;
   categoryOptions: { value: string; label: string }[];
+  menuOptions: { value: string; label: string }[];
+  productOptions: { value: string; label: string }[];
   header: HeaderConfig;
   footer: FooterConfig;
   onBlockChange: (id: string, config: Record<string, unknown>) => void;
@@ -25,6 +27,8 @@ export function ConfigPanel({
   mode,
   block,
   categoryOptions,
+  menuOptions,
+  productOptions,
   header,
   footer,
   onBlockChange,
@@ -65,6 +69,8 @@ export function ConfigPanel({
         config={block.config}
         onChange={(c) => onBlockChange(block.id, c)}
         categoryOptions={categoryOptions}
+        menuOptions={menuOptions}
+        productOptions={productOptions}
       />
     </PanelBody>
   );

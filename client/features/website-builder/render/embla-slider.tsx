@@ -12,6 +12,11 @@ interface EmblaSliderProps {
   slideClassName?: string;
   autoplayMs?: number;
   className?: string;
+  /**
+   * Stretch the track and slides to the wrapper's height (set a height via
+   * `className`). Slides then fill that height instead of using their own aspect.
+   */
+  fill?: boolean;
 }
 
 /**
@@ -23,6 +28,7 @@ export function EmblaSlider({
   slideClassName = "basis-full",
   autoplayMs,
   className,
+  fill = false,
 }: EmblaSliderProps) {
   const [emblaRef, embla] = useEmblaCarousel({ loop: true, align: "start" });
   const [selected, setSelected] = useState(0);
@@ -50,10 +56,13 @@ export function EmblaSlider({
 
   return (
     <div className={cn("relative", className)}>
-      <div className="overflow-hidden" ref={emblaRef}>
-        <div className="flex gap-4">
+      <div className={cn("overflow-hidden", fill && "h-full")} ref={emblaRef}>
+        <div className={cn("flex gap-4", fill && "h-full")}>
           {children.map((child, i) => (
-            <div key={i} className={cn("min-w-0 shrink-0 grow-0", slideClassName)}>
+            <div
+              key={i}
+              className={cn("min-w-0 shrink-0 grow-0", fill && "h-full", slideClassName)}
+            >
               {child}
             </div>
           ))}

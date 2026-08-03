@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Menu, Search, ShoppingBag, User } from "lucide-react";
 import { NearestBranch } from "@/features/storefront/components/nearest-branch";
+import { SearchDialog } from "@/features/storefront/components/search-dialog";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,8 +25,9 @@ export function StorefrontHeader() {
   const itemCount = useCart((s) => s.itemCount());
   const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
   const hydrated = useHydrated();
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  // Header customisation from the website builder (nav links, CTA, toggles).
+  // Header customisation from the website builder (nav links, toggles).
   const headerCfg = useSiteHeaderConfig();
   const navLinks = headerCfg?.links ?? [];
   const showLocation = headerCfg?.showLocation ?? true;
@@ -55,22 +57,16 @@ export function StorefrontHeader() {
           )}
         </div>
 
-        {showSearch && <HeaderSearch />}
-
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {showSearch && (
-            <Link
-              href="/order"
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
               aria-label="Search the menu"
-              className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-brand/40 hover:text-ink md:hidden"
+              className="flex size-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:border-brand/40 hover:text-ink"
             >
               <Search className="size-4" />
-            </Link>
-          )}
-          {headerCfg?.ctaLabel && (
-            <Button asChild size="sm" className="hidden sm:inline-flex">
-              <Link href={headerCfg.ctaHref || "/order"}>{headerCfg.ctaLabel}</Link>
-            </Button>
+            </button>
           )}
           {isAuthenticated ? (
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
@@ -147,38 +143,8 @@ export function StorefrontHeader() {
       {/* Mobile: full-width nearest-branch bar under the main row.
           Hidden on the landing, which shows its own branch context bar. */}
       {showLocation && pathname !== "/" && <NearestBranch variant="bar" className="md:hidden" />}
+
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
-  );
-}
-
-/** Desktop menu search — submits to /order, which reads the `q` query param. */
-function HeaderSearch() {
-  const router = useRouter();
-  const [q, setQ] = useState("");
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const term = q.trim();
-    router.push(term ? `/order?q=${encodeURIComponent(term)}` : "/order");
-  };
-
-  return (
-    <form onSubmit={submit} className="relative hidden max-w-xs flex-1 md:block">
-      <button
-        type="submit"
-        aria-label="Search"
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground transition-colors hover:text-brand"
-      >
-        <Search className="size-4" />
-      </button>
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search dishes…"
-        aria-label="Search the menu"
-        className="h-9 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-sm text-ink outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-brand/40"
-      />
-    </form>
   );
 }

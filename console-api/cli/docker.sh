@@ -41,7 +41,7 @@ case "$1" in
         ;;
     dev-logs)
         echo "Viewing development logs (press Ctrl+C to exit)..."
-        docker logs tabletap-api -f
+        docker logs tabletap-console-api -f
         ;;
     dev-restart)
         echo "Restarting development environment..."
@@ -81,15 +81,15 @@ case "$1" in
         ;;
     dev-connect)
         echo "Connecting to development container..."
-        docker exec -it tabletap-api sh
+        docker exec -it tabletap-console-api sh
         ;;
     dev-migrate)
         echo "Running database migrations in development..."
-        docker exec -it tabletap-api npm run db:migrate
+        docker exec -it tabletap-console-api npm run db:migrate
         ;;
     dev-seed)
         echo "Running database seeds in development..."
-        docker exec -it tabletap-api npm run db:seed
+        docker exec -it tabletap-console-api npm run db:seed
         ;;
     stop-all)
         echo "Stopping all environments..."

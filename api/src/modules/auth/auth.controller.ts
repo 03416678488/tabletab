@@ -2,6 +2,8 @@ import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@n
 
 import { LocalAuthGuard } from './guards/local-auth/local-auth.guard';
 import { RefreshAuthGuard } from './guards/refresh-auth/refresh-auth.guard';
+import { PlatformKeyGuard } from './guards/platform-key/platform-key.guard';
+import { ImpersonateDto } from './dto/impersonate.dto';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 import { CurrentUser } from '@cor/decorators/auth/current-user.decorator';
@@ -30,6 +32,15 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Req() req: any) {
     return this._authService.login(req);
+  }
+
+  /** Platform-only: mint a short-lived, tenant-bound token to view as a tenant. */
+  @Public()
+  @UseGuards(PlatformKeyGuard)
+  @Post('impersonate')
+  @HttpCode(HttpStatus.OK)
+  async impersonate(@Body() dto: ImpersonateDto) {
+    return this._authService.impersonate(dto);
   }
 
   @Public()

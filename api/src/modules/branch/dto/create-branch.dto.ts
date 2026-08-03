@@ -62,4 +62,17 @@ export class CreateBranchDto {
   @IsBoolean()
   @IsOptional()
   onlineOrderingEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  deliveryEnabled?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  pickupEnabled?: boolean;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  deliveryEtaMinutes?: number;
 }

@@ -51,6 +51,20 @@ export class Tenant {
   @Column({ type: 'varchar', nullable: true })
   dbHost: string | null;
 
+  // ── Billing (Stripe) ──
+  @Column({ type: 'varchar', nullable: true })
+  stripeCustomerId: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  stripeSubscriptionId: string | null;
+
+  /** Stripe subscription status: active, trialing, past_due, canceled, … */
+  @Column({ type: 'varchar', nullable: true })
+  subscriptionStatus: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  currentPeriodEnd: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

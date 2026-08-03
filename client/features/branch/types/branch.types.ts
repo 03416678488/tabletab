@@ -16,6 +16,9 @@ export interface Branch {
   deliveryFee: number | null;
   minOrder: number | null;
   onlineOrderingEnabled: boolean;
+  deliveryEnabled: boolean;
+  pickupEnabled: boolean;
+  deliveryEtaMinutes: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,6 +47,9 @@ export interface CreateBranchInput {
   deliveryFee?: number;
   minOrder?: number;
   onlineOrderingEnabled?: boolean;
+  deliveryEnabled?: boolean;
+  pickupEnabled?: boolean;
+  deliveryEtaMinutes?: number;
 }
 
 export type UpdateBranchInput = Partial<CreateBranchInput>;

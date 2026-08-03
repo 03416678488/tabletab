@@ -1,20 +1,22 @@
 import {
+  Columns2,
   Images,
-  LayoutGrid,
   LayoutList,
   type LucideIcon,
   Megaphone,
   MousePointerClick,
   ShoppingBag,
   Sparkles,
+  UtensilsCrossed,
 } from "lucide-react";
 
 import type {
+  BannerSliderConfig,
   BlockType,
-  CategoryGridConfig,
   FeaturedCategoriesConfig,
   HeroConfig,
   ImageSliderConfig,
+  MenuGridConfig,
   ProductCarouselConfig,
   PromoConfig,
   RichCtaConfig,
@@ -44,6 +46,7 @@ const heroDefault: HeroConfig = {
 const imageSliderDefault: ImageSliderConfig = {
   title: "Highlights",
   autoplay: true,
+  autoplaySeconds: 4,
   images: [
     { url: stock("1513104890138-7c749659a591"), caption: "Weekend brunch", href: "/order" },
     { url: stock("1517248135467-4c7edcad34c4"), caption: "Chef's specials", href: "/order" },
@@ -81,15 +84,36 @@ const promoDefault: PromoConfig = {
   ],
 };
 
-const categoryGridDefault: CategoryGridConfig = {
-  title: "Browse by category",
+const bannerSliderDefault: BannerSliderConfig = {
+  bannerSide: "left",
+  eyebrow: "Today's special",
+  title: "Fresh from the kitchen",
+  subtitle: "Handpicked plates, made to order — see what's cooking this week.",
+  ctaLabel: "Order now",
+  ctaHref: "/order",
+  tone: "brand",
+  bannerImage: "",
+  autoplay: true,
+  autoplaySeconds: 4,
+  perView: 1,
+  images: [
+    { url: stock("1504674900247-0877df9cc836", 800, 600), caption: "", href: "/order" },
+    { url: stock("1517248135467-4c7edcad34c4", 800, 600), caption: "", href: "/order" },
+    { url: stock("1526367790999-0150786686a2", 800, 600), caption: "", href: "/order" },
+  ],
+};
+
+const menuGridDefault: MenuGridConfig = {
+  title: "Our menus",
+  menuIds: [],
   layout: "grid",
   limit: 8,
+  showViewAll: true,
 };
 
 const productCarouselDefault: ProductCarouselConfig = {
   title: "Popular right now",
-  source: "popular",
+  itemIds: [],
   layout: "slider",
   limit: 8,
 };
@@ -125,6 +149,13 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
     icon: Images,
     defaultConfig: imageSliderDefault,
   },
+  "banner-slider": {
+    type: "banner-slider",
+    label: "Banner + slider",
+    description: "A promo banner on one side and an image slider on the other.",
+    icon: Columns2,
+    defaultConfig: bannerSliderDefault,
+  },
   promo: {
     type: "promo",
     label: "Promo banners",
@@ -132,12 +163,12 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
     icon: Megaphone,
     defaultConfig: promoDefault,
   },
-  "category-grid": {
-    type: "category-grid",
-    label: "Category grid",
-    description: "Menu categories — 4 per line or a slider.",
-    icon: LayoutGrid,
-    defaultConfig: categoryGridDefault,
+  "menu-grid": {
+    type: "menu-grid",
+    label: "Menu grid",
+    description: "Your menus — each rendered as a section of its dishes.",
+    icon: UtensilsCrossed,
+    defaultConfig: menuGridDefault,
   },
   "featured-categories": {
     type: "featured-categories",
@@ -166,8 +197,9 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
 export const BLOCK_PALETTE: BlockType[] = [
   "hero",
   "image-slider",
+  "banner-slider",
   "promo",
-  "category-grid",
+  "menu-grid",
   "featured-categories",
   "product-carousel",
   "rich-cta",

@@ -1,23 +1,42 @@
 "use client";
 
 import { useFieldArray } from "react-hook-form";
-import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { useLiveForm } from "@/features/website-builder/hooks/use-live-form";
 import {
   Field,
+  ImageField,
   SelectField,
   TextAreaField,
   TextField,
   ToggleField,
 } from "@/features/website-builder/components/form-fields";
 import {
-  categoryGridConfigSchema,
+  bannerSliderConfigSchema,
   featuredCategoriesConfigSchema,
   heroConfigSchema,
   imageSliderConfigSchema,
+  menuGridConfigSchema,
   productCarouselConfigSchema,
   promoConfigSchema,
   richCtaConfigSchema,
@@ -28,6 +47,10 @@ export interface ConfigFormProps {
   onChange: (config: Record<string, unknown>) => void;
   /** Category options for data blocks (id → name). */
   categoryOptions?: { value: string; label: string }[];
+  /** Menu options for the menu grid (id → name). */
+  menuOptions?: { value: string; label: string }[];
+  /** Product options for the product-cards block (id → name). */
+  productOptions?: { value: string; label: string }[];
 }
 
 const rowBox = "space-y-2 rounded-xl border border-border bg-subtle/50 p-3";
@@ -53,6 +76,92 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+/**
+ * A drag-sortable row for field-array editors. Only the grip handle initiates a
+ * drag, so the inner inputs stay fully interactive.
+ */
+function SortableRow({
+  id,
+  title,
+  onRemove,
+  children,
+}: {
+  id: string;
+  title: string;
+  onRemove: () => void;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(rowBox, isDragging && "relative z-10 opacity-80 shadow-[var(--shadow-elevated)]")}
+    >
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label="Drag to reorder"
+          className="-ml-1 cursor-grab touch-none text-muted-foreground hover:text-ink active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <span className="flex-1 text-xs font-semibold text-muted-foreground">{title}</span>
+        <RemoveButton onClick={onRemove} />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** A compact drag-sortable chip for id-list pickers (label + drag + remove). */
+function SortableChip({
+  id,
+  label,
+  onRemove,
+}: {
+  id: string;
+  label: string;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "flex items-center gap-1.5 rounded-lg border border-border bg-white px-2.5 py-1.5",
+        isDragging && "relative z-10 opacity-80 shadow-[var(--shadow-elevated)]",
+      )}
+    >
+      <button
+        type="button"
+        aria-label="Drag to reorder"
+        className="cursor-grab touch-none text-muted-foreground hover:text-ink active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{label}</span>
+      <button
+        type="button"
+        aria-label="Remove"
+        onClick={onRemove}
+        className="text-muted-foreground hover:text-rose-600"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 // ── Hero ──────────────────────────────────────────────────────────────────
 export function HeroConfigForm({ config, onChange }: ConfigFormProps) {
   const { register, control, formState } = useLiveForm(heroConfigSchema, config, onChange);
@@ -61,7 +170,7 @@ export function HeroConfigForm({ config, onChange }: ConfigFormProps) {
     <div className="space-y-3">
       <TextField register={register} name="title" label="Title" error={e.title?.message} />
       <TextField register={register} name="subtitle" label="Subtitle" />
-      <TextField register={register} name="imageUrl" label="Background image URL" />
+      <ImageField control={control} name="imageUrl" label="Background image" />
       <div className="grid grid-cols-2 gap-2">
         <TextField register={register} name="ctaLabel" label="Button label" />
         <TextField register={register} name="ctaHref" label="Button link" />
@@ -81,28 +190,174 @@ export function HeroConfigForm({ config, onChange }: ConfigFormProps) {
 
 // ── Image slider ────────────────────────────────────────────────────────────
 export function ImageSliderConfigForm({ config, onChange }: ConfigFormProps) {
-  const { register, control, formState } = useLiveForm(imageSliderConfigSchema, config, onChange);
-  const { fields, append, remove } = useFieldArray({ control, name: "images" });
+  const { register, control, watch, formState } = useLiveForm(
+    imageSliderConfigSchema,
+    config,
+    onChange,
+  );
+  const { fields, append, remove, move } = useFieldArray({ control, name: "images" });
+  const autoplay = watch("autoplay");
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = fields.findIndex((f) => f.id === active.id);
+    const to = fields.findIndex((f) => f.id === over.id);
+    if (from !== -1 && to !== -1) move(from, to);
+  };
   return (
     <div className="space-y-3">
       <TextField register={register} name="title" label="Section title" />
-      <ToggleField control={control} name="autoplay" label="Auto-play" />
+      <div className="space-y-2 rounded-xl border border-border p-3">
+        <ToggleField control={control} name="autoplay" label="Auto-play slides" />
+        {autoplay && (
+          <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
+            <span className="text-xs font-medium text-ink">Seconds per slide</span>
+            <Input
+              type="number"
+              min={1}
+              max={30}
+              step={1}
+              {...register("autoplaySeconds")}
+              className="h-9 w-20 text-center"
+            />
+          </div>
+        )}
+      </div>
       <Field label="Slides" error={formState.errors.images?.message as string | undefined}>
-        <div className="space-y-2">
-          {fields.map((f, i) => (
-            <div key={f.id} className={rowBox}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-muted-foreground">Slide {i + 1}</span>
-                <RemoveButton onClick={() => remove(i)} />
-              </div>
-              <TextField register={register} name={`images.${i}.url`} placeholder="Image URL" />
-              <div className="grid grid-cols-2 gap-2">
-                <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
-                <TextField register={register} name={`images.${i}.href`} placeholder="Link" />
-              </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {fields.map((f, i) => (
+                <SortableRow
+                  key={f.id}
+                  id={f.id}
+                  title={`Slide ${i + 1}`}
+                  onRemove={() => remove(i)}
+                >
+                  <ImageField control={control} name={`images.${i}.url`} label="Image" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
+                    <TextField register={register} name={`images.${i}.href`} placeholder="Link" />
+                  </div>
+                </SortableRow>
+              ))}
             </div>
-          ))}
+          </SortableContext>
+        </DndContext>
+      </Field>
+      <AddButton onClick={() => append({ url: "", caption: "", href: "" })} label="Add slide" />
+    </div>
+  );
+}
+
+// ── Banner + slider ──────────────────────────────────────────────────────────
+export function BannerSliderConfigForm({ config, onChange }: ConfigFormProps) {
+  const { register, control, watch, formState } = useLiveForm(
+    bannerSliderConfigSchema,
+    config,
+    onChange,
+  );
+  const { fields, append, remove, move } = useFieldArray({ control, name: "images" });
+  const autoplay = watch("autoplay");
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = fields.findIndex((f) => f.id === active.id);
+    const to = fields.findIndex((f) => f.id === over.id);
+    if (from !== -1 && to !== -1) move(from, to);
+  };
+  return (
+    <div className="space-y-3">
+      <SelectField
+        control={control}
+        name="bannerSide"
+        label="Arrangement"
+        options={[
+          { value: "left", label: "Banner left · slider right" },
+          { value: "right", label: "Slider left · banner right" },
+        ]}
+      />
+
+      {/* Banner side */}
+      <div className="space-y-2 rounded-xl border border-border p-3">
+        <p className="text-xs font-semibold text-muted-foreground">Banner</p>
+        <TextField register={register} name="eyebrow" label="Eyebrow" />
+        <TextField
+          register={register}
+          name="title"
+          label="Title"
+          error={formState.errors.title?.message}
+        />
+        <TextField register={register} name="subtitle" label="Subtitle" />
+        <div className="grid grid-cols-2 gap-2">
+          <TextField register={register} name="ctaLabel" label="Button label" />
+          <TextField register={register} name="ctaHref" label="Button link" />
         </div>
+        <SelectField
+          control={control}
+          name="tone"
+          label="Colour"
+          options={[
+            { value: "brand", label: "Brand" },
+            { value: "dark", label: "Dark" },
+            { value: "light", label: "Light" },
+          ]}
+        />
+        <ImageField control={control} name="bannerImage" label="Background image (optional)" />
+      </div>
+
+      {/* Slider side */}
+      <div className="space-y-2 rounded-xl border border-border p-3">
+        <SelectField
+          control={control}
+          name="perView"
+          label="Slides per view"
+          options={[
+            { value: "1", label: "1 (one at a time)" },
+            { value: "2", label: "2 side by side" },
+            { value: "3", label: "3 side by side" },
+            { value: "4", label: "4 side by side" },
+          ]}
+        />
+        <ToggleField control={control} name="autoplay" label="Auto-play slides" />
+        {autoplay && (
+          <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
+            <span className="text-xs font-medium text-ink">Seconds per slide</span>
+            <Input
+              type="number"
+              min={1}
+              max={30}
+              step={1}
+              {...register("autoplaySeconds")}
+              className="h-9 w-20 text-center"
+            />
+          </div>
+        )}
+      </div>
+
+      <Field label="Slides" error={formState.errors.images?.message as string | undefined}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {fields.map((f, i) => (
+                <SortableRow
+                  key={f.id}
+                  id={f.id}
+                  title={`Slide ${i + 1}`}
+                  onRemove={() => remove(i)}
+                >
+                  <ImageField control={control} name={`images.${i}.url`} label="Image" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
+                    <TextField register={register} name={`images.${i}.href`} placeholder="Link" />
+                  </div>
+                </SortableRow>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       </Field>
       <AddButton onClick={() => append({ url: "", caption: "", href: "" })} label="Add slide" />
     </div>
@@ -142,7 +397,7 @@ export function PromoConfigForm({ config, onChange }: ConfigFormProps) {
                 <TextField register={register} name={`banners.${i}.cta`} placeholder="Button" />
                 <TextField register={register} name={`banners.${i}.href`} placeholder="Link" />
               </div>
-              <TextField register={register} name={`banners.${i}.imageUrl`} placeholder="Image URL" />
+              <ImageField control={control} name={`banners.${i}.imageUrl`} label="Image" />
             </div>
           ))}
         </div>
@@ -155,22 +410,81 @@ export function PromoConfigForm({ config, onChange }: ConfigFormProps) {
   );
 }
 
-// ── Category grid ────────────────────────────────────────────────────────────
-export function CategoryGridConfigForm({ config, onChange }: ConfigFormProps) {
-  const { register, control } = useLiveForm(categoryGridConfigSchema, config, onChange);
+// ── Menu grid ────────────────────────────────────────────────────────────────
+export function MenuGridConfigForm({ config, onChange, menuOptions }: ConfigFormProps) {
+  const { register, control, watch, setValue } = useLiveForm(
+    menuGridConfigSchema,
+    config,
+    onChange,
+  );
+  const ids = (watch("menuIds") ?? []) as string[];
+  const opts = menuOptions ?? [];
+  const labelFor = (id: string) => opts.find((o) => o.value === id)?.label ?? id;
+  const available = opts.filter((o) => !ids.includes(o.value));
+
+  const setIds = (next: string[]) => setValue("menuIds", next, { shouldDirty: true });
+  const add = (id: string) => id && !ids.includes(id) && setIds([...ids, id]);
+  const removeId = (id: string) => setIds(ids.filter((x) => x !== id));
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from !== -1 && to !== -1) setIds(arrayMove(ids, from, to));
+  };
+
   return (
     <div className="space-y-3">
       <TextField register={register} name="title" label="Section title" />
+
+      <Field label="Menus to show (drag to reorder)">
+        {ids.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Showing every active menu. Add specific menus below to limit and order them.
+          </p>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {ids.map((id) => (
+                  <SortableChip
+                    key={id}
+                    id={id}
+                    label={labelFor(id)}
+                    onRemove={() => removeId(id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </Field>
+
+      {available.length > 0 && (
+        <Dropdown
+          value=""
+          onChange={add}
+          options={available}
+          placeholder={opts.length ? "Add a menu…" : "No menus found"}
+          searchable={available.length > 6}
+        />
+      )}
+
       <SelectField
         control={control}
         name="layout"
-        label="Layout"
+        label="Layout (per menu)"
         options={[
-          { value: "grid", label: "Grid (wraps to rows)" },
           { value: "slider", label: "Slider" },
+          { value: "grid", label: "Grid (4 per line)" },
         ]}
       />
-      <TextField register={register} name="limit" label="Max categories" />
+      <TextField register={register} name="limit" label="Max dishes per menu" />
+      <div className="rounded-xl border border-border p-3">
+        <ToggleField control={control} name="showViewAll" label="Show “View all” links" />
+      </div>
     </div>
   );
 }
@@ -189,63 +503,42 @@ export function FeaturedCategoriesConfigForm({ config, onChange, categoryOptions
 
   const setIds = (next: string[]) => setValue("categoryIds", next, { shouldDirty: true });
   const add = (id: string) => id && !ids.includes(id) && setIds([...ids, id]);
-  const removeAt = (i: number) => setIds(ids.filter((_, idx) => idx !== i));
-  const move = (i: number, dir: -1 | 1) => {
-    const j = i + dir;
-    if (j < 0 || j >= ids.length) return;
-    const next = [...ids];
-    [next[i], next[j]] = [next[j], next[i]];
-    setIds(next);
+  const removeId = (id: string) => setIds(ids.filter((x) => x !== id));
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from !== -1 && to !== -1) setIds(arrayMove(ids, from, to));
   };
 
   return (
     <div className="space-y-3">
       <TextField register={register} name="title" label="Section title" />
 
-      <Field label="Featured categories (in order)">
-        <div className="space-y-2">
-          {ids.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              No categories yet — add one below. Each shows its live products.
-            </p>
-          )}
-          {ids.map((id, i) => (
-            <div
-              key={id}
-              className="flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1.5"
-            >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-                {labelFor(id)}
-              </span>
-              <button
-                type="button"
-                aria-label="Move up"
-                onClick={() => move(i, -1)}
-                disabled={i === 0}
-                className="text-muted-foreground hover:text-ink disabled:opacity-30"
-              >
-                <ChevronUp className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Move down"
-                onClick={() => move(i, 1)}
-                disabled={i === ids.length - 1}
-                className="text-muted-foreground hover:text-ink disabled:opacity-30"
-              >
-                <ChevronDown className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Remove"
-                onClick={() => removeAt(i)}
-                className="text-muted-foreground hover:text-rose-600"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          ))}
-        </div>
+      <Field label="Featured categories (drag to reorder)">
+        {ids.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No categories yet — add one below. Each shows its live products.
+          </p>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {ids.map((id) => (
+                  <SortableChip
+                    key={id}
+                    id={id}
+                    label={labelFor(id)}
+                    onRemove={() => removeId(id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
       </Field>
 
       {available.length > 0 && (
@@ -276,17 +569,68 @@ export function FeaturedCategoriesConfigForm({ config, onChange, categoryOptions
 }
 
 // ── Product cards ────────────────────────────────────────────────────────────
-export function ProductCarouselConfigForm({ config, onChange, categoryOptions }: ConfigFormProps) {
-  const { register, control } = useLiveForm(productCarouselConfigSchema, config, onChange);
+export function ProductCarouselConfigForm({ config, onChange, productOptions }: ConfigFormProps) {
+  const { register, control, watch, setValue } = useLiveForm(
+    productCarouselConfigSchema,
+    config,
+    onChange,
+  );
+  const ids = (watch("itemIds") ?? []) as string[];
+  const opts = productOptions ?? [];
+  const labelFor = (id: string) => opts.find((o) => o.value === id)?.label ?? id;
+  const available = opts.filter((o) => !ids.includes(o.value));
+
+  const setIds = (next: string[]) => setValue("itemIds", next, { shouldDirty: true });
+  const add = (id: string) => id && !ids.includes(id) && setIds([...ids, id]);
+  const removeId = (id: string) => setIds(ids.filter((x) => x !== id));
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from !== -1 && to !== -1) setIds(arrayMove(ids, from, to));
+  };
+
   return (
     <div className="space-y-3">
       <TextField register={register} name="title" label="Section title" />
-      <SelectField
-        control={control}
-        name="source"
-        label="Show"
-        options={[{ value: "popular", label: "Popular items" }, ...(categoryOptions ?? [])]}
-      />
+
+      <Field label="Products to show (drag to reorder)">
+        {ids.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Showing all products (up to the limit below). Add specific products to curate and order
+            them.
+          </p>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {ids.map((id) => (
+                  <SortableChip
+                    key={id}
+                    id={id}
+                    label={labelFor(id)}
+                    onRemove={() => removeId(id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </Field>
+
+      {available.length > 0 && (
+        <Dropdown
+          value=""
+          onChange={add}
+          options={available}
+          placeholder={opts.length ? "Add a product…" : "No products found"}
+          searchable={available.length > 6}
+        />
+      )}
+
       <SelectField
         control={control}
         name="layout"

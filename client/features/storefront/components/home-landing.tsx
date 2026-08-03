@@ -4,32 +4,20 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowUpDown,
   CalendarDays,
-  Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
   MapPin,
   RotateCcw,
-  Search,
   ShoppingBag,
   Truck,
-  X,
 } from "lucide-react";
 import { ReservationBookingFlow } from "@/features/reserve/components/reservation-booking-flow";
 import { BlockList } from "@/features/website-builder/render/block-renderer";
 import { useSiteHeaderConfig } from "@/features/website-builder/render/site-chrome";
 import type { Block } from "@/features/website-builder/schemas/blocks";
 import { FeaturedCarousel } from "@/features/storefront/components/featured-carousel";
-import { PRICE_TIERS } from "@/features/storefront/components/filters-sheet";
-import {
-  LANDING_DIET,
-  LANDING_SORTS,
-  landingFilterCount,
-  type LandingSort,
-} from "@/features/storefront/components/landing-filters-sheet";
 import { LandingSkeleton } from "@/features/storefront/components/landing-skeleton";
 import { OrderModePicker } from "@/features/storefront/components/order-mode-picker";
 import { ProductCard } from "@/features/storefront/components/product-card";
@@ -47,9 +35,21 @@ import type {
   BranchReservationSettings,
   MenuCategory,
   MenuItem,
-  MenuTag,
 } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
+
+/** Delivery/pickup availability derived from the branch's own settings. */
+function branchOnlineConfig(branch: Branch): BranchOnlineConfig {
+  const online = branch.onlineOrderingEnabled !== false;
+  return {
+    // The master "online ordering" toggle gates the per-channel toggles.
+    deliveryAvailable: online && branch.deliveryEnabled !== false,
+    pickupAvailable: online && branch.pickupEnabled !== false,
+    deliveryFee: branch.deliveryFee ?? 0,
+    deliveryEtaMinutes: branch.deliveryEtaMinutes ?? 30,
+    pickupSlots: [],
+  };
+}
 
 /** The branch-selected landing: context bar, fulfillment tabs, and menu by category. */
 export function HomeLanding({
@@ -81,13 +81,6 @@ export function HomeLanding({
   const [reorderItems, setReorderItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Quick-filters (light — the full panel lives on /order).
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<LandingSort>("relevance");
-  const [quickTags, setQuickTags] = useState<MenuTag[]>([]);
-  const [priceTiers, setPriceTiers] = useState<number[]>([]);
-  const filtersActive = landingFilterCount(sort, quickTags, priceTiers) > 0;
-  const anythingActive = filtersActive || query.trim().length > 0;
 
   // Scroll-spy state for the sticky category nav.
   const [activeCategory, setActiveCategory] = useState<string>("");
@@ -121,16 +114,13 @@ export function HomeLanding({
           ? branches.find((b) => b.id === branchId) ?? null
           : nearestBranch(branches, coords);
         const resolvedId = resolved?.id ?? null;
-        const [cfg, resSettings] = resolvedId
-          ? await Promise.all([
-              api.getBranchOnlineConfig(resolvedId),
-              api.getReservationSettings(resolvedId),
-            ])
-          : [null, null];
+        // Reservation settings stay on the mock layer for now; the delivery/pickup
+        // config is derived from the real branch's own settings.
+        const resSettings = resolvedId ? await api.getReservationSettings(resolvedId) : null;
         if (cancelled) return;
         setAllBranches(branches);
         setBranch(resolved);
-        setOnline(cfg);
+        setOnline(resolved ? branchOnlineConfig(resolved) : null);
         setReservationSettings(resSettings);
         setCategories([...cats].sort((a, b) => a.sortOrder - b.sortOrder));
         setItems(menu);
@@ -172,41 +162,17 @@ export function HomeLanding({
     };
   }, [user, items]);
 
-  // Apply the search query, inline quick-filters (tags + price), and sort.
-  const refine = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (list: MenuItem[]): MenuItem[] => {
-      const out = list.filter(
-        (i) =>
-          quickTags.every((t) => i.tags.includes(t)) &&
-          (priceTiers.length === 0 ||
-            priceTiers.some(
-              (ti) => i.price >= PRICE_TIERS[ti].min && i.price < PRICE_TIERS[ti].max,
-            )) &&
-          (!q || `${i.name} ${i.description} ${i.tags.join(" ")}`.toLowerCase().includes(q)),
-      );
-      if (sort === "rating") {
-        return [...out].sort(
-          (a, b) => Number(b.tags.includes("popular")) - Number(a.tags.includes("popular")),
-        );
-      }
-      if (sort === "price-asc") return [...out].sort((a, b) => a.price - b.price);
-      if (sort === "price-desc") return [...out].sort((a, b) => b.price - a.price);
-      return out;
-    };
-  }, [quickTags, priceTiers, sort, query]);
-
   const popular = useMemo(
-    () => refine(items.filter((i) => i.tags.includes("popular"))).slice(0, 8),
-    [items, refine],
+    () => items.filter((i) => i.tags.includes("popular")).slice(0, 8),
+    [items],
   );
   const itemsByCategory = useMemo(
     () =>
       categories.map((cat) => ({
         category: cat,
-        items: refine(items.filter((i) => i.categoryId === cat.id)),
+        items: items.filter((i) => i.categoryId === cat.id),
       })),
-    [categories, items, refine],
+    [categories, items],
   );
 
   // Scroll-spy: highlight the category currently in view in the sticky nav.
@@ -228,15 +194,6 @@ export function HomeLanding({
     return () => observer.disconnect();
   }, [categories, itemsByCategory, stickyHeight]);
 
-  const toggleQuickTag = (tag: MenuTag) =>
-    setQuickTags((tags) => (tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag]));
-  const togglePrice = (i: number) =>
-    setPriceTiers((tiers) => (tiers.includes(i) ? tiers.filter((t) => t !== i) : [...tiers, i]));
-  const clearFilters = () => {
-    setSort("relevance");
-    setQuickTags([]);
-    setPriceTiers([]);
-  };
   // Represent each category with its first dish photo (picsum fallback).
   const categoryThumb = useMemo(() => {
     const map: Record<string, string> = {};
@@ -368,115 +325,15 @@ export function HomeLanding({
         </div>
       )}
 
-      {/* Search + mode-aware status / CTA */}
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search dishes…"
-            aria-label="Search menu"
-            className="h-12 w-full rounded-full border border-border bg-surface pl-12 pr-10 text-base text-ink shadow-[var(--shadow-card)] outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-brand/40"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:bg-secondary"
-            >
-              <X className="size-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Inline sort & filters */}
-        <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-          {/* Sort */}
-          <div className="relative shrink-0">
-            <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as LandingSort)}
-              aria-label="Sort menu"
-              className="h-9 cursor-pointer appearance-none rounded-full border border-border bg-surface pl-9 pr-8 text-sm font-medium text-ink outline-none transition-colors hover:border-brand/40 focus:ring-2 focus:ring-brand/40"
-            >
-              {LANDING_SORTS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
-
-          <span className="h-6 w-px shrink-0 bg-border" aria-hidden />
-
-          {/* Dietary chips */}
-          {LANDING_DIET.map(({ tag, label }) => {
-            const active = quickTags.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleQuickTag(tag)}
-                aria-pressed={active}
-                className={cn(
-                  "inline-flex h-9 shrink-0 items-center gap-1 rounded-full border px-3.5 text-sm font-medium transition-colors",
-                  active
-                    ? "border-brand bg-brand-tint text-brand-deep"
-                    : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-ink",
-                )}
-              >
-                {active && <Check className="size-3.5" />}
-                {label}
-              </button>
-            );
-          })}
-
-          {/* Price chips */}
-          {PRICE_TIERS.map((tier, i) => {
-            const active = priceTiers.includes(i);
-            return (
-              <button
-                key={tier.label}
-                type="button"
-                onClick={() => togglePrice(i)}
-                aria-pressed={active}
-                className={cn(
-                  "inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm font-medium transition-colors",
-                  active
-                    ? "border-brand bg-brand-tint text-brand-deep"
-                    : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-ink",
-                )}
-              >
-                {tier.label}
-              </button>
-            );
-          })}
-
-          {filtersActive && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-1 inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-brand hover:bg-brand-tint"
-            >
-              <X className="size-3.5" />
-              Clear
-            </button>
-          )}
-        </div>
-
-        {!loading && branch && online && (
+      {/* Mode-aware status */}
+      {!loading && branch && online && (
+        <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
           <ModeBanner mode={fulfillment} branch={branch} online={online} />
-        )}
-      </div>
+        </div>
+      )}
 
-      {publishedBlocks && publishedBlocks.length > 0 && !anythingActive ? (
-        // Published landing takes over the body; searching/filtering (which sets
-        // anythingActive) falls back to the live menu results below.
+      {publishedBlocks && publishedBlocks.length > 0 ? (
+        // A published custom landing takes over the body.
         <div className="pt-2">
           <BlockList blocks={publishedBlocks} />
         </div>
@@ -538,7 +395,7 @@ export function HomeLanding({
           )}
 
           {/* Order again — returning customers */}
-          {!anythingActive && reorderItems.length > 0 && (
+          {reorderItems.length > 0 && (
             <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
               <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold text-ink">
                 <RotateCcw className="size-5 text-brand" />
@@ -634,27 +491,6 @@ export function HomeLanding({
             );
           })}
 
-          {/* No items match the active search / quick-filters */}
-          {anythingActive &&
-            popular.length === 0 &&
-            itemsByCategory.every(({ items: catItems }) => catItems.length === 0) && (
-              <div className="mx-auto max-w-6xl px-4 py-12 text-center sm:px-6">
-                <p className="font-display text-lg font-semibold text-ink">No dishes match</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {query ? `Nothing for “${query}”.` : "Try removing a filter to see more."}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuery("");
-                    clearFilters();
-                  }}
-                  className="mt-4 text-sm font-medium text-brand hover:underline"
-                >
-                  Clear {query ? "search" : "filters"}
-                </button>
-              </div>
-            )}
         </>
       )}
         </>

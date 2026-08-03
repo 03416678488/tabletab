@@ -5,6 +5,7 @@ import { ConfigType } from '@nestjs/config';
 import {
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
   ConflictException,
   BadRequestException,
@@ -42,9 +43,14 @@ import { UserRegisterDto } from './dto/user-register.dto';
 
 import { UserService } from 'src/modules/user/user.service';
 import { MailService } from '@modules/mail/mail.service';
+import { TenantRegistryService } from '@modules/tenancy/tenant-registry.service';
+import { TenantConnectionService } from '@modules/tenancy/tenant-connection.service';
+import { ImpersonateDto } from './dto/impersonate.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject(refreshJwtConfig.KEY)
     private _refreshTokenConfig: ConfigType<typeof refreshJwtConfig>,
@@ -52,7 +58,46 @@ export class AuthService {
     private _jwtService: JwtService,
     private readonly _mailService: MailService,
     private readonly _configService: ConfigService,
+    private readonly _registry: TenantRegistryService,
+    private readonly _connections: TenantConnectionService,
   ) {}
+
+  /**
+   * Mint a short-lived, tenant-bound token to "view as" a user inside a tenant —
+   * for platform support. Gated by PlatformKeyGuard; every use is audit-logged.
+   */
+  async impersonate(dto: ImpersonateDto) {
+    const tenant = await this._registry.resolveBySlug(dto.tenantSlug);
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    if (tenant.status !== 'active') {
+      throw new BadRequestException('Tenant is not active');
+    }
+
+    const ds = await this._connections.get(tenant);
+    const userRepo = ds.getRepository(User);
+    const user = await userRepo.findOne({
+      where: dto.email ? { email: dto.email } : { email: 'admin@example.com' },
+    });
+    if (!user) {
+      throw new NotFoundException('No user to impersonate in this tenant');
+    }
+
+    const payload = this.buildJwtPayload(user, { id: tenant.id, slug: tenant.slug });
+    const expiresIn = process.env.IMPERSONATION_EXPIRES_IN || '30m';
+    const token = this._jwtService.sign(payload, { expiresIn });
+
+    // Audit trail — who viewed which tenant, as whom, when.
+    this.logger.warn(
+      `[IMPERSONATION] actor="${dto.actor ?? 'platform'}" tenant="${tenant.slug}" as="${user.email}" expiresIn=${expiresIn}`,
+    );
+
+    return {
+      token,
+      expiresIn,
+      tenant: { id: tenant.id, slug: tenant.slug },
+      user: { id: user.id, email: user.email },
+    };
+  }
 
   async validateUser(email: string, password: string, dataSource?: DataSource) {
     // When the login request resolved a tenant, authenticate against that

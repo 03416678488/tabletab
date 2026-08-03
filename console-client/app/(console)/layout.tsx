@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, Building2 } from "lucide-react";
+import { LayoutDashboard, Building2, ScrollText } from "lucide-react";
 
 /** Platform console shell — the top-level admin for managing all tenants. */
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
@@ -20,9 +20,12 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
             >
               <Building2 className="size-4" /> Tenants
             </Link>
-            <span className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground/60">
-              Plans · soon
-            </span>
+            <Link
+              href="/audit"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-secondary"
+            >
+              <ScrollText className="size-4" /> Activity
+            </Link>
           </nav>
         </div>
       </header>

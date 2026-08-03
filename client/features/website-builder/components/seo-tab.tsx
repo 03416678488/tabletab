@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { ToggleField } from "@/features/website-builder/components/form-fields";
+import { ImageField, ToggleField } from "@/features/website-builder/components/form-fields";
 import { type PageSeo, seoSchema } from "@/features/website-builder/schemas/blocks";
 import { type WebsitePage, websiteService } from "@/features/website-builder/services/website.service";
 
@@ -62,10 +62,7 @@ export function SeoTab({ page, onChange }: { page: WebsitePage; onChange: () => 
               {(metaDescription?.length ?? 0)} / 160 characters recommended
             </p>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Social share image (OG image URL)</Label>
-            <Input {...register("ogImage")} placeholder="https://…" />
-          </div>
+          <ImageField control={control} name="ogImage" label="Social share image (OG image)" />
           <div className="rounded-xl border border-border p-3">
             <ToggleField control={control} name="noindex" label="Hide from search engines (noindex)" />
           </div>

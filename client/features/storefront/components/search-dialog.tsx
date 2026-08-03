@@ -6,22 +6,39 @@ import { Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/features/storefront/components/product-card";
+import { useCart } from "@/hooks/use-cart";
+import { useLocationStore } from "@/hooks/use-location-store";
+import { toast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 import type { MenuItem } from "@/lib/types";
 
 interface SearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  items: MenuItem[];
-  onAdd: (item: MenuItem) => void;
 }
 
-/** Full-menu search popup: type a query and see matching dishes. */
-export function SearchDialog({ open, onOpenChange, items, onAdd }: SearchDialogProps) {
+/** Full-menu search popup — self-contained (loads the menu + adds to cart). */
+export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [query, setQuery] = useState("");
+  const [items, setItems] = useState<MenuItem[]>([]);
 
-  // Reset the query each time the popup opens.
+  const branchId = useLocationStore((s) => s.branchId);
+  const fulfillment = useLocationStore((s) => s.fulfillment);
+  const addItem = useCart((s) => s.addItem);
+  const setCartBranch = useCart((s) => s.setBranch);
+  const setFulfillmentType = useCart((s) => s.setFulfillmentType);
+
+  // Load the menu (and reset the query) each time the popup opens.
   useEffect(() => {
-    if (open) setQuery("");
+    if (!open) return;
+    setQuery("");
+    let off = false;
+    api.getMenuItems().then((list) => {
+      if (!off) setItems(list);
+    });
+    return () => {
+      off = true;
+    };
   }, [open]);
 
   const q = query.trim().toLowerCase();
@@ -31,6 +48,20 @@ export function SearchDialog({ open, onOpenChange, items, onAdd }: SearchDialogP
       .filter((i) => `${i.name} ${i.description} ${i.tags.join(" ")}`.toLowerCase().includes(q))
       .slice(0, 24);
   }, [items, q]);
+
+  const handleAdd = (item: MenuItem) => {
+    if (branchId) setCartBranch(branchId);
+    if (fulfillment !== "reserve") setFulfillmentType(fulfillment);
+    addItem({
+      menuItemId: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      unitPrice: item.price,
+      quantity: 1,
+      modifiers: [],
+    });
+    toast(`${item.name} added to cart`, { tone: "success" });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,7 +109,7 @@ export function SearchDialog({ open, onOpenChange, items, onAdd }: SearchDialogP
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
               {results.map((item) => (
-                <ProductCard key={item.id} item={item} onAdd={onAdd} />
+                <ProductCard key={item.id} item={item} onAdd={handleAdd} />
               ))}
             </div>
           </div>

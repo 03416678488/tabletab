@@ -9,7 +9,8 @@ import { ClassSerializerInterceptor } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody so the Stripe webhook can verify the signature over the exact bytes.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   app.setGlobalPrefix(AppConstants.ApiPrefix);
 
   // Serve uploaded files: public/uploads/... is reachable at /uploads/...
@@ -27,7 +28,7 @@ async function bootstrap() {
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  await app.listen(process.env.APP_PORT || 3003, '0.0.0.0');
+  await app.listen(process.env.APP_PORT || 3005, '0.0.0.0');
   console.clear();
   console.log(`App URL: ${await app.getUrl()}`);
 }

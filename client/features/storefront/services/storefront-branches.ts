@@ -25,5 +25,8 @@ export async function fetchStorefrontBranches(): Promise<Branch[]> {
     deliveryFee: b.deliveryFee ?? undefined,
     minOrder: b.minOrder ?? undefined,
     onlineOrderingEnabled: b.onlineOrderingEnabled,
+    deliveryEnabled: b.deliveryEnabled,
+    pickupEnabled: b.pickupEnabled,
+    deliveryEtaMinutes: b.deliveryEtaMinutes ?? undefined,
   }));
 }

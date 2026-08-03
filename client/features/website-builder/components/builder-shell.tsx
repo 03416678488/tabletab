@@ -12,6 +12,10 @@ import { BlockCanvas } from "@/features/website-builder/components/block-canvas"
 import { BlockPalette } from "@/features/website-builder/components/block-palette";
 import { ConfigPanel, type PanelMode } from "@/features/website-builder/components/config-panel";
 import { Preview } from "@/features/website-builder/components/preview";
+import {
+  fetchMenuOptions,
+  fetchProductOptions,
+} from "@/features/website-builder/services/storefront-menus";
 import { usePageBuilder } from "@/features/website-builder/hooks/use-page-builder";
 
 export function BuilderShell({
@@ -26,11 +30,19 @@ export function BuilderShell({
   const [panelMode, setPanelMode] = useState<PanelMode>("block");
   const [previewing, setPreviewing] = useState(false);
   const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [menuOptions, setMenuOptions] = useState<{ value: string; label: string }[]>([]);
+  const [productOptions, setProductOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     api.getCategories().then((cats) =>
       setCategoryOptions(cats.map((c) => ({ value: c.id, label: c.name }))),
     );
+    fetchMenuOptions()
+      .then(setMenuOptions)
+      .catch(() => setMenuOptions([]));
+    fetchProductOptions()
+      .then(setProductOptions)
+      .catch(() => setProductOptions([]));
   }, []);
 
   const selectBlock = (id: string) => {
@@ -127,6 +139,8 @@ export function BuilderShell({
             mode={panelMode}
             block={selectedBlock}
             categoryOptions={categoryOptions}
+            menuOptions={menuOptions}
+            productOptions={productOptions}
             header={b.header}
             footer={b.footer}
             onBlockChange={b.updateConfig}

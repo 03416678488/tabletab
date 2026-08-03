@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, DatabaseZap, Loader2, Plus, Power, Trash2 } from "lucide-react";
+import { Building2, CreditCard, DatabaseZap, Loader2, Plus, Power, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,6 +28,7 @@ import {
 } from "@/features/tenants/schemas/tenant";
 import { tenantService } from "@/features/tenants/services/tenant.service";
 import { type Plan, planService } from "@/features/plans/plan.service";
+import { billingService } from "@/features/billing/billing.service";
 import type { Tenant, TenantStatus } from "@/features/tenants/types/tenant";
 
 const STATUS_TONE: Record<TenantStatus, "amber" | "green" | "red"> = {
@@ -121,6 +123,22 @@ export function TenantsManager() {
     }
   };
 
+  const subscribe = async (t: Tenant) => {
+    if (t.plan === "trial") {
+      toast("Free plan — set a paid plan to subscribe", { tone: "info" });
+      return;
+    }
+    setBusyId(t.id);
+    try {
+      const { url } = await billingService.checkout(t.id, t.plan);
+      window.open(url, "_blank", "noopener");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't start checkout", { tone: "error" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const remove = async (t: Tenant) => {
     const typed = prompt(
       `This permanently deletes "${t.name}" AND drops its database — this cannot be undone.\n\nType the handle "${t.slug}" to confirm:`,
@@ -188,8 +206,12 @@ export function TenantsManager() {
                 {tenants.map((t) => (
                   <tr key={t.id} className="border-b border-border/60 last:border-0">
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-ink">{t.name}</p>
-                      <p className="font-mono text-xs text-muted-foreground">{t.slug}</p>
+                      <Link href={`/tenants/${t.id}`} className="group">
+                        <p className="font-semibold text-ink transition-colors group-hover:text-brand">
+                          {t.name}
+                        </p>
+                        <p className="font-mono text-xs text-muted-foreground">{t.slug}</p>
+                      </Link>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                       <p>{t.storefrontDomain ?? `${t.subdomain}.yourapp.com`}</p>
@@ -218,6 +240,15 @@ export function TenantsManager() {
                             )}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          disabled={busyId === t.id}
+                          onClick={() => subscribe(t)}
+                          title="Start subscription checkout"
+                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink disabled:opacity-40"
+                        >
+                          <CreditCard className="size-4" />
+                        </button>
                         <button
                           type="button"
                           disabled={busyId === t.id || t.status === "provisioning"}

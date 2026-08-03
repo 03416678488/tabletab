@@ -11,6 +11,7 @@ import {
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ImagePickerField } from "@/features/media/components/image-picker-field";
 import { cn } from "@/lib/utils";
 
 export function Field({
@@ -120,25 +121,52 @@ export function ToggleField<T extends FieldValues>({
       render={({ field }) => (
         <button
           type="button"
+          role="switch"
+          aria-checked={Boolean(field.value)}
           onClick={() => field.onChange(!field.value)}
           className="flex w-full items-center justify-between gap-2 py-1"
         >
           <span className="text-xs font-medium text-ink">{label}</span>
           <span
             className={cn(
-              "relative h-5 w-9 rounded-full transition-colors",
+              "inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
               field.value ? "bg-brand" : "bg-border",
             )}
           >
             <span
               className={cn(
-                "absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform",
-                field.value ? "translate-x-4" : "translate-x-0.5",
+                "inline-block size-4 rounded-full bg-white shadow transition-transform",
+                field.value ? "translate-x-[18px]" : "translate-x-0.5",
               )}
             />
           </span>
         </button>
       )}
     />
+  );
+}
+
+export function ImageField<T extends FieldValues>({
+  control,
+  name,
+  label,
+}: {
+  control: Control<T>;
+  name: Path<T>;
+  label?: string;
+}) {
+  return (
+    <Field label={label}>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <ImagePickerField
+            value={(field.value as string) ?? ""}
+            onChange={field.onChange}
+          />
+        )}
+      />
+    </Field>
   );
 }

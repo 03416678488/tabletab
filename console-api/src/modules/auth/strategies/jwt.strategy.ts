@@ -16,6 +16,7 @@ const SUPER_ROLES = ['Super Admin', 'Admin', 'Administrators'];
 /** Shape of `req.user` after authentication (used by RolesGuard + controllers). */
 export interface AuthenticatedUser {
   id: string;
+  email: string;
   isActive: boolean;
   isDeleted: boolean;
   roleNames: string[];
@@ -86,6 +87,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return {
       id: user.id,
+      email: payload.email,
       isActive: user.isActive,
       isDeleted: user.isDeleted,
       roleNames,

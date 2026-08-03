@@ -77,7 +77,10 @@ function toDefaults(branch: Branch | null): BranchFormValues {
     openingHours: branch?.openingHours ?? null,
     deliveryFee: branch?.deliveryFee ?? undefined,
     minOrder: branch?.minOrder ?? undefined,
+    deliveryEtaMinutes: branch?.deliveryEtaMinutes ?? undefined,
     onlineOrderingEnabled: branch?.onlineOrderingEnabled ?? true,
+    deliveryEnabled: branch?.deliveryEnabled ?? true,
+    pickupEnabled: branch?.pickupEnabled ?? true,
   };
 }
 
@@ -157,6 +160,11 @@ export function BranchFormDialog({
       openingHours: (values.openingHours as WeeklyHours | null) ?? null,
       ...(values.deliveryFee !== undefined ? { deliveryFee: values.deliveryFee } : {}),
       ...(values.minOrder !== undefined ? { minOrder: values.minOrder } : {}),
+      ...(values.deliveryEtaMinutes !== undefined
+        ? { deliveryEtaMinutes: values.deliveryEtaMinutes }
+        : {}),
+      deliveryEnabled: values.deliveryEnabled,
+      pickupEnabled: values.pickupEnabled,
     };
 
     try {
@@ -293,10 +301,20 @@ export function BranchFormDialog({
                 {...register("minOrder", { setValueAs: toOptionalNumber })}
               />
             </Field>
+            <Field label="Delivery ETA (min)" error={errors.deliveryEtaMinutes?.message}>
+              <Input
+                type="number"
+                step="1"
+                placeholder="e.g. 30"
+                {...register("deliveryEtaMinutes", { setValueAs: toOptionalNumber })}
+              />
+            </Field>
           </div>
-          <div className="flex flex-wrap gap-5 pt-1">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
             <Toggle label="Open" {...register("isOpen")} />
             <Toggle label="Online ordering" {...register("onlineOrderingEnabled")} />
+            <Toggle label="Delivery" {...register("deliveryEnabled")} />
+            <Toggle label="Pickup" {...register("pickupEnabled")} />
           </div>
 
           <DialogFooter>

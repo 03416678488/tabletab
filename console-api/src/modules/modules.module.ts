@@ -5,7 +5,11 @@ import { PermissionsModule } from '@modules/permissions/permissions.module';
 import { RoleModule } from '@modules/role/role.module';
 import { RolePermissionModule } from '@modules/role-permission/role-permission.module';
 import { TenantModule } from '@modules/tenant/tenant.module';
+import { SignupModule } from '@modules/signup/signup.module';
+import { DomainModule } from '@modules/domain/domain.module';
+import { AuditModule } from '@modules/audit/audit.module';
 import { PlanModule } from '@modules/plan/plan.module';
+import { BillingModule } from '@modules/billing/billing.module';
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { FileManagerModule } from '@modules/file-manager/file-manager.module';
 import { ResponseModule } from '@cor/filters/exceptions/response.module';
@@ -25,7 +29,11 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     RolePermissionModule,
     // Control plane
     TenantModule,
+    SignupModule,
+    DomainModule,
+    AuditModule,
     PlanModule,
+    BillingModule,
     // Shared infra
     ResponseModule,
     PaginationModule,
