@@ -19,6 +19,9 @@ import {
   X,
 } from "lucide-react";
 import { ReservationBookingFlow } from "@/features/reserve/components/reservation-booking-flow";
+import { BlockList } from "@/features/website-builder/render/block-renderer";
+import { useSiteHeaderConfig } from "@/features/website-builder/render/site-chrome";
+import type { Block } from "@/features/website-builder/schemas/blocks";
 import { FeaturedCarousel } from "@/features/storefront/components/featured-carousel";
 import { PRICE_TIERS } from "@/features/storefront/components/filters-sheet";
 import {
@@ -27,8 +30,8 @@ import {
   landingFilterCount,
   type LandingSort,
 } from "@/features/storefront/components/landing-filters-sheet";
+import { LandingSkeleton } from "@/features/storefront/components/landing-skeleton";
 import { OrderModePicker } from "@/features/storefront/components/order-mode-picker";
-import { PromoDouble, PromoFull, PromoTriple } from "@/features/storefront/components/promo-banners";
 import { ProductCard } from "@/features/storefront/components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
@@ -36,7 +39,8 @@ import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
-import { branchDistanceKm } from "@/lib/geo";
+import { branchDistanceKm, nearestBranch } from "@/lib/geo";
+import { fetchStorefrontBranches } from "@/features/storefront/services/storefront-branches";
 import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
 import type {
   Branch,
@@ -48,7 +52,15 @@ import type {
 import { cn, formatCurrency } from "@/lib/utils";
 
 /** The branch-selected landing: context bar, fulfillment tabs, and menu by category. */
-export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) {
+export function HomeLanding({
+  onChangeBranch,
+  publishedBlocks,
+}: {
+  onChangeBranch: () => void;
+  /** When set (and no search/filter is active), custom builder blocks replace
+      the default carousels/menu sections — the top chrome is untouched. */
+  publishedBlocks?: Block[] | null;
+}) {
   const branchId = useLocationStore((s) => s.branchId);
   const fulfillment = useLocationStore((s) => s.fulfillment);
   const setFulfillment = useLocationStore((s) => s.setFulfillment);
@@ -98,20 +110,26 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
       setLoading(true);
       try {
         const [branches, cats, menu] = await Promise.all([
-          api.getBranches(),
+          // Live branches (with real coordinates) — fall back to mock if offline.
+          fetchStorefrontBranches().catch(() => api.getBranches()),
           api.getCategories(),
           api.getMenuItems(),
         ]);
-        // A branch is only resolved once the user has picked/located one.
-        const [cfg, resSettings] = branchId
+        // Use the branch the user picked; otherwise the nearest branch to their
+        // coordinates (falling back to the first open branch when unknown).
+        const resolved = branchId
+          ? branches.find((b) => b.id === branchId) ?? null
+          : nearestBranch(branches, coords);
+        const resolvedId = resolved?.id ?? null;
+        const [cfg, resSettings] = resolvedId
           ? await Promise.all([
-              api.getBranchOnlineConfig(branchId),
-              api.getReservationSettings(branchId),
+              api.getBranchOnlineConfig(resolvedId),
+              api.getReservationSettings(resolvedId),
             ])
           : [null, null];
         if (cancelled) return;
         setAllBranches(branches);
-        setBranch(branchId ? branches.find((b) => b.id === branchId) ?? null : null);
+        setBranch(resolved);
         setOnline(cfg);
         setReservationSettings(resSettings);
         setCategories([...cats].sort((a, b) => a.sortOrder - b.sortOrder));
@@ -123,7 +141,8 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
     return () => {
       cancelled = true;
     };
-  }, [branchId]);
+    // Re-resolve when the user picks a branch or their coordinates change.
+  }, [branchId, coords]);
 
   // "Order again" — resolve the signed-in customer's past order items to menu items.
   useEffect(() => {
@@ -255,6 +274,10 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
 
   const km = branch ? branchDistanceKm(branch, coords) : null;
 
+  // Website-builder "Show location" toggle — hides the branch/location display
+  // (the fulfillment tabs stay, since they drive ordering, not location).
+  const showLocation = useSiteHeaderConfig()?.showLocation ?? true;
+
   return (
     <div className="pb-8">
       {/* Tabs + location — sticky under the header while scrolling */}
@@ -270,40 +293,34 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
             </div>
 
           {/* Branch context */}
+          {showLocation && (
           <div className="order-1 flex items-center gap-2.5 rounded-full border border-border bg-surface px-3 py-1.5 shadow-[var(--shadow-card)] md:order-2 md:min-w-[19rem]">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
               <MapPin className="size-4" />
             </span>
             <div className="min-w-0 flex-1">
-              {branchId ? (
-                <>
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {fulfillment === "delivery"
-                      ? "Delivering from"
-                      : fulfillment === "pickup"
-                        ? "Pickup from"
-                        : "Reserve at"}
-                  </p>
-                  {loading || !branch ? (
-                    <Skeleton className="mt-1 h-4 w-40" />
-                  ) : (
-                    <p className="truncate text-sm font-semibold text-ink">
-                      {branch.name}
-                      {km != null && km < 50 && (
-                        <span className="ml-1.5 font-normal text-muted-foreground">
-                          · {km < 10 ? km.toFixed(1) : Math.round(km)} km
-                        </span>
-                      )}
-                    </p>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                {branch
+                  ? fulfillment === "delivery"
+                    ? "Delivering from"
+                    : fulfillment === "pickup"
+                      ? "Pickup from"
+                      : "Reserve at"
+                  : "Your location"}
+              </p>
+              {loading ? (
+                <Skeleton className="mt-1 h-4 w-40" />
+              ) : branch ? (
+                <p className="truncate text-sm font-semibold text-ink">
+                  {branch.name}
+                  {km != null && km < 50 && (
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      · {km < 10 ? km.toFixed(1) : Math.round(km)} km
+                    </span>
                   )}
-                </>
+                </p>
               ) : (
-                <>
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Your location
-                  </p>
-                  <p className="truncate text-sm font-semibold text-ink">Browsing all branches</p>
-                </>
+                <p className="truncate text-sm font-semibold text-ink">Set your location</p>
               )}
             </div>
             <button
@@ -311,9 +328,10 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
               onClick={onChangeBranch}
               className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-tint"
             >
-              {branchId ? "Change" : "Set location"}
+              {branch ? "Change" : "Set location"}
             </button>
           </div>
+          )}
         </div>
         </div>
       </div>
@@ -326,10 +344,12 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
           loading={loading}
           onChangeBranch={onChangeBranch}
         />
+      ) : loading ? (
+        <LandingSkeleton />
       ) : (
         <>
       {/* Closed-branch notice */}
-      {!loading && branch && !branch.isOpen && (
+      {branch && !branch.isOpen && (
         <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
           <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-accent-tint px-4 py-3 text-amber-800">
             <Clock className="mt-0.5 size-5 shrink-0" />
@@ -454,10 +474,11 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
         )}
       </div>
 
-      {loading ? (
-        <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
-          <CarouselSkeleton />
-          <CarouselSkeleton />
+      {publishedBlocks && publishedBlocks.length > 0 && !anythingActive ? (
+        // Published landing takes over the body; searching/filtering (which sets
+        // anythingActive) falls back to the live menu results below.
+        <div className="pt-2">
+          <BlockList blocks={publishedBlocks} />
         </div>
       ) : (
         <>
@@ -516,9 +537,6 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
             </section>
           )}
 
-          {/* Promo row 1 */}
-          <PromoTriple />
-
           {/* Order again — returning customers */}
           {!anythingActive && reorderItems.length > 0 && (
             <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
@@ -552,9 +570,6 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
 
           {/* Featured highlights carousel */}
           <FeaturedCarousel />
-
-          {/* Promo row 2 */}
-          {popular.length > 0 && <PromoDouble />}
 
           {/* Sticky category nav (scroll-spy) — sits below the sticky tabs bar */}
           {itemsByCategory.some(({ items: ci }) => ci.length > 0) && (
@@ -592,8 +607,6 @@ export function HomeLanding({ onChangeBranch }: { onChangeBranch: () => void }) 
             if (catItems.length === 0) return null;
             return (
               <Fragment key={category.id}>
-                {/* Promo row 3 — before the Wood-Fired Pizza section */}
-                {category.id === "cat-pizza" && <PromoFull />}
                 <section
                   id={`cat-${category.id}`}
                   ref={(el) => {
@@ -767,22 +780,5 @@ function ModeBanner({
         </>
       )}
     </p>
-  );
-}
-
-function CarouselSkeleton() {
-  return (
-    <div>
-      <Skeleton className="mb-3 h-6 w-40" />
-      <div className="flex gap-3 overflow-hidden">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="w-40 shrink-0 space-y-2 sm:w-48">
-            <Skeleton className="aspect-square w-full rounded-2xl" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-1/3" />
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

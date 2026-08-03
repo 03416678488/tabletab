@@ -1,12 +1,5 @@
-import { Globe } from "lucide-react";
-import { PagePlaceholder } from "@/features/dashboard/components/page-placeholder";
+import { PagesList } from "@/features/website-builder/components/pages-list";
 
 export default function WebsiteSettingsPage() {
-  return (
-    <PagePlaceholder
-      title="Website Setting"
-      description="Storefront/website configuration."
-      icon={Globe}
-    />
-  );
+  return <PagesList />;
 }

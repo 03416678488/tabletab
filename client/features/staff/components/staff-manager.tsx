@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Plus, Search, SlidersHorizontal, Trash2, Users, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -85,8 +86,14 @@ export function StaffManager() {
     setStatus("all");
   };
 
+  const confirm = useConfirm();
+
   const remove = async (member: Staff) => {
-    if (!confirm(`Remove ${member.firstName} ${member.lastName}?`)) return;
+    const ok = await confirm({
+      title: `Remove ${member.firstName} ${member.lastName}?`,
+      confirmLabel: "Remove",
+    });
+    if (!ok) return;
     try {
       await staffService.remove(member.id);
       toast("Staff removed", { tone: "success" });

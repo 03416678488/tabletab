@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { ChevronRight, ReceiptText, Search, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -90,13 +91,19 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
     const next = nextStatus(order.status);
     if (next) void patch(order, { status: next });
   };
-  const cancel = (order: Order) => {
-    if (!confirm(`Cancel order ${order.orderNumber}?`)) return;
+  const confirm = useConfirm();
+
+  const cancel = async (order: Order) => {
+    const ok = await confirm({
+      title: `Cancel order ${order.orderNumber}?`,
+      confirmLabel: "Cancel order",
+    });
+    if (!ok) return;
     void patch(order, { status: "cancelled" });
   };
 
   const remove = async (order: Order) => {
-    if (!confirm(`Delete order ${order.orderNumber}?`)) return;
+    if (!(await confirm({ title: `Delete order ${order.orderNumber}?`, confirmLabel: "Delete" }))) return;
     setBusyId(order.id);
     try {
       await orderService.remove(order.id);

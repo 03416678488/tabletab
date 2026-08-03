@@ -28,8 +28,9 @@ export class Branch extends AbstractEntity {
   @Column({ type: 'double precision', nullable: true })
   lng: number;
 
-  @Column({ type: 'varchar', nullable: true })
-  openingHours: string;
+  /** Per-day weekly hours as a structured object; null = inherit global opening times. */
+  @Column({ type: 'jsonb', nullable: true })
+  openingHours: Record<string, unknown> | null;
 
   @Column({ type: 'double precision', nullable: true })
   deliveryFee: number;

@@ -14,7 +14,7 @@ import { ImagePickerField } from "@/features/media/components/image-picker-field
 import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-group";
 
 export type SettingsField =
-  | { key: string; label: string; type?: "text" | "email" | "url" | "number" | "password"; full?: boolean }
+  | { key: string; label: string; type?: "text" | "email" | "url" | "number" | "password" | "time"; full?: boolean }
   | { key: string; label: string; type: "textarea"; full?: boolean }
   | { key: string; label: string; type: "select"; options: { value: string; label: string }[]; full?: boolean }
   | { key: string; label: string; type: "toggle"; full?: boolean }

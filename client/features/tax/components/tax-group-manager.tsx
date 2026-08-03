@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Layers, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -78,8 +79,10 @@ export function TaxGroupManager() {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (g: TaxGroup) => {
-    if (!confirm(`Delete "${g.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${g.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await taxGroupService.remove(g.id);
       toast("Tax group deleted", { tone: "success" });

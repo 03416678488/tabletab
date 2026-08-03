@@ -29,6 +29,8 @@ import { TransactionModule } from '@modules/transaction/transaction.module';
 import { ReportModule } from '@modules/report/report.module';
 import { IncomeModule } from '@modules/income/income.module';
 import { ExpenseModule } from '@modules/expense/expense.module';
+import { WebsiteModule } from '@modules/website/website.module';
+import { TenancyModule } from '@modules/tenancy/tenancy.module';
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { FileManagerModule } from '@modules/file-manager/file-manager.module';
 import { ResponseModule } from '@cor/filters/exceptions/response.module';
@@ -66,6 +68,8 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     ReportModule,
     IncomeModule,
     ExpenseModule,
+    WebsiteModule,
+    TenancyModule,
     PaginationModule,
     FileManagerModule,
   ],

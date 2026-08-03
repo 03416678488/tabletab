@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -77,9 +78,14 @@ export function QrCodeManager() {
     setDialogOpen(true);
   };
 
+  const confirm = useConfirm();
+
   const remove = async (qr: QrCode) => {
-    if (!confirm(`Delete the QR code for "${qr.table?.name ?? "this table"}"?`))
-      return;
+    const ok = await confirm({
+      title: `Delete the QR code for "${qr.table?.name ?? "this table"}"?`,
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     try {
       await qrCodeService.remove(qr.id);
       toast("QR code deleted", { tone: "success" });

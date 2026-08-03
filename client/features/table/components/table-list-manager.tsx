@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Plus, Search, Table2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -49,8 +50,10 @@ export function TableListManager() {
     setDialogOpen(true);
   };
 
+  const confirm = useConfirm();
+
   const remove = async (t: DiningTable) => {
-    if (!confirm(`Delete "${t.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${t.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await tableService.remove(t.id);
       toast("Table deleted", { tone: "success" });

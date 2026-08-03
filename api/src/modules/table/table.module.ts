@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Table } from './entities/table.entity';
 import { Branch } from '@modules/branch/entities/branch.entity';
 import { Area } from '@modules/area/entities/area.entity';
+import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 import { TableController } from './table.controller';
 import { TableService } from './table.service';
@@ -20,7 +21,14 @@ import { ErrorModule } from '@modules/common/error/error.module';
     ErrorModule,
   ],
   controllers: [TableController],
-  providers: [TableService, TableValidatorService, TableHelperService],
+  providers: [
+    TableService,
+    TableValidatorService,
+    TableHelperService,
+    tenantRepositoryProvider(Table),
+    tenantRepositoryProvider(Branch),
+    tenantRepositoryProvider(Area),
+  ],
   exports: [TableService, TypeOrmModule],
 })
 export class TableModule {}

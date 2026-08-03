@@ -25,6 +25,8 @@ import {
 import { AuthJwtPayload } from './types/auth-jwtPayload';
 import refreshJwtConfig from './config/refresh-jwt.config';
 import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
+import { User } from '@modules/user/entities/users.entity';
+import { DataSource } from 'typeorm';
 
 import { AUTH_CONSTANTS, AUTH_MESSAGES } from './constants';
 
@@ -52,8 +54,13 @@ export class AuthService {
     private readonly _configService: ConfigService,
   ) {}
 
-  async validateUser(email: string, password: string) {
-    const user = await this._userService.attemptLogin(email);
+  async validateUser(email: string, password: string, dataSource?: DataSource) {
+    // When the login request resolved a tenant, authenticate against that
+    // tenant's database (its own users), not the default connection.
+    const user = await this._userService.attemptLogin(
+      email,
+      dataSource?.getRepository(User),
+    );
 
     if (!user) {
       throw new UnauthorizedException(AUTH_MESSAGES.INVALID_CREDENTIALS);
@@ -86,9 +93,13 @@ export class AuthService {
     };
   }
 
-  async login(request: { user: BaseUserResponse }): Promise<LoginResponse> {
-    const { user } = request;
-    const payload = this.buildJwtPayload(user);
+  async login(
+    request: { user: BaseUserResponse; tenant?: { id: string; slug: string } | null },
+  ): Promise<LoginResponse> {
+    const { user, tenant } = request;
+    // Bind the token to the tenant the login request resolved to (from Host /
+    // headers, set by the tenant middleware). Tenant-less logins stay global.
+    const payload = this.buildJwtPayload(user, tenant ?? null);
     const tokens = this.generateTokens(payload);
 
     return {
@@ -99,17 +110,25 @@ export class AuthService {
     };
   }
 
-  async register(dto: UserRegisterDto): Promise<RegistrationResponse> {
-    await this.isEmailExist(dto.email);
-    await this.isPhoneNumberExist(dto.phoneNumber);
+  async register(
+    dto: UserRegisterDto,
+    dataSource?: DataSource,
+  ): Promise<RegistrationResponse> {
+    // Uniqueness + the new user all live in the resolved tenant's database.
+    await this.isEmailExist(dto.email, dataSource);
+    await this.isPhoneNumberExist(dto.phoneNumber, dataSource);
 
-    const user = await this._userService.createUser({
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      phoneNumber: dto.phoneNumber,
-      email: trimSpaces(toLowerCase(dto.email)),
-      password: dto.password,
-    });
+    const user = await this._userService.createUser(
+      {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phoneNumber: dto.phoneNumber,
+        email: trimSpaces(toLowerCase(dto.email)),
+        password: dto.password,
+      },
+      'User',
+      dataSource,
+    );
 
     return {
       id: user.id,
@@ -121,19 +140,31 @@ export class AuthService {
     };
   }
 
-  async refreshToken(userId: string): Promise<RefreshTokenResponse> {
-    const user = await this._userService.findOneWithRoles(userId);
+  async refreshToken(
+    userId: string,
+    tenant?: { id: string; slug: string } | null,
+    dataSource?: DataSource,
+  ): Promise<RefreshTokenResponse> {
+    // Look the user up in the same tenant DB the refresh token is bound to.
+    const user = await this._userService.findOneWithRoles(
+      userId,
+      dataSource?.getRepository(User),
+    );
 
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    const payload = this.buildJwtPayload({
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-    });
+    // Carry the tenant binding forward so refreshed tokens stay bound.
+    const payload = this.buildJwtPayload(
+      {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+      tenant ?? null,
+    );
 
     return {
       tokens: {
@@ -142,8 +173,12 @@ export class AuthService {
     };
   }
 
-  async requestPasswordResetCode(dto: RequestPasswordResetDto): Promise<PasswordResetResponse> {
-    const user = await this._userService.findByEmail(dto.email);
+  async requestPasswordResetCode(
+    dto: RequestPasswordResetDto,
+    dataSource?: DataSource,
+  ): Promise<PasswordResetResponse> {
+    const repo = dataSource?.getRepository(User);
+    const user = await this._userService.findByEmail(dto.email, repo);
 
     if (user?.id && !user.isDeleted && user.isActive) {
       if (user.resetCodeLockedUntil && new Date() < user.resetCodeLockedUntil) {
@@ -155,8 +190,8 @@ export class AuthService {
       const expiry = new Date();
       expiry.setMinutes(expiry.getMinutes() + AUTH_CONSTANTS.RESET_CODE_EXPIRY_MINUTES);
 
-      await this._userService.updateResetToken(user.id, codeHash, expiry);
-      await this._userService.updateResetCodeAttempts(user.id, 0);
+      await this._userService.updateResetToken(user.id, codeHash, expiry, repo);
+      await this._userService.updateResetCodeAttempts(user.id, 0, repo);
 
       try {
         await this._mailService.sendPasswordResetCode(
@@ -172,8 +207,12 @@ export class AuthService {
     return { message: 'If that email exists, we sent a code.' };
   }
 
-  async verifyPasswordResetCode(dto: ResetPasswordVerifyCodeDto): Promise<any> {
-    const user = await this._userService.findByEmail(dto.email);
+  async verifyPasswordResetCode(
+    dto: ResetPasswordVerifyCodeDto,
+    dataSource?: DataSource,
+  ): Promise<any> {
+    const repo = dataSource?.getRepository(User);
+    const user = await this._userService.findByEmail(dto.email, repo);
 
     if (!user?.id) {
       throw new BadRequestException('Invalid reset code');
@@ -184,24 +223,28 @@ export class AuthService {
     }
 
     if (new Date() > user.resetTokenExpiry) {
-      await this._userService.clearResetToken(user.id);
+      await this._userService.clearResetToken(user.id, repo);
       throw new BadRequestException('Reset code has expired');
     }
 
     const isCodeValid = await bcrypt.compare(dto.code, user.resetToken);
     if (!isCodeValid) {
       const newAttemptCount = (user.resetCodeAttempts || 0) + 1;
-      await this._userService.updateResetCodeAttempts(user.id, newAttemptCount);
+      await this._userService.updateResetCodeAttempts(user.id, newAttemptCount, repo);
       throw new BadRequestException('Invalid reset code');
     }
 
-    await this._userService.updateResetCodeAttempts(user.id, 0);
+    await this._userService.updateResetCodeAttempts(user.id, 0, repo);
 
     return { message: 'Reset code is valid' };
   }
 
-  async verifyPasswordResetCodeAndReset(dto: ResetPasswordDto): Promise<PasswordResetResponse> {
-    const user = await this._userService.findByEmail(dto.email);
+  async verifyPasswordResetCodeAndReset(
+    dto: ResetPasswordDto,
+    dataSource?: DataSource,
+  ): Promise<PasswordResetResponse> {
+    const repo = dataSource?.getRepository(User);
+    const user = await this._userService.findByEmail(dto.email, repo);
 
     if (!user?.id) {
       throw new BadRequestException('Invalid reset code');
@@ -218,14 +261,14 @@ export class AuthService {
     }
 
     if (new Date() > user.resetTokenExpiry) {
-      await this._userService.clearResetToken(user.id);
+      await this._userService.clearResetToken(user.id, repo);
       throw new BadRequestException('Invalid reset code');
     }
 
     const isCodeValid = await bcrypt.compare(dto.code, user.resetToken);
     if (!isCodeValid) {
       const newAttemptCount = (user.resetCodeAttempts || 0) + 1;
-      await this._userService.updateResetCodeAttempts(user.id, newAttemptCount);
+      await this._userService.updateResetCodeAttempts(user.id, newAttemptCount, repo);
 
       // if (newAttemptCount >= 5) {
       //   const lockedUntil = new Date();
@@ -240,14 +283,14 @@ export class AuthService {
       throw new BadRequestException('Invalid reset code');
     }
 
-    await this._userService.updateResetCodeAttempts(user.id, 0);
+    await this._userService.updateResetCodeAttempts(user.id, 0, repo);
 
     const hashedPassword = await bcrypt.hash(dto.newPassword, AUTH_CONSTANTS.SALT_ROUNDS);
 
     await Promise.all([
-      this._userService.updatePassword(user.id, hashedPassword),
-      this._userService.clearResetToken(user.id),
-      this._userService.updatePasswordChangedAt(user.id),
+      this._userService.updatePassword(user.id, hashedPassword, repo),
+      this._userService.clearResetToken(user.id, repo),
+      this._userService.updatePasswordChangedAt(user.id, repo),
     ]);
 
     try {
@@ -261,8 +304,10 @@ export class AuthService {
 
   async requestEmailVerificationCode(
     dto: RequestEmailVerificationDto,
+    dataSource?: DataSource,
   ): Promise<{ message: string }> {
-    const user = await this._userService.findByEmail(dto.email);
+    const repo = dataSource?.getRepository(User);
+    const user = await this._userService.findByEmail(dto.email, repo);
 
     if (user?.id && !user.isDeleted && !user.emailVerified) {
       if (user.verificationCodeLockedUntil && new Date() < user.verificationCodeLockedUntil) {
@@ -275,8 +320,8 @@ export class AuthService {
       const expiry = new Date();
       expiry.setMinutes(expiry.getMinutes() + AUTH_CONSTANTS.VERIFICATION_CODE_EXPIRY_MINUTES);
 
-      await this._userService.setVerificationToken(user.id, codeHash, expiry);
-      await this._userService.updateVerificationCodeAttempts(user.id, 0);
+      await this._userService.setVerificationToken(user.id, codeHash, expiry, repo);
+      await this._userService.updateVerificationCodeAttempts(user.id, 0, repo);
 
       try {
         await this._mailService.sendVerificationCode(
@@ -294,8 +339,12 @@ export class AuthService {
     return { message: 'If that email exists, we sent a code.' };
   }
 
-  async verifyEmailWithCode(dto: VerifyEmailDto): Promise<{ message: string }> {
-    const user = await this._userService.findByEmail(dto.email);
+  async verifyEmailWithCode(
+    dto: VerifyEmailDto,
+    dataSource?: DataSource,
+  ): Promise<{ message: string }> {
+    const repo = dataSource?.getRepository(User);
+    const user = await this._userService.findByEmail(dto.email, repo);
 
     if (!user?.id) {
       throw new BadRequestException('Invalid verification code');
@@ -314,19 +363,19 @@ export class AuthService {
     }
 
     if (new Date() > user.verificationTokenExpiry) {
-      await this._userService.clearVerificationToken(user.id);
+      await this._userService.clearVerificationToken(user.id, repo);
       throw new BadRequestException('Invalid verification code');
     }
 
     const isCodeValid = await bcrypt.compare(dto.code, user.verificationToken);
     if (!isCodeValid) {
       const newAttemptCount = (user.verificationCodeAttempts || 0) + 1;
-      await this._userService.updateVerificationCodeAttempts(user.id, newAttemptCount);
+      await this._userService.updateVerificationCodeAttempts(user.id, newAttemptCount, repo);
 
       if (newAttemptCount >= 5) {
         const lockedUntil = new Date();
         lockedUntil.setMinutes(lockedUntil.getMinutes() + 15);
-        await this._userService.updateVerificationCodeLockedUntil(user.id, lockedUntil);
+        await this._userService.updateVerificationCodeLockedUntil(user.id, lockedUntil, repo);
 
         throw new ForbiddenException('Too many failed attempts. Account locked for 15 minutes.');
       }
@@ -334,8 +383,8 @@ export class AuthService {
       throw new BadRequestException('Invalid verification code');
     }
 
-    await this._userService.updateVerificationCodeAttempts(user.id, 0);
-    await this._userService.verifyEmail(user.id);
+    await this._userService.updateVerificationCodeAttempts(user.id, 0, repo);
+    await this._userService.verifyEmail(user.id, repo);
 
     try {
       await this._mailService.sendVerificationSuccessEmail(user.email, user.firstName);
@@ -346,8 +395,9 @@ export class AuthService {
     return { message: 'Email verified successfully' };
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto) {
-    const user = await this._userService.findById(userId, ['id', 'password']);
+  async changePassword(userId: string, dto: ChangePasswordDto, dataSource?: DataSource) {
+    const repo = dataSource?.getRepository(User);
+    const user = await this._userService.findById(userId, ['id', 'password'], repo);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -365,7 +415,7 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
 
-    await this._userService.updatePassword(userId, hashedPassword);
+    await this._userService.updatePassword(userId, hashedPassword, repo);
 
     return 'Password changed successfully';
   }
@@ -388,12 +438,14 @@ export class AuthService {
 
   private buildJwtPayload(
     user: Pick<BaseUserResponse, 'id' | 'email' | 'firstName' | 'lastName'>,
+    tenant?: { id: string; slug: string } | null,
   ): AuthJwtPayload {
     return {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      tenant: tenant ? { id: tenant.id, slug: tenant.slug } : null,
     };
   }
 
@@ -433,8 +485,11 @@ export class AuthService {
     }
   }
 
-  async isEmailExist(email: string): Promise<void> {
-    const existing = await this._userService.findByEmail(email);
+  async isEmailExist(email: string, dataSource?: DataSource): Promise<void> {
+    const existing = await this._userService.findByEmail(
+      email,
+      dataSource?.getRepository(User),
+    );
 
     if (existing) {
       throw new ConflictException([
@@ -446,8 +501,11 @@ export class AuthService {
     }
   }
 
-  async isPhoneNumberExist(phoneNumber: string): Promise<void> {
-    const existing = await this._userService.findOneBy({ phoneNumber });
+  async isPhoneNumberExist(phoneNumber: string, dataSource?: DataSource): Promise<void> {
+    const existing = await this._userService.existsByPhone(
+      phoneNumber,
+      dataSource?.getRepository(User),
+    );
 
     if (existing) {
       throw new ConflictException(AUTH_MESSAGES.PHONE_NUMBER_EXISTS);

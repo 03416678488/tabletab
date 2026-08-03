@@ -4,6 +4,7 @@ import {
   IsLongitude,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Min,
@@ -42,9 +43,11 @@ export class CreateBranchDto {
   @IsOptional()
   lng?: number;
 
-  @IsString()
+  // Structured weekly hours ({ mon: { closed, open, close }, … }); null/omitted
+  // = inherit the global opening times. Shape is validated on the client.
+  @IsObject()
   @IsOptional()
-  openingHours?: string;
+  openingHours?: Record<string, unknown> | null;
 
   @IsNumber()
   @Min(0)

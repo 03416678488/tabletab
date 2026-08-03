@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Monitor, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -97,8 +98,10 @@ export function KioskMachineManager() {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (m: KioskMachine) => {
-    if (!confirm(`Delete machine ${m.machineId}?`)) return;
+    if (!(await confirm({ title: `Delete machine ${m.machineId}?`, confirmLabel: "Delete" }))) return;
     try {
       await kioskMachineService.remove(m.id);
       toast("Kiosk machine deleted", { tone: "success" });

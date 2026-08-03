@@ -13,6 +13,7 @@ import { MenuHelperService } from './services/menu.helper.service';
 
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
+import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 @Module({
   imports: [
@@ -21,7 +22,17 @@ import { ErrorModule } from '@modules/common/error/error.module';
     ErrorModule,
   ],
   controllers: [MenuController],
-  providers: [MenuService, MenuValidatorService, MenuHelperService],
+  providers: [
+    MenuService,
+    MenuValidatorService,
+    MenuHelperService,
+    // Tenant-aware: every @InjectRepository in this module now resolves to the
+    // current request's tenant database (falls back to the default connection).
+    tenantRepositoryProvider(MenuItem),
+    tenantRepositoryProvider(Category),
+    tenantRepositoryProvider(FoodType),
+    tenantRepositoryProvider(Menu),
+  ],
   exports: [MenuService, TypeOrmModule],
 })
 export class MenuModule {}

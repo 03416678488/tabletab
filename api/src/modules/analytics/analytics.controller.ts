@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { RequiresFeature } from '@modules/tenancy/plan-feature.guard';
 
 import { AnalyticsService } from './analytics.service';
 import { CreateAnalyticsDto, UpdateAnalyticsDto } from './dto/analytics.dto';
@@ -19,6 +20,7 @@ export class AnalyticsController {
   constructor(private readonly _service: AnalyticsService) {}
 
   @Public()
+  @RequiresFeature('analytics')
   @Get()
   getAll() {
     return this._service.getAll();

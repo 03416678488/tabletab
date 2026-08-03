@@ -28,6 +28,10 @@ export class File {
   @Column({ type: 'int', nullable: true })
   size: number;
 
+  /** Folder this image belongs to (null = root/uncategorised). */
+  @Column({ type: 'uuid', nullable: true })
+  folderId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

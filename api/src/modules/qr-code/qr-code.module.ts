@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { QrCode } from './entities/qr-code.entity';
 import { Table } from '@modules/table/entities/table.entity';
+import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 import { QrCodeController } from './qr-code.controller';
 import { QrCodeService } from './qr-code.service';
@@ -19,7 +20,13 @@ import { ErrorModule } from '@modules/common/error/error.module';
     ErrorModule,
   ],
   controllers: [QrCodeController],
-  providers: [QrCodeService, QrCodeValidatorService, QrCodeHelperService],
+  providers: [
+    QrCodeService,
+    QrCodeValidatorService,
+    QrCodeHelperService,
+    tenantRepositoryProvider(QrCode),
+    tenantRepositoryProvider(Table),
+  ],
   exports: [QrCodeService, TypeOrmModule],
 })
 export class QrCodeModule {}

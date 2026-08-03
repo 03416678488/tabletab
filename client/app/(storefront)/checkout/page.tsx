@@ -45,7 +45,7 @@ function CheckoutContent() {
     label: "Home",
     line1: "",
     line2: "",
-    city: "Portland",
+    city: "",
     postalCode: "",
     isDefault: false,
   });

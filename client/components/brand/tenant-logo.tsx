@@ -16,6 +16,8 @@ interface TenantLogoProps {
   showTagline?: boolean;
   /** Optional override for settings preview. */
   branding?: TenantBranding;
+  /** Override the displayed brand name (e.g. from the website builder header). */
+  nameOverride?: string;
 }
 
 export function TenantLogo({
@@ -24,10 +26,13 @@ export function TenantLogo({
   variant = "default",
   showTagline = false,
   branding: brandingOverride,
+  nameOverride,
 }: TenantLogoProps) {
   const tenant = useTenant();
   const branding = resolveBranding(brandingOverride ?? tenant.branding);
-  const { name, tagline } = tenant;
+  const { tagline } = tenant;
+  // An empty override falls back to the tenant's real name.
+  const name = nameOverride?.trim() || tenant.name;
   const logoSrc = branding.logoDataUrl ?? branding.logoUrl;
   const compact = variant === "compact";
 

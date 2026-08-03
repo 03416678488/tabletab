@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Customer } from './entities/customer.entity';
+import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 import { CustomerController } from './customer.controller';
 import { CustomerService } from './customer.service';
@@ -18,7 +19,12 @@ import { ErrorModule } from '@modules/common/error/error.module';
     ErrorModule,
   ],
   controllers: [CustomerController],
-  providers: [CustomerService, CustomerValidatorService, CustomerHelperService],
+  providers: [
+    CustomerService,
+    CustomerValidatorService,
+    CustomerHelperService,
+    tenantRepositoryProvider(Customer),
+  ],
   exports: [CustomerService, TypeOrmModule],
 })
 export class CustomerModule {}

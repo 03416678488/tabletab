@@ -87,4 +87,7 @@ export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
 
   // Customers are guests — no dashboard modules, just the link anchor.
   Customers: [ANCHOR],
+
+  // Default role for self-registered accounts — no admin modules.
+  User: [ANCHOR],
 };

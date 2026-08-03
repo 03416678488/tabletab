@@ -14,6 +14,7 @@ import { OrderHelperService } from './services/order.helper.service';
 
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
+import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 @Module({
   imports: [
@@ -22,7 +23,18 @@ import { ErrorModule } from '@modules/common/error/error.module';
     ErrorModule,
   ],
   controllers: [OrderController],
-  providers: [OrderService, OrderValidatorService, OrderHelperService],
+  providers: [
+    OrderService,
+    OrderValidatorService,
+    OrderHelperService,
+    // Tenant-aware: order reads/writes (and the tables/branches they validate
+    // against) resolve to the current request's tenant database. Relations
+    // (items, customer) load through the Order connection automatically.
+    tenantRepositoryProvider(Order),
+    tenantRepositoryProvider(OrderItem),
+    tenantRepositoryProvider(Table),
+    tenantRepositoryProvider(Branch),
+  ],
   exports: [OrderService, TypeOrmModule],
 })
 export class OrderModule {}

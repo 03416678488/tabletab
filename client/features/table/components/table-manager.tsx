@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -161,8 +162,10 @@ export function TableManager() {
     setStatus("all");
   };
 
+  const confirm = useConfirm();
+
   const remove = async (table: DiningTable) => {
-    if (!confirm(`Delete "${table.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${table.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await tableService.remove(table.id);
       toast("Table deleted", { tone: "success" });

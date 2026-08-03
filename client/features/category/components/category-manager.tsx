@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Plus, Search, SlidersHorizontal, Tags, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -61,8 +62,10 @@ export function CategoryManager() {
     setDialogOpen(true);
   };
 
+  const confirm = useConfirm();
+
   const remove = async (category: Category) => {
-    if (!confirm(`Delete "${category.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${category.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await categoryService.remove(category.id);
       toast("Category deleted", { tone: "success" });

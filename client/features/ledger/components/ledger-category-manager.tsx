@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -79,8 +80,10 @@ export function LedgerCategoryManager({ config }: { config: LedgerConfig }) {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (c: LedgerCategory) => {
-    if (!confirm(`Delete "${c.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${c.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await svc.removeCategory(c.id);
       toast("Category deleted", { tone: "success" });

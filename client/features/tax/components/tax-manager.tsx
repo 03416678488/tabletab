@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Languages as LanguagesIcon, Pencil, Percent, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -74,8 +75,10 @@ export function TaxManager() {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (t: Tax) => {
-    if (!confirm(`Delete ${t.name} (${t.code})?`)) return;
+    if (!(await confirm({ title: `Delete ${t.name} (${t.code})?`, confirmLabel: "Delete" }))) return;
     try {
       await taxService.remove(t.id);
       toast("Tax deleted", { tone: "success" });

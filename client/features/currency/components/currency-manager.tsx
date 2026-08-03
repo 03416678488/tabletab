@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Coins, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -141,8 +142,10 @@ export function CurrencyManager() {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (c: Currency) => {
-    if (!confirm(`Delete ${c.name}?`)) return;
+    if (!(await confirm({ title: `Delete ${c.name}?`, confirmLabel: "Delete" }))) return;
     try {
       await currencyService.remove(c.id);
       toast("Currency deleted", { tone: "success" });

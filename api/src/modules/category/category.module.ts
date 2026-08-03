@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Category } from './entities/category.entity';
+import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 import { CategoryController } from './category.controller';
 import { CategoryService } from './category.service';
@@ -14,7 +15,12 @@ import { ErrorModule } from '@modules/common/error/error.module';
 @Module({
   imports: [TypeOrmModule.forFeature([Category]), PaginationModule, ErrorModule],
   controllers: [CategoryController],
-  providers: [CategoryService, CategoryValidatorService, CategoryHelperService],
+  providers: [
+    CategoryService,
+    CategoryValidatorService,
+    CategoryHelperService,
+    tenantRepositoryProvider(Category),
+  ],
   exports: [CategoryService, TypeOrmModule],
 })
 export class CategoryModule {}

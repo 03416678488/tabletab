@@ -6,12 +6,13 @@ import { FileManagerController } from '@modules/file-manager/file-manager.contro
 import { FileManagerService } from '@modules/file-manager/file-manager.service';
 import { File } from '@modules/file-manager/entities/file.entity';
 import { FileMetadata } from '@modules/file-manager/entities/file-metadata.entity';
+import { MediaFolder } from '@modules/file-manager/entities/media-folder.entity';
 import { FileManagerValidatorService } from '@modules/file-manager/services/file-manager-validator.service';
 import { FileModule } from '@modules/common/file/file.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([File, FileMetadata]),
+    TypeOrmModule.forFeature([File, FileMetadata, MediaFolder]),
     MulterModule.register(MulterConfig),
     FileModule,
   ],

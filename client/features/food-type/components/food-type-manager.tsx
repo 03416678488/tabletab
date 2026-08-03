@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Plus, Salad, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -61,8 +62,10 @@ export function FoodTypeManager() {
     setDialogOpen(true);
   };
 
+  const confirm = useConfirm();
+
   const remove = async (foodType: FoodType) => {
-    if (!confirm(`Delete "${foodType.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${foodType.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await foodTypeService.remove(foodType.id);
       toast("Food type deleted", { tone: "success" });

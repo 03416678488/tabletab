@@ -20,6 +20,7 @@ export class RefreshStrategy extends PassportStrategy(Strategy, 'refresh-jwt') {
       email: payload.email,
       firstName: payload.firstName,
       lastName: payload.lastName,
+      tenant: payload.tenant ?? null,
     };
   }
 }

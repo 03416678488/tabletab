@@ -20,6 +20,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:migrate": "node src/cor/scripts/run-migration.js",
+    "db:migrate:tenants": "node src/cor/scripts/migrate-tenants.js",
     "db:seed": "ts-node -r tsconfig-paths/register src/database/seeds/seeder.ts",
     "db:rollback": "npx ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/config/migration.config.ts",
     "migration:create": "node src/cor/scripts/create-migration.js",

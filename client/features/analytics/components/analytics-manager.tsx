@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BarChart3, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -66,8 +67,10 @@ export function AnalyticsManager() {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (a: Analytics) => {
-    if (!confirm(`Delete ${a.name}?`)) return;
+    if (!(await confirm({ title: `Delete ${a.name}?`, confirmLabel: "Delete" }))) return;
     try {
       await analyticsService.remove(a.id);
       toast("Analytics deleted", { tone: "success" });

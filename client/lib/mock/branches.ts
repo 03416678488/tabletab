@@ -19,7 +19,7 @@ export const branches: Branch[] = [
     id: "br-riverside",
     name: "Olive & Ash — Riverside",
     address: "14 Quay Street",
-    city: "Portland",
+    city: "",
     phone: "+1 (503) 555-0142",
     imageUrl: "https://picsum.photos/seed/tabletap-riverside/1200/640",
     isOpen: true,

@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { nearestBranch } from "@/lib/geo";
 import type { Branch } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { fetchStorefrontBranches } from "@/features/storefront/services/storefront-branches";
 
 interface LocationPermissionDialogProps {
   open: boolean;
@@ -36,9 +37,12 @@ export function LocationPermissionDialog({ open, onOpenChange }: LocationPermiss
 
   useEffect(() => {
     let cancelled = false;
-    api.getBranches().then((list) => {
-      if (!cancelled) setBranches(list);
-    });
+    // Live branches so the branch we pick matches the ids the landing resolves.
+    fetchStorefrontBranches()
+      .catch(() => api.getBranches())
+      .then((list) => {
+        if (!cancelled) setBranches(list);
+      });
     return () => {
       cancelled = true;
     };

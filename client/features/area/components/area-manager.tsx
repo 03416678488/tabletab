@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { LayoutGrid, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -44,8 +45,10 @@ export function AreaManager() {
     setDialogOpen(true);
   };
 
+  const confirm = useConfirm();
+
   const remove = async (area: Area) => {
-    if (!confirm(`Delete "${area.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${area.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await areaService.remove(area.id);
       toast("Area deleted", { tone: "success" });

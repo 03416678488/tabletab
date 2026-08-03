@@ -36,8 +36,8 @@ export class AuthController {
   // @RateLimit(RateLimitConstants.IP_LIMIT)
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() dto: UserRegisterDto) {
-    return this._authService.register(dto);
+  async register(@Req() req: any, @Body() dto: UserRegisterDto) {
+    return this._authService.register(dto, req.tenantDataSource);
   }
 
   @Public()
@@ -45,61 +45,66 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Req() req: any) {
-    return this._authService.refreshToken(req.user.id);
+    return this._authService.refreshToken(req.user.id, req.user.tenant, req.tenantDataSource);
   }
 
   @Public()
   // @RateLimit(RateLimitConstants.EMAIL_COOLDOWN)
   @Post('password-reset/request-code')
   @HttpCode(HttpStatus.OK)
-  async requestPasswordResetCode(@Body() dto: RequestPasswordResetDto) {
-    return this._authService.requestPasswordResetCode(dto);
+  async requestPasswordResetCode(@Req() req: any, @Body() dto: RequestPasswordResetDto) {
+    return this._authService.requestPasswordResetCode(dto, req.tenantDataSource);
   }
 
   @Public()
   // @RateLimit(RateLimitConstants.EMAIL_DAILY)
   @Post('password-reset/verify-code')
   @HttpCode(HttpStatus.OK)
-  async verifyPasswordResetCode(@Body() dto: ResetPasswordVerifyCodeDto) {
-    return this._authService.verifyPasswordResetCode(dto);
+  async verifyPasswordResetCode(@Req() req: any, @Body() dto: ResetPasswordVerifyCodeDto) {
+    return this._authService.verifyPasswordResetCode(dto, req.tenantDataSource);
   }
 
   @Public()
   // @RateLimit(RateLimitConstants.EMAIL_DAILY)
   @Post('password-reset/verify-code-and-reset-password')
   @HttpCode(HttpStatus.OK)
-  async verifyCodeAndResetPassword(@Body() dto: ResetPasswordDto) {
-    return this._authService.verifyPasswordResetCodeAndReset(dto);
+  async verifyCodeAndResetPassword(@Req() req: any, @Body() dto: ResetPasswordDto) {
+    return this._authService.verifyPasswordResetCodeAndReset(dto, req.tenantDataSource);
   }
 
   @Public()
   // @RateLimit(RateLimitConstants.EMAIL_COOLDOWN)
   @Post('email-verification/request-code')
   @HttpCode(HttpStatus.OK)
-  async requestEmailVerificationCode(@Body() dto: RequestEmailVerificationDto) {
-    return this._authService.requestEmailVerificationCode(dto);
+  async requestEmailVerificationCode(@Req() req: any, @Body() dto: RequestEmailVerificationDto) {
+    return this._authService.requestEmailVerificationCode(dto, req.tenantDataSource);
   }
 
   @Public()
   @Post('email-verification/verify-code')
   @HttpCode(HttpStatus.OK)
-  async verifyEmailWithCode(@Body() dto: VerifyEmailDto) {
-    return this._authService.verifyEmailWithCode(dto);
+  async verifyEmailWithCode(@Req() req: any, @Body() dto: VerifyEmailDto) {
+    return this._authService.verifyEmailWithCode(dto, req.tenantDataSource);
   }
 
   @UseGuards(JwtAuthGuard)
   // @RateLimit(RateLimitConstants.EMAIL_COOLDOWN)
   @Post('email-verification/resend-code')
   @HttpCode(HttpStatus.OK)
-  async resendVerificationCode(@CurrentUser() user: User) {
-    return this._authService.requestEmailVerificationCode({
-      email: user.email,
-    });
+  async resendVerificationCode(@Req() req: any, @CurrentUser() user: User) {
+    return this._authService.requestEmailVerificationCode(
+      { email: user.email },
+      req.tenantDataSource,
+    );
   }
 
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
-  async changePassword(@CurrentUser() user: User, @Body() dto: ChangePasswordDto) {
-    return this._authService.changePassword(user.id, dto);
+  async changePassword(
+    @Req() req: any,
+    @CurrentUser() user: User,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this._authService.changePassword(user.id, dto, req.tenantDataSource);
   }
 }

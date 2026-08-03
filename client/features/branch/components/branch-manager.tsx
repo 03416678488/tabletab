@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { MapPin, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -75,8 +76,15 @@ export function BranchManager() {
     setCity("all");
   };
 
+  const confirm = useConfirm();
+
   const remove = async (branch: Branch) => {
-    if (!confirm(`Delete "${branch.name}"? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: `Delete "${branch.name}"?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     try {
       await branchService.remove(branch.id);
       toast("Branch deleted", { tone: "success" });

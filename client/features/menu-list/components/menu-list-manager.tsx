@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { BookOpen, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -61,8 +62,10 @@ export function MenuListManager() {
     setDialogOpen(true);
   };
 
+  const confirm = useConfirm();
+
   const remove = async (menu: Menu) => {
-    if (!confirm(`Delete "${menu.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${menu.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await menusService.remove(menu.id);
       toast("Menu deleted", { tone: "success" });

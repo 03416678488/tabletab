@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { FoodType } from './entities/food-type.entity';
+import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 import { FoodTypeController } from './food-type.controller';
 import { FoodTypeService } from './food-type.service';
@@ -14,7 +15,12 @@ import { ErrorModule } from '@modules/common/error/error.module';
 @Module({
   imports: [TypeOrmModule.forFeature([FoodType]), PaginationModule, ErrorModule],
   controllers: [FoodTypeController],
-  providers: [FoodTypeService, FoodTypeValidatorService, FoodTypeHelperService],
+  providers: [
+    FoodTypeService,
+    FoodTypeValidatorService,
+    FoodTypeHelperService,
+    tenantRepositoryProvider(FoodType),
+  ],
   exports: [FoodTypeService, TypeOrmModule],
 })
 export class FoodTypeModule {}

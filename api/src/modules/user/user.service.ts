@@ -1,4 +1,4 @@
-import { Repository, QueryRunner } from 'typeorm';
+import { DataSource, Repository, QueryRunner } from 'typeorm';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -32,27 +32,52 @@ export class UserService extends AbstractService<User> {
     super(_userRepo);
   }
 
-  async createUser(dto: CreateUserDto, roleName: string = 'User'): Promise<User> {
-    const userId = await this._transactionService.execute(async (queryRunner) => {
+  /**
+   * Create a user (+ default role). When `dataSource` is a tenant connection the
+   * whole transaction — user row and role assignment — runs in that tenant's DB.
+   */
+  async createUser(
+    dto: CreateUserDto,
+    roleName: string = 'User',
+    dataSource?: DataSource,
+  ): Promise<User> {
+    const build = async (queryRunner: QueryRunner): Promise<string> => {
       const hashedPassword = await bcrypt.hash(dto.password, AUTH_CONSTANTS.SALT_ROUNDS);
-
       const user = this._userRepo.create({
         ...dto,
         password: hashedPassword,
         emailVerified: false,
       });
-
       const savedUser = await queryRunner.manager.save(User, user);
-      await this.assignRoleToUser(queryRunner, savedUser.id, roleName);
-
+      await this.assignRoleToUser(queryRunner, savedUser.id, roleName, dataSource);
       return savedUser.id;
-    });
+    };
 
-    return this.findOneWithRoles(userId);
+    let userId: string;
+    if (dataSource) {
+      const qr = dataSource.createQueryRunner();
+      await qr.connect();
+      await qr.startTransaction();
+      try {
+        userId = await build(qr);
+        await qr.commitTransaction();
+      } catch (err) {
+        await qr.rollbackTransaction();
+        throw err;
+      } finally {
+        await qr.release();
+      }
+    } else {
+      userId = await this._transactionService.execute(build);
+    }
+
+    return this.findOneWithRoles(userId, dataSource?.getRepository(User));
   }
 
-  async attemptLogin(email: string) {
-    return this._userRepo
+  /** `repo` overrides the default connection — pass a tenant's User repo to
+   *  authenticate against that tenant's database. */
+  async attemptLogin(email: string, repo?: Repository<User>) {
+    return (repo ?? this._userRepo)
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.userRolePermissions', 'userRolePermissions')
       .leftJoinAndSelect('userRolePermissions.role', 'role')
@@ -62,8 +87,8 @@ export class UserService extends AbstractService<User> {
       .getOne();
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this._userRepo.findOne({
+  async findByEmail(email: string, repo?: Repository<User>): Promise<User | null> {
+    return (repo ?? this._userRepo).findOne({
       where: { email },
       select: [
         'id',
@@ -96,6 +121,15 @@ export class UserService extends AbstractService<User> {
         'updatedAt',
       ],
     });
+  }
+
+  /** True if a user with this phone already exists (in the given/default DB). */
+  async existsByPhone(phoneNumber: string, repo?: Repository<User>): Promise<boolean> {
+    const found = await (repo ?? this._userRepo).findOne({
+      where: { phoneNumber },
+      select: ['id'],
+    });
+    return Boolean(found);
   }
 
   /** List users (optionally scoped to a role) with their role name. Powers the Users screens. */
@@ -140,18 +174,19 @@ export class UserService extends AbstractService<User> {
     return qb.getRawMany();
   }
 
-  async findById(id: string, select?: string[]): Promise<User | null> {
+  async findById(id: string, select?: string[], repo?: Repository<User>): Promise<User | null> {
+    const r = repo ?? this._userRepo;
     if (select) {
-      return this._userRepo.findOne({
+      return r.findOne({
         where: { id },
         select: select as any,
       });
     }
-    return this._userRepo.findOne({ where: { id } });
+    return r.findOne({ where: { id } });
   }
 
-  async findOneWithRoles(id: string): Promise<User> {
-    const user = await this._userRepo.findOne({
+  async findOneWithRoles(id: string, repo?: Repository<User>): Promise<User> {
+    const user = await (repo ?? this._userRepo).findOne({
       where: { id },
       relations: [
         'userRolePermissions',
@@ -184,8 +219,9 @@ export class UserService extends AbstractService<User> {
     userId: string,
     resetToken: string,
     resetTokenExpiry: Date,
+    repo?: Repository<User>,
   ): Promise<void> {
-    await this._userRepo.update(
+    await (repo ?? this._userRepo).update(
       { id: userId },
       {
         resetToken,
@@ -232,83 +268,94 @@ export class UserService extends AbstractService<User> {
     return user?.emailVerified || false;
   }
 
-  async clearResetToken(userId: string): Promise<void> {
-    await this._userRepo.update(userId, {
+  async clearResetToken(userId: string, repo?: Repository<User>): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       resetToken: null,
       resetTokenExpiry: null,
     });
   }
 
-  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
-    await this._userRepo.update(userId, {
+  async updatePassword(
+    userId: string,
+    hashedPassword: string,
+    repo?: Repository<User>,
+  ): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       password: hashedPassword,
     });
   }
 
-  async updatePasswordChangedAt(userId: string): Promise<void> {
-    await this._userRepo.update(userId, {
+  async updatePasswordChangedAt(userId: string, repo?: Repository<User>): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       passwordChangedAt: new Date(),
     });
   }
 
-  async setVerificationToken(userId: string, token: string, expiry: Date): Promise<void> {
-    const result = await this._userRepo.update(userId, {
+  async setVerificationToken(
+    userId: string,
+    token: string,
+    expiry: Date,
+    repo?: Repository<User>,
+  ): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       verificationToken: token,
       verificationTokenExpiry: expiry,
     });
-
-    console.log(`[SET_TOKEN] Update result:`, result);
-
-    // Verify it was saved
-    const savedUser = await this._userRepo.findOne({
-      where: { id: userId },
-      select: ['verificationToken', 'verificationTokenExpiry'],
-    });
-
-    console.log(`[SET_TOKEN] Verification after save:`, {
-      hasToken: !!savedUser?.verificationToken,
-      tokenLength: savedUser?.verificationToken?.length || 0,
-      expirySet: !!savedUser?.verificationTokenExpiry,
-    });
   }
 
-  async clearVerificationToken(userId: string): Promise<void> {
-    await this._userRepo.update(userId, {
+  async clearVerificationToken(userId: string, repo?: Repository<User>): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       verificationToken: null,
       verificationTokenExpiry: null,
     });
   }
 
-  async verifyEmail(userId: string): Promise<void> {
-    await this._userRepo.update(userId, {
+  async verifyEmail(userId: string, repo?: Repository<User>): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       emailVerified: true,
       verificationToken: null,
       verificationTokenExpiry: null,
     });
   }
 
-  async updateResetCodeAttempts(userId: string, attempts: number): Promise<void> {
-    await this._userRepo.update(userId, {
+  async updateResetCodeAttempts(
+    userId: string,
+    attempts: number,
+    repo?: Repository<User>,
+  ): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       resetCodeAttempts: attempts,
       resetCodeLastAttemptAt: new Date(),
     });
   }
 
-  async updateResetCodeLockedUntil(userId: string, lockedUntil: Date): Promise<void> {
-    await this._userRepo.update(userId, {
+  async updateResetCodeLockedUntil(
+    userId: string,
+    lockedUntil: Date,
+    repo?: Repository<User>,
+  ): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       resetCodeLockedUntil: lockedUntil,
     });
   }
 
-  async updateVerificationCodeAttempts(userId: string, attempts: number): Promise<void> {
-    await this._userRepo.update(userId, {
+  async updateVerificationCodeAttempts(
+    userId: string,
+    attempts: number,
+    repo?: Repository<User>,
+  ): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       verificationCodeAttempts: attempts,
       verificationCodeLastAttemptAt: new Date(),
     });
   }
 
-  async updateVerificationCodeLockedUntil(userId: string, lockedUntil: Date): Promise<void> {
-    await this._userRepo.update(userId, {
+  async updateVerificationCodeLockedUntil(
+    userId: string,
+    lockedUntil: Date,
+    repo?: Repository<User>,
+  ): Promise<void> {
+    await (repo ?? this._userRepo).update(userId, {
       verificationCodeLockedUntil: lockedUntil,
     });
   }
@@ -328,8 +375,12 @@ export class UserService extends AbstractService<User> {
     queryRunner: QueryRunner,
     userId: string,
     roleName: string,
+    dataSource?: DataSource,
   ): Promise<void> {
-    const role = await this._roleRepo.findOne({
+    const roleRepo = dataSource ? dataSource.getRepository(Role) : this._roleRepo;
+    const permissionRepo = dataSource ? dataSource.getRepository(Permission) : this._permissionRepo;
+
+    const role = await roleRepo.findOne({
       where: { name: roleName },
     });
 
@@ -338,7 +389,7 @@ export class UserService extends AbstractService<User> {
       return;
     }
 
-    const permissions = await this._permissionRepo.find({
+    const permissions = await permissionRepo.find({
       where: { resource: 'users' },
     });
 

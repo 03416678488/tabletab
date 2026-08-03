@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Receipt, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -144,8 +145,10 @@ export function LedgerManager({ config }: { config: LedgerConfig }) {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (r: LedgerRecord) => {
-    if (!confirm("Delete this entry?")) return;
+    if (!(await confirm({ title: "Delete this entry?", confirmLabel: "Delete" }))) return;
     try {
       await svc.remove(r.id);
       toast("Deleted", { tone: "success" });

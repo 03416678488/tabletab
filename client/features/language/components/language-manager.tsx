@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Globe, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -64,12 +65,14 @@ export function LanguageManager() {
     }
   };
 
+  const confirm = useConfirm();
+
   const remove = async (l: Language) => {
     if (l.isDefault) {
       toast("Can't delete the default language", { tone: "error" });
       return;
     }
-    if (!confirm(`Delete ${l.name}?`)) return;
+    if (!(await confirm({ title: `Delete ${l.name}?`, confirmLabel: "Delete" }))) return;
     try {
       await languageService.remove(l.id);
       toast("Language deleted", { tone: "success" });

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, UtensilsCrossed, X } from "lucide-react";
 import {
   FiltersSheet,
@@ -46,6 +47,15 @@ function applyFilters(items: MenuItem[], f: Filters, query: string): MenuItem[] 
 }
 
 export default function OrderPage() {
+  // useSearchParams needs a Suspense boundary above it in the App Router.
+  return (
+    <Suspense>
+      <OrderPageInner />
+    </Suspense>
+  );
+}
+
+function OrderPageInner() {
   const tenant = useTenant();
   const addItem = useCart((s) => s.addItem);
   const setBranch = useCart((s) => s.setBranch);
@@ -57,9 +67,16 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [query, setQuery] = useState("");
+  // The header search submits to /order?q=… — seed and stay in sync with it.
+  const searchParams = useSearchParams();
+  const qParam = searchParams.get("q") ?? "";
+  const [query, setQuery] = useState(qParam);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    setQuery(qParam);
+  }, [qParam]);
 
   useEffect(() => {
     let cancelled = false;

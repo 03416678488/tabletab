@@ -6,6 +6,7 @@ import {
   Bell,
   Bot,
   Building2,
+  CalendarClock,
   Clock,
   Coins,
   Cookie,
@@ -28,6 +29,7 @@ import { LanguageSwitcher } from "@/features/i18n/language-switcher";
 import { CompanyForm } from "@/features/app-settings/components/company-form";
 import { SiteForm } from "@/features/app-settings/components/site-form";
 import { SettingsForm } from "@/features/app-settings/components/settings-form";
+import { OpeningTimesForm } from "@/features/app-settings/components/opening-times-form";
 import { ProviderTabs } from "@/features/app-settings/components/provider-tabs";
 import { ThemeForm } from "@/features/app-settings/components/theme-form";
 import { CurrencyManager } from "@/features/currency/components/currency-manager";
@@ -40,6 +42,8 @@ import { RolePermissionManager } from "@/features/role-permission/components/rol
 type SectionKey =
   | "company"
   | "site"
+  | "opening_times"
+  | "reservation"
   | "mail"
   | "order"
   | "otp"
@@ -61,6 +65,8 @@ type SectionKey =
 const SECTIONS: { key: SectionKey; i18n: string; label: string; icon: typeof Building2 }[] = [
   { key: "company", i18n: "settings.company", label: "Company", icon: Building2 },
   { key: "site", i18n: "settings.site", label: "Site", icon: SlidersHorizontal },
+  { key: "opening_times", i18n: "settings.opening_times", label: "Opening Times", icon: Clock },
+  { key: "reservation", i18n: "settings.reservation", label: "Reservation Time", icon: CalendarClock },
   { key: "kiosk", i18n: "settings.kiosk", label: "Kiosk Machines", icon: Monitor },
   { key: "mail", i18n: "settings.mail", label: "Mail", icon: Mail },
   { key: "order", i18n: "settings.order", label: "Order Setup", icon: ShoppingCart },
@@ -122,6 +128,23 @@ export function SettingsShell() {
         <div className="min-w-0">
           {active === "company" && <CompanyForm />}
           {active === "site" && <SiteForm />}
+          {active === "opening_times" && <OpeningTimesForm />}
+          {active === "reservation" && (
+            <SettingsForm
+              group="reservation"
+              title="Reservation Time"
+              fields={[
+                { key: "enabled", label: "Reservations Enabled", type: "toggle" },
+                { key: "open_time", label: "Reservations From", type: "time" },
+                { key: "close_time", label: "Reservations Until", type: "time" },
+                { key: "slot_duration", label: "Slot Duration (min)", type: "number" },
+                { key: "max_party_size", label: "Max Party Size", type: "number" },
+                { key: "advance_days", label: "Book Up To (days ahead)", type: "number" },
+                { key: "min_notice_hours", label: "Minimum Notice (hours)", type: "number" },
+                { key: "hold_minutes", label: "Table Hold / Grace (min)", type: "number" },
+              ]}
+            />
+          )}
           {active === "kiosk" && <KioskMachineManager />}
           {active === "analytics" && <AnalyticsManager />}
           {active === "time_slots" && <TimeSlotManager />}
