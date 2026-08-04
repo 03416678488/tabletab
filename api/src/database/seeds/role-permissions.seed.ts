@@ -5,61 +5,89 @@ export interface RolePermissionMapping {
   actions: PermissionsEnum[];
 }
 
+const CRUD: PermissionsEnum[] = [
+  PermissionsEnum.CREATE,
+  PermissionsEnum.READ,
+  PermissionsEnum.UPDATE,
+  PermissionsEnum.DELETE,
+];
+const R: PermissionsEnum[] = [PermissionsEnum.READ];
+
+/** Neutral row every role gets so its users link to the role (dropped from real grants). */
+const ANCHOR: RolePermissionMapping = { resource: 'app', actions: R };
+
+const ALL_MODULES = [
+  'dashboard',
+  'orders',
+  'pos',
+  'kds',
+  'oss',
+  'menu',
+  'categories',
+  'tables',
+  'areas',
+  'qr-codes',
+  'branches',
+  'users',
+  'customers',
+  'reports',
+  'settings',
+];
+
+/**
+ * Default module grants per role. Feeds BOTH the role→permission link table and
+ * the role-scoped `role_permissions` (admins can retune anytime in the UI).
+ */
 export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
-  'Super Admin': [
-    {
-      resource: 'users',
-      actions: [
-        PermissionsEnum.CREATE,
-        PermissionsEnum.READ,
-        PermissionsEnum.UPDATE,
-        PermissionsEnum.DELETE,
-      ],
-    },
-    {
-      resource: 'roles',
-      actions: [
-        PermissionsEnum.CREATE,
-        PermissionsEnum.READ,
-        PermissionsEnum.UPDATE,
-        PermissionsEnum.DELETE,
-      ],
-    },
-    {
-      resource: 'permissions',
-      actions: [
-        PermissionsEnum.CREATE,
-        PermissionsEnum.READ,
-        PermissionsEnum.UPDATE,
-        PermissionsEnum.DELETE,
-      ],
-    },
+  'Super Admin': [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
+  Admin: [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
+
+  Administrators: [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
+
+  Employees: [
+    ANCHOR,
+    { resource: 'dashboard', actions: R },
+    { resource: 'orders', actions: CRUD },
+    { resource: 'pos', actions: CRUD },
+    { resource: 'kds', actions: R },
+    { resource: 'menu', actions: CRUD },
+    { resource: 'categories', actions: CRUD },
+    { resource: 'tables', actions: CRUD },
+    { resource: 'areas', actions: CRUD },
+    { resource: 'qr-codes', actions: CRUD },
+    { resource: 'customers', actions: CRUD },
+    { resource: 'branches', actions: R },
+    { resource: 'reports', actions: R },
   ],
-  Admin: [
-    {
-      resource: 'users',
-      actions: [
-        PermissionsEnum.CREATE,
-        PermissionsEnum.READ,
-        PermissionsEnum.UPDATE,
-        PermissionsEnum.DELETE,
-      ],
-    },
-    { resource: 'roles', actions: [PermissionsEnum.READ] },
-    { resource: 'permissions', actions: [PermissionsEnum.READ] },
+
+  Waiters: [
+    ANCHOR,
+    { resource: 'dashboard', actions: R },
+    { resource: 'pos', actions: CRUD },
+    { resource: 'orders', actions: CRUD },
+    { resource: 'tables', actions: R },
+    { resource: 'kds', actions: R },
+    { resource: 'customers', actions: CRUD },
   ],
-  Manager: [
-    {
-      resource: 'users',
-      actions: [PermissionsEnum.CREATE, PermissionsEnum.READ, PermissionsEnum.UPDATE],
-    },
-    { resource: 'roles', actions: [PermissionsEnum.READ] },
-    { resource: 'permissions', actions: [PermissionsEnum.READ] },
+
+  Chefs: [
+    ANCHOR,
+    { resource: 'dashboard', actions: R },
+    { resource: 'kds', actions: CRUD },
+    { resource: 'orders', actions: R },
+    { resource: 'menu', actions: R },
   ],
-  User: [
-    { resource: 'users', actions: [PermissionsEnum.READ] },
-    { resource: 'roles', actions: [PermissionsEnum.READ] },
-    { resource: 'permissions', actions: [PermissionsEnum.READ] },
+
+  'Delivery Boys': [
+    ANCHOR,
+    { resource: 'dashboard', actions: R },
+    { resource: 'orders', actions: CRUD },
+    { resource: 'oss', actions: R },
   ],
-  Guest: [{ resource: 'users', actions: [PermissionsEnum.READ] }],
+
+  // Customers are guests — no dashboard modules, just the link anchor.
+  Customers: [ANCHOR],
+
+  // Default role for self-registered accounts — no admin modules.
+  User: [ANCHOR],
 };

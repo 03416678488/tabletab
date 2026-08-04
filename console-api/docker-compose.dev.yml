@@ -1,0 +1,27 @@
+services:
+  # Control-plane API. Reuses the restaurant api's Postgres + Redis over the
+  # shared network — it does NOT run its own. Its own port (3005) and its own
+  # control-plane database (tabletap_console). Env comes from .env.development.
+  tabletap-console-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: tabletap-console-api
+    env_file:
+      - .env.development
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3005:3005"
+    networks:
+      - tabletap-backend
+    stdin_open: true
+    tty: true
+    command: sh -c "npm install && npm run start:dev"
+
+# Attach to the network the restaurant api already created (must be running).
+networks:
+  tabletap-backend:
+    name: tabletap_network
+    external: true

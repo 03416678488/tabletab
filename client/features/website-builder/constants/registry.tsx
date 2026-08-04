@@ -1,0 +1,32 @@
+import {
+  BannerSliderConfigForm,
+  type ConfigFormProps,
+  FeaturedCategoriesConfigForm,
+  HeroConfigForm,
+  ImageSliderConfigForm,
+  MenuGridConfigForm,
+  ProductCarouselConfigForm,
+  PromoConfigForm,
+  RichCtaConfigForm,
+} from "@/features/website-builder/components/config-forms";
+import { BLOCK_META, type BlockMeta } from "@/features/website-builder/constants/blocks";
+import type { BlockType } from "@/features/website-builder/schemas/blocks";
+
+export interface BlockRegistryEntry extends BlockMeta {
+  ConfigForm: (props: ConfigFormProps) => React.ReactNode;
+}
+
+/** Editor-only registry: block metadata + its config form. */
+export const BLOCK_REGISTRY: Record<BlockType, BlockRegistryEntry> = {
+  hero: { ...BLOCK_META.hero, ConfigForm: HeroConfigForm },
+  "image-slider": { ...BLOCK_META["image-slider"], ConfigForm: ImageSliderConfigForm },
+  "banner-slider": { ...BLOCK_META["banner-slider"], ConfigForm: BannerSliderConfigForm },
+  promo: { ...BLOCK_META.promo, ConfigForm: PromoConfigForm },
+  "menu-grid": { ...BLOCK_META["menu-grid"], ConfigForm: MenuGridConfigForm },
+  "featured-categories": {
+    ...BLOCK_META["featured-categories"],
+    ConfigForm: FeaturedCategoriesConfigForm,
+  },
+  "product-carousel": { ...BLOCK_META["product-carousel"], ConfigForm: ProductCarouselConfigForm },
+  "rich-cta": { ...BLOCK_META["rich-cta"], ConfigForm: RichCtaConfigForm },
+};

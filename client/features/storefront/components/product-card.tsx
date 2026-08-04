@@ -1,11 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, UtensilsCrossed } from "lucide-react";
+import { AppImage } from "@/components/ui/app-image";
 import { useCart } from "@/hooks/use-cart";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { useLocationStore } from "@/hooks/use-location-store";
+import { toast } from "@/hooks/use-toast";
 import type { MenuItem, MenuTag } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -28,17 +30,25 @@ const RIBBON_TAG: Partial<Record<MenuTag, string>> = {
 
 interface ProductCardProps {
   item: MenuItem;
-  onAdd: (item: MenuItem) => void;
+  /**
+   * Optional custom add handler. When omitted the card adds to the cart itself
+   * (resolving the branch from the selected location) — so it drops in anywhere.
+   */
+  onAdd?: (item: MenuItem) => void;
 }
 
-/** Compact, mobile-first product tile (foodpanda shop style). */
+/** Compact, mobile-first product tile (foodpanda shop style). Self-contained. */
 export function ProductCard({ item, onAdd }: ProductCardProps) {
   const ribbon = item.tags.map((t) => RIBBON_TAG[t]).find(Boolean);
   const hasModifiers = item.modifiers.length > 0;
 
   const cartItems = useCart((s) => s.items);
+  const addItem = useCart((s) => s.addItem);
+  const setCartBranch = useCart((s) => s.setBranch);
+  const cartBranchId = useCart((s) => s.branchId);
   const updateQuantity = useCart((s) => s.updateQuantity);
   const removeItem = useCart((s) => s.removeItem);
+  const locationBranchId = useLocationStore((s) => s.branchId);
   const hydrated = useHydrated();
 
   // The plain (unmodified) cart line for this item — what the stepper controls.
@@ -46,6 +56,24 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
     (i) => i.menuItemId === item.id && i.modifiers.length === 0 && !i.notes,
   );
   const qty = hydrated ? baseLine?.quantity ?? 0 : 0;
+
+  const add = () => {
+    if (onAdd) {
+      onAdd(item);
+      return;
+    }
+    // Self-contained add: anchor the cart to the chosen branch, then add.
+    if (!cartBranchId && locationBranchId) setCartBranch(locationBranchId);
+    addItem({
+      menuItemId: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      unitPrice: item.price,
+      quantity: 1,
+      modifiers: [],
+    });
+    toast(`${item.name} added to cart`, { tone: "success" });
+  };
 
   const decrement = () => {
     if (!baseLine) return;
@@ -67,10 +95,11 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
       </Link>
 
       <div className="relative aspect-square w-full overflow-hidden bg-subtle">
-        <Image
+        <AppImage
           src={item.imageUrl}
           alt={item.name}
           fill
+          fallbackIcon={UtensilsCrossed}
           className={cn(
             "object-cover transition-transform duration-500 group-hover:scale-105",
             !item.isAvailable && "grayscale",
@@ -104,7 +133,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
             <span className="min-w-[1.25rem] text-center text-sm font-semibold">{qty}</span>
             <button
               type="button"
-              onClick={() => onAdd(item)}
+              onClick={add}
               aria-label={`Increase ${item.name}`}
               className="flex size-7 items-center justify-center rounded-full transition-colors hover:bg-white/20"
             >
@@ -115,7 +144,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
           <button
             type="button"
             disabled={!item.isAvailable}
-            onClick={() => onAdd(item)}
+            onClick={add}
             aria-label={hasModifiers ? `Customize ${item.name}` : `Add ${item.name}`}
             className="absolute bottom-2 right-2 z-10 flex size-9 items-center justify-center rounded-full bg-brand text-primary-foreground shadow-md transition-transform hover:bg-brand-hover active:scale-90 disabled:pointer-events-none disabled:opacity-50"
           >

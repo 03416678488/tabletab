@@ -1,27 +1,18 @@
-"use client";
+import type { Metadata } from "next";
 
-import { useState, useSyncExternalStore } from "react";
-import { HomeLanding } from "@/features/storefront/components/home-landing";
-import { LocationPermissionDialog } from "@/features/storefront/components/location-permission-dialog";
-import { useLocationStore } from "@/hooks/use-location-store";
+import { HomeClient } from "@/features/storefront/components/home-client";
+import {
+  buildPageMetadata,
+  fetchPublishedServer,
+} from "@/features/website-builder/server/published";
+
+/** Feed the Home page's SEO tab (meta title/description, OG image, noindex) into
+ *  the storefront home <head>. Empty fields fall back to the root layout defaults. */
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await fetchPublishedServer("home");
+  return buildPageMetadata(page);
+}
 
 export default function HomePage() {
-  const confirmed = useLocationStore((s) => s.confirmed);
-  // The persisted selection is only trustworthy after the store rehydrates.
-  const hydrated = useSyncExternalStore(
-    (cb) => useLocationStore.persist.onFinishHydration(cb),
-    () => useLocationStore.persist.hasHydrated(),
-    () => false,
-  );
-  const [askOpen, setAskOpen] = useState(false);
-
-  if (!hydrated) return <div className="min-h-[70vh]" />;
-
-  return (
-    <>
-      <HomeLanding onChangeBranch={() => setAskOpen(true)} />
-      {/* Auto-asks on first visit; re-openable via the landing's location control. */}
-      <LocationPermissionDialog open={askOpen || !confirmed} onOpenChange={setAskOpen} />
-    </>
-  );
+  return <HomeClient />;
 }

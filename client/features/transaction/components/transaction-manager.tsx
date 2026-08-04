@@ -1,0 +1,154 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { ArrowLeftRight } from "lucide-react";
+
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StatusPill } from "@/components/ui/status-pill";
+import { Dropdown } from "@/components/ui/dropdown";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatMoney } from "@/lib/currency";
+
+import { useTransactions } from "@/features/transaction/hooks/use-transactions";
+import type {
+  PaymentMethod,
+  TransactionType,
+} from "@/features/transaction/types/transaction.types";
+
+const TYPE_META: Record<TransactionType, { label: string; tone: "green" | "red" | "blue" | "amber"; sign: string }> = {
+  sale: { label: "Sale", tone: "green", sign: "+" },
+  refund: { label: "Refund", tone: "red", sign: "−" },
+  cash_in: { label: "Cash In", tone: "blue", sign: "+" },
+  cash_out: { label: "Cash Out", tone: "amber", sign: "−" },
+};
+const METHOD_LABEL: Record<PaymentMethod, string> = {
+  cash: "Cash",
+  card: "Card",
+  mfs: "MFS",
+  other: "Other",
+};
+
+export function TransactionManager() {
+  const [type, setType] = useState("");
+  const [method, setMethod] = useState("");
+  const { transactions, loading, error, refetch } = useTransactions({
+    ...(type ? { type: type as TransactionType } : {}),
+    ...(method ? { method: method as PaymentMethod } : {}),
+  });
+
+  const total = useMemo(
+    () =>
+      transactions.reduce(
+        (sum, t) => sum + (t.type === "sale" || t.type === "cash_in" ? t.amount : -t.amount),
+        0,
+      ),
+    [transactions],
+  );
+
+  return (
+    <div className="w-full">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight text-ink">
+            <ArrowLeftRight className="size-5 text-brand" /> Transactions
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {transactions.length} transaction{transactions.length === 1 ? "" : "s"} · net {formatMoney(total)}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Dropdown
+            className="w-36"
+            value={type}
+            onChange={setType}
+            placeholder="All types"
+            options={[
+              { value: "", label: "All types" },
+              { value: "sale", label: "Sale" },
+              { value: "refund", label: "Refund" },
+              { value: "cash_in", label: "Cash In" },
+              { value: "cash_out", label: "Cash Out" },
+            ]}
+          />
+          <Dropdown
+            className="w-36"
+            value={method}
+            onChange={setMethod}
+            placeholder="All methods"
+            options={[
+              { value: "", label: "All methods" },
+              { value: "cash", label: "Cash" },
+              { value: "card", label: "Card" },
+              { value: "mfs", label: "MFS" },
+              { value: "other", label: "Other" },
+            ]}
+          />
+        </div>
+      </div>
+
+      <Card className="mt-5 overflow-hidden p-0">
+        {loading ? (
+          <div className="space-y-2 p-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-11 w-full" />
+            ))}
+          </div>
+        ) : error ? (
+          <EmptyState className="py-12" icon={ArrowLeftRight} title="Couldn't load" description={error} action={<button onClick={refetch}>Retry</button>} />
+        ) : transactions.length === 0 ? (
+          <EmptyState className="py-12" icon={ArrowLeftRight} title="No transactions" description="Payments and cash movements appear here." />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Type</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Note</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((t) => {
+                  const meta = TYPE_META[t.type];
+                  return (
+                    <TableRow key={t.id}>
+                      <TableCell>
+                        <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{METHOD_LABEL[t.method]}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {t.order?.orderNumber ?? "—"}
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-muted-foreground">
+                        {t.note ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(t.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-ink">
+                        {meta.sign}
+                        {formatMoney(t.amount)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}

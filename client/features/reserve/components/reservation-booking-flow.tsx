@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { api } from "@/lib/api";
+import { bookReservation } from "@/features/reserve/services/reservation.service";
 import {
   dateOptions,
   formatTime12,
@@ -167,18 +168,18 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
     setSubmitting(true);
     setError(null);
     try {
-      const reservation = await api.createReservation({
+      const reservation = await bookReservation({
         branchId: branch.id,
         tableId: selectedTableId,
         partySize,
         date,
         time,
+        durationMins: settings.turnTimeMins,
         guestName: guestName.trim(),
         guestPhone: guestPhone.trim(),
         guestEmail: guestEmail.trim() || undefined,
         specialRequests: specialRequests.trim() || undefined,
-        preOrder: preOrder.length ? preOrder : undefined,
-        buffet: buffet ?? undefined,
+        source: "online",
       });
       router.push(`/reserve/confirm/${reservation.id}`);
     } catch (e) {

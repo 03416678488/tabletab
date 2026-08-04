@@ -1,5 +1,7 @@
+import { join } from 'path';
 import { AppModule } from './app.module';
 import { NestFactory, Reflector } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { useContainer } from 'class-validator';
 import { AppConstants } from '@cor/constants/app.constants';
 import { CustomValidationPipe } from '@cor/pipes/validation.pipes';
@@ -7,8 +9,11 @@ import { ClassSerializerInterceptor } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix(AppConstants.ApiPrefix);
+
+  // Serve uploaded files: public/uploads/... is reachable at /uploads/...
+  app.useStaticAssets(join(process.cwd(), 'public'));
 
   app.useGlobalPipes(CustomValidationPipe);
 

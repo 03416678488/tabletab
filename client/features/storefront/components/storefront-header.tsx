@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, ShoppingBag, User } from "lucide-react";
+import { Menu, Search, User } from "lucide-react";
 import { NearestBranch } from "@/features/storefront/components/nearest-branch";
+import { CartMenu } from "@/features/storefront/components/cart-menu";
+import { SearchDialog } from "@/features/storefront/components/search-dialog";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,28 +19,56 @@ import {
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { cn } from "@/lib/utils";
-
-const navLinks = [
-  { href: "/account", label: "Account", auth: true },
-];
+import { useSiteHeaderConfig } from "@/features/website-builder/render/site-chrome";
 
 export function StorefrontHeader() {
   const pathname = usePathname();
   const itemCount = useCart((s) => s.itemCount());
   const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
   const hydrated = useHydrated();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Header customisation from the website builder (nav links, toggles).
+  const headerCfg = useSiteHeaderConfig();
+  const navLinks = headerCfg?.links ?? [];
+  const showLocation = headerCfg?.showLocation ?? true;
+  const showSearch = headerCfg?.showSearch ?? true;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <TenantLogo href="/" showTagline />
+          <TenantLogo href="/" showTagline nameOverride={headerCfg?.brandName} />
           {/* Landing has its own branch context bar — avoid showing it twice. */}
-          {pathname !== "/" && <NearestBranch variant="inline" className="hidden md:flex" />}
+          {showLocation && pathname !== "/" && (
+            <NearestBranch variant="inline" className="hidden md:flex" />
+          )}
+          {navLinks.length > 0 && (
+            <nav className="ml-1 hidden items-center gap-5 lg:flex">
+              {navLinks.map((l, i) => (
+                <Link
+                  key={i}
+                  href={l.href || "#"}
+                  className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-ink"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
+          {showSearch && (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search the menu"
+              className="flex size-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:border-brand/40 hover:text-ink"
+            >
+              <Search className="size-4" />
+            </button>
+          )}
           {isAuthenticated ? (
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
               <Link href="/account">
@@ -47,21 +78,11 @@ export function StorefrontHeader() {
             </Button>
           ) : (
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/login">Sign in</Link>
+              <Link href="/signin">Sign in</Link>
             </Button>
           )}
 
-          <Button asChild variant="outline" size="sm" className="relative">
-            <Link href="/checkout" aria-label="View cart">
-              <ShoppingBag className="size-4" />
-              <span className="hidden sm:inline">Cart</span>
-              {hydrated && itemCount > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-primary-foreground">
-                  {itemCount}
-                </span>
-              )}
-            </Link>
-          </Button>
+          <CartMenu />
 
           <Sheet>
             <SheetTrigger asChild>
@@ -78,13 +99,22 @@ export function StorefrontHeader() {
                 <Link href="/order" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
                   Order online
                 </Link>
+                {navLinks.map((l, i) => (
+                  <Link
+                    key={i}
+                    href={l.href || "#"}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
                 {isAuthenticated ? (
                   <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
                     My account
                   </Link>
                 ) : (
                   <>
-                    <Link href="/login" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                    <Link href="/signin" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
                       Sign in
                     </Link>
                     <Link href="/signup" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
@@ -93,7 +123,7 @@ export function StorefrontHeader() {
                   </>
                 )}
                 <Link href="/checkout" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
-                  Cart ({itemCount})
+                  Cart ({hydrated ? itemCount : 0})
                 </Link>
               </nav>
             </SheetContent>
@@ -103,7 +133,9 @@ export function StorefrontHeader() {
 
       {/* Mobile: full-width nearest-branch bar under the main row.
           Hidden on the landing, which shows its own branch context bar. */}
-      {pathname !== "/" && <NearestBranch variant="bar" className="md:hidden" />}
+      {showLocation && pathname !== "/" && <NearestBranch variant="bar" className="md:hidden" />}
+
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

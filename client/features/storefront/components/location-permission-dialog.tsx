@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { LocateFixed, Navigation } from "lucide-react";
 import {
   Dialog,
@@ -9,10 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLocationStore } from "@/hooks/use-location-store";
-import { api } from "@/lib/api";
 import { nearestBranch } from "@/lib/geo";
-import type { Branch } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 
 interface LocationPermissionDialogProps {
   open: boolean;
@@ -30,19 +29,10 @@ export function LocationPermissionDialog({ open, onOpenChange }: LocationPermiss
   const setConfirmed = useLocationStore((s) => s.setConfirmed);
   const setGeoStatus = useLocationStore((s) => s.setGeoStatus);
 
-  const [branches, setBranches] = useState<Branch[]>([]);
+  // Cached live branches so the branch we pick matches the ids the landing resolves.
+  const { branches } = useStorefrontBranches();
   const [locating, setLocating] = useState(false);
   const [denied, setDenied] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    api.getBranches().then((list) => {
-      if (!cancelled) setBranches(list);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const allow = () => {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {

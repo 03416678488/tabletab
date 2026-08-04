@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { UtensilsCrossed } from "lucide-react";
+import { useSettings } from "@/features/app-settings/components/settings-provider";
 import { useTenant } from "@/hooks/use-tenant";
 import { resolveBranding } from "@/lib/theme";
 import type { TenantBranding } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, isLocalUpload } from "@/lib/utils";
 
 interface TenantLogoProps {
   href?: string;
@@ -16,6 +17,8 @@ interface TenantLogoProps {
   showTagline?: boolean;
   /** Optional override for settings preview. */
   branding?: TenantBranding;
+  /** Override the displayed brand name (e.g. from the website builder header). */
+  nameOverride?: string;
 }
 
 export function TenantLogo({
@@ -24,11 +27,17 @@ export function TenantLogo({
   variant = "default",
   showTagline = false,
   branding: brandingOverride,
+  nameOverride,
 }: TenantLogoProps) {
   const tenant = useTenant();
+  const { get } = useSettings();
   const branding = resolveBranding(brandingOverride ?? tenant.branding);
-  const { name, tagline } = tenant;
-  const logoSrc = branding.logoDataUrl ?? branding.logoUrl;
+  // Whitelabel: header override → Business Info name → tenant fallback.
+  const name = nameOverride?.trim() || get("company", "name") || tenant.name;
+  // Tagline comes only from Business Info — empty means show none.
+  const tagline = get("company", "tagline");
+  // Logo: tenant branding, else the Branding-settings logo.
+  const logoSrc = branding.logoDataUrl ?? branding.logoUrl ?? (get("theme", "logo") || undefined);
   const compact = variant === "compact";
 
   const content = (
@@ -46,7 +55,7 @@ export function TenantLogo({
             fill
             className="object-contain p-0.5"
             sizes={compact ? "36px" : "40px"}
-            unoptimized={logoSrc.startsWith("data:")}
+            unoptimized={logoSrc.startsWith("data:") || isLocalUpload(logoSrc)}
           />
         </span>
       ) : (

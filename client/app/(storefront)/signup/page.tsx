@@ -112,7 +112,7 @@ function SignupForm() {
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`} className="font-medium text-brand hover:underline">
+            <Link href={`/signin?returnUrl=${encodeURIComponent(returnUrl)}`} className="font-medium text-brand hover:underline">
               Sign in
             </Link>
           </p>

@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { Bell, LogOut, Menu, Search } from "lucide-react";
+import Link from "next/link";
+import { Bell, Menu, PanelLeft, PanelLeftClose, ReceiptText, Table2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -10,26 +9,26 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { SidebarNav } from "@/features/dashboard/components/sidebar-nav";
 import { BranchSwitcher } from "@/features/branch/components/branch-switcher";
-import { ROLE_LABELS } from "@/lib/nav";
+import { ProfileMenu } from "@/features/dashboard/components/profile-menu";
+import { hrefFor, roleHomePath } from "@/lib/nav";
 import { useSession } from "@/hooks/use-session";
 
-export function Topbar() {
-  const router = useRouter();
-  const user = useSession((s) => s.user!);
-  const logout = useSession((s) => s.logout);
+interface TopbarProps {
+  collapsed?: boolean;
+  onToggleSidebar?: () => void;
+}
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
+export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
+  const user = useSession((s) => s.user!);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur lg:px-6">
+      {/* Mobile menu */}
       <Sheet>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
@@ -39,62 +38,74 @@ export function Topbar() {
         <SheetContent side="left" className="w-72 p-0">
           <SheetHeader className="border-b border-border">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <Logo href="/dashboard" />
+            <Logo href={roleHomePath(user.role)} />
           </SheetHeader>
           <SidebarNav />
         </SheetContent>
       </Sheet>
 
+      {/* Desktop sidebar toggle */}
+      <button
+        type="button"
+        aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+        title={collapsed ? "Show sidebar" : "Hide sidebar"}
+        onClick={onToggleSidebar}
+        className={cn(
+          ICON_BTN,
+          "hidden bg-brand-tint text-brand-deep hover:bg-brand-tint/70 lg:inline-flex",
+        )}
+      >
+        {collapsed ? <PanelLeft className="size-5" /> : <PanelLeftClose className="size-5" />}
+      </button>
+
       <BranchSwitcher />
 
-      <div className="relative ml-auto hidden max-w-xs flex-1 items-center md:flex">
-        <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-        <Input placeholder="Search orders, tables…" className="pl-9" aria-label="Search" />
-      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <IconLink
+          href={hrefFor(user.role, "pos-orders")}
+          label="Order list"
+          icon={ReceiptText}
+          className="bg-sky-50 text-sky-600 hover:bg-sky-100"
+        />
+        <IconLink
+          href={hrefFor(user.role, "tables")}
+          label="All tables"
+          icon={Table2}
+          className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+        />
 
-      <div className="ml-auto flex items-center gap-2 md:ml-3">
-        <Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
-          <Bell className="size-5" />
-          <span className="absolute right-2 top-2 size-2 rounded-full bg-accent ring-2 ring-surface" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Sign out"
-          onClick={handleLogout}
-          className="hidden sm:inline-flex"
+        <button
+          type="button"
+          aria-label="Notifications"
+          className={cn(ICON_BTN, "relative bg-amber-50 text-amber-600 hover:bg-amber-100")}
         >
-          <LogOut className="size-5" />
-        </Button>
+          <Bell className="size-5" />
+          <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-accent ring-2 ring-surface" />
+        </button>
 
-        <div className="flex items-center gap-2.5 rounded-xl pl-1">
-          {user.avatarUrl ? (
-            <Image
-              src={user.avatarUrl}
-              alt=""
-              width={36}
-              height={36}
-              className="size-9 rounded-full border border-border object-cover"
-              unoptimized
-            />
-          ) : (
-            <span className="flex size-9 items-center justify-center rounded-full border border-border bg-brand-tint text-xs font-semibold text-brand-deep">
-              {user.name
-                .split(" ")
-                .map((p) => p[0])
-                .filter(Boolean)
-                .slice(0, 2)
-                .join("")
-                .toUpperCase()}
-            </span>
-          )}
-          <div className="hidden flex-col leading-tight lg:flex">
-            <span className="text-sm font-semibold text-ink">{user.name}</span>
-            <span className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
-          </div>
-        </div>
+        <ProfileMenu />
       </div>
     </header>
+  );
+}
+
+const ICON_BTN =
+  "inline-flex size-9 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function IconLink({
+  href,
+  label,
+  icon: Icon,
+  className,
+}: {
+  href: string;
+  label: string;
+  icon: typeof ReceiptText;
+  className?: string;
+}) {
+  return (
+    <Link href={href} aria-label={label} title={label} className={cn(ICON_BTN, className)}>
+      <Icon className="size-5" />
+    </Link>
   );
 }

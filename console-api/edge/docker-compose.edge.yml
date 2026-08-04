@@ -1,0 +1,38 @@
+# TableTap edge proxy (Caddy) — automatic per-tenant TLS + host routing.
+# Runs on the shared network so it can reach the console-api (TLS ask), the
+# restaurant API, and the web app by container name.
+#
+#   docker compose -f edge/docker-compose.edge.yml --env-file .env.edge up -d
+#
+# DNS: point every tenant hostname (custom domains AND *.PLATFORM_APP_DOMAIN) at
+# this host's public IP. Caddy fetches a certificate the first time each name is
+# requested — no per-domain config, no redeploys.
+
+services:
+  tabletap-edge:
+    image: caddy:2-alpine
+    container_name: tabletap-edge
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      CONSOLE_API_URL: ${CONSOLE_API_URL:-http://tabletap-console-api:3005}
+      WEB_UPSTREAM: ${WEB_UPSTREAM:-tabletap-web:3000}
+      API_UPSTREAM: ${API_UPSTREAM:-tabletap-api:3003}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # issued certs + ACME account (persist across restarts!)
+      - caddy_config:/config
+    networks:
+      - tabletap-backend
+
+networks:
+  tabletap-backend:
+    name: tabletap_network
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:

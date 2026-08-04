@@ -1,3 +1,5 @@
+import type { WeeklyHours } from "@/lib/opening-hours";
+
 /** Branch as returned by the API (`data` of /branches endpoints). */
 export interface Branch {
   id: string;
@@ -9,10 +11,16 @@ export interface Branch {
   isOpen: boolean;
   lat: number | null;
   lng: number | null;
-  openingHours: string | null;
+  /** Per-day weekly hours, or null to inherit the global opening times. */
+  openingHours: WeeklyHours | null;
   deliveryFee: number | null;
   minOrder: number | null;
   onlineOrderingEnabled: boolean;
+  deliveryEnabled: boolean;
+  pickupEnabled: boolean;
+  deliveryEtaMinutes: number | null;
+  reservationsEnabled: boolean;
+  reservationTurnMins: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -37,10 +45,15 @@ export interface CreateBranchInput {
   isOpen?: boolean;
   lat?: number;
   lng?: number;
-  openingHours?: string;
+  openingHours?: WeeklyHours | null;
   deliveryFee?: number;
   minOrder?: number;
   onlineOrderingEnabled?: boolean;
+  deliveryEnabled?: boolean;
+  pickupEnabled?: boolean;
+  deliveryEtaMinutes?: number;
+  reservationsEnabled?: boolean;
+  reservationTurnMins?: number;
 }
 
 export type UpdateBranchInput = Partial<CreateBranchInput>;

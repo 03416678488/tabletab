@@ -1,17 +1,22 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, CheckCircle2, Clock, Loader2, Phone } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Clock, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReservationStatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/lib/api";
+import {
+  fetchReservation,
+  type StorefrontReservation,
+} from "@/features/reserve/services/reservation.service";
+import { useReservationStream } from "@/hooks/use-reservation-stream";
 import { formatSlotLabel, formatTime12 } from "@/lib/reservation-utils";
-import type { Branch, Reservation, Table } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+
+const TERMINAL = new Set(["completed", "cancelled", "no-show"]);
 
 export default function ReservationConfirmPage({
   params,
@@ -19,37 +24,27 @@ export default function ReservationConfirmPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [reservation, setReservation] = useState<Reservation | null>(null);
-  const [branch, setBranch] = useState<Branch | null>(null);
-  const [table, setTable] = useState<Table | null>(null);
+  const [reservation, setReservation] = useState<StorefrontReservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const r = await api.getReservation(id);
-      if (cancelled) return;
-      if (!r) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
+  const load = useCallback(async () => {
+    const r = await fetchReservation(id);
+    if (!r) {
+      setNotFound(true);
+    } else {
       setReservation(r);
-      const b = await api.getBranch(r.branchId);
-      if (!cancelled && b) {
-        setBranch(b);
-        setTable(b.tables.find((t) => t.id === r.tableId) ?? null);
-      }
-      setLoading(false);
-    };
-    load();
-    const poll = setInterval(load, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(poll);
-    };
+    }
+    setLoading(false);
   }, [id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Live: the page flips to "confirmed" the moment a host confirms, no refresh.
+  const isLive = Boolean(reservation) && !TERMINAL.has(reservation?.status ?? "");
+  useReservationStream(id, load, isLive);
 
   if (loading) {
     return (
@@ -125,11 +120,9 @@ export default function ReservationConfirmPage({
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Where
             </p>
-            <p className="font-medium text-ink">{branch?.name}</p>
-            {table && (
-              <p className="text-sm text-muted-foreground">
-                Table {table.label} · {table.floor}
-              </p>
+            <p className="font-medium text-ink">{reservation.branchName}</p>
+            {reservation.tableName && (
+              <p className="text-sm text-muted-foreground">Table {reservation.tableName}</p>
             )}
           </div>
 

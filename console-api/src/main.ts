@@ -1,0 +1,36 @@
+import { join } from 'path';
+import { AppModule } from './app.module';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { useContainer } from 'class-validator';
+import { AppConstants } from '@cor/constants/app.constants';
+import { CustomValidationPipe } from '@cor/pipes/validation.pipes';
+import { ClassSerializerInterceptor } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+
+async function bootstrap() {
+  // rawBody so the Stripe webhook can verify the signature over the exact bytes.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.setGlobalPrefix(AppConstants.ApiPrefix);
+
+  // Serve uploaded files: public/uploads/... is reachable at /uploads/...
+  app.useStaticAssets(join(process.cwd(), 'public'));
+
+  app.useGlobalPipes(CustomValidationPipe);
+
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
+  app.enableCors({
+    origin: [process.env.FRONTEND_URL, process.env.FRONTEND_URL_NETWORK],
+    credentials: true,
+  });
+
+  useContainer(app.select(AppModule), { fallbackOnErrors: true });
+  app.useWebSocketAdapter(new IoAdapter(app));
+
+  await app.listen(process.env.APP_PORT || 3005, '0.0.0.0');
+  console.clear();
+  console.log(`App URL: ${await app.getUrl()}`);
+}
+
+bootstrap();

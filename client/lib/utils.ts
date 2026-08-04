@@ -13,6 +13,21 @@ export function formatCurrency(amount: number, currency = "USD") {
   }).format(amount);
 }
 
+/**
+ * Next's image optimizer refuses to fetch localhost/private hosts (SSRF guard),
+ * so uploads served by the dev API must be rendered with `next/image`'s
+ * `unoptimized` prop. Production hosts optimize normally. Pass an image URL.
+ */
+export function isLocalUpload(url: string | undefined | null): boolean {
+  if (!url) return false;
+  try {
+    const h = new URL(url).hostname;
+    return h === "localhost" || h === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 /** Live elapsed timer label, e.g. "4:32". */
 export function formatElapsed(iso: string, now = Date.now()) {
   const secs = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));

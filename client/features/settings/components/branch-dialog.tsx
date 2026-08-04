@@ -25,7 +25,7 @@ const emptyFloor = (): FloorPlanInput => ({
 const defaultInput = (): BranchInput => ({
   name: "",
   address: "",
-  city: "Portland",
+  city: "",
   phone: "",
   imageUrl: "",
   isOpen: true,

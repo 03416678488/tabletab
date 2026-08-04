@@ -5,6 +5,7 @@ import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useSession } from "@/hooks/use-session";
+import { roleHomePath } from "@/lib/nav";
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const role = useSession((s) => s.user?.role);
@@ -17,7 +18,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
         description="This section is restricted to admins."
         action={
           <Button asChild variant="outline">
-            <Link href="/dashboard">Back to overview</Link>
+            <Link href={roleHomePath(role ?? "admin")}>Back to dashboard</Link>
           </Button>
         }
       />

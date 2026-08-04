@@ -54,6 +54,10 @@ export interface Branch {
   deliveryFee?: number;
   minOrder?: number;
   onlineOrderingEnabled?: boolean;
+  deliveryEnabled?: boolean;
+  pickupEnabled?: boolean;
+  reservationsEnabled?: boolean;
+  deliveryEtaMinutes?: number;
 }
 
 /** Floor plan input when creating tables for a branch. */
@@ -269,6 +273,54 @@ export interface OwnerKpis {
   avgKitchenResponseMins: number;
   revenueTrendPct: number;
   ordersTrendPct: number;
+  avgOrderTrendPct: number;
+  kitchenTrendPct: number;
+  /** Short trend arrays for KPI-card sparklines. */
+  revenueSpark: number[];
+  ordersSpark: number[];
+  aovSpark: number[];
+  kitchenSpark: number[];
+}
+
+/** Orders per hour-of-day for a given weekday — feeds the peak-hours heatmap. */
+export interface HeatmapRow {
+  day: string;
+  /** One value per hour bucket (see HEATMAP_HOURS in the mock). */
+  hours: number[];
+}
+
+export interface CategorySplit {
+  category: string;
+  revenue: number;
+  orders: number;
+  pct: number;
+}
+
+export interface PaymentSplit {
+  method: string;
+  label: string;
+  amount: number;
+  pct: number;
+}
+
+export interface FulfillmentSplit {
+  type: string;
+  label: string;
+  orders: number;
+  pct: number;
+}
+
+export interface CustomerInsights {
+  newCount: number;
+  returningCount: number;
+  returningPct: number;
+  avgVisitsPerMonth: number;
+  repeatRatePct: number;
+}
+
+export interface RevenueTarget {
+  target: number;
+  achieved: number;
 }
 
 export interface BestSeller {
@@ -312,6 +364,13 @@ export interface OwnerAnalytics {
   channelSplit: ChannelSplit[];
   branchSplit: BranchSplit[];
   staffPerformance: StaffPerformanceRow[];
+  // ── Advanced analytics ──
+  hourlyHeatmap: HeatmapRow[];
+  categorySplit: CategorySplit[];
+  paymentSplit: PaymentSplit[];
+  fulfillment: FulfillmentSplit[];
+  customers: CustomerInsights;
+  target: RevenueTarget;
 }
 
 export interface CreateOrderInput {

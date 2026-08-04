@@ -1,296 +1,267 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
-import {
-  Box,
-  ChevronDown,
-  ChevronUp,
-  GripVertical,
-  Plus,
-  Search,
-  UtensilsCrossed,
-} from "lucide-react";
-import { isModel3dUrl } from "@/lib/model-3d-utils";
-import { MenuItemSheet } from "@/features/menu/components/menu-item-sheet";
+import { Pencil, Plus, Search, SlidersHorizontal, Trash2, UtensilsCrossed, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
-import { useMenuStore } from "@/hooks/use-menu-store";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import type { MenuItem } from "@/lib/types";
+import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+
+import { useMenuItems } from "@/features/menu/hooks/use-menu-items";
+import { menuService } from "@/features/menu/services/menu.service";
+import { MenuFormDialog } from "@/features/menu/components/menu-form-dialog";
+import { useCategories } from "@/features/category/hooks/use-categories";
+import type { MenuItem } from "@/features/menu/types/menu.types";
+
+const SELECT_CLASS =
+  "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
+
+type AvailFilter = "all" | "available" | "unavailable";
 
 export function MenuManager() {
-  const hydrated = useMenuStore((s) => s.hydrated);
-  const categories = useMenuStore((s) => s.categories);
-  const items = useMenuStore((s) => s.items);
-  const reorderCategory = useMenuStore((s) => s.reorderCategory);
-  const addItem = useMenuStore((s) => s.addItem);
-  const updateItem = useMenuStore((s) => s.updateItem);
-  const toggleItemAvailability = useMenuStore((s) => s.toggleItemAvailability);
-  const addCategory = useMenuStore((s) => s.addCategory);
+  const { items, loading, error, refetch } = useMenuItems();
+  const { categories } = useCategories();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<MenuItem | null>(null);
 
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [newCategoryName, setNewCategoryName] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [categoryId, setCategoryId] = useState<string>("all");
+  const [avail, setAvail] = useState<AvailFilter>("all");
 
-  const sortedCategories = useMemo(
-    () => [...categories].sort((a, b) => a.sortOrder - b.sortOrder),
-    [categories],
-  );
-
-  const filteredItems = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter((it) => {
-      if (selectedCategory !== "all" && it.categoryId !== selectedCategory) return false;
-      if (!q) return true;
-      return (
-        it.name.toLowerCase().includes(q) ||
-        it.description.toLowerCase().includes(q) ||
-        it.tags.some((t) => t.includes(q))
-      );
+    return items.filter((m) => {
+      if (categoryId !== "all" && m.categoryId !== categoryId) return false;
+      if (avail === "available" && !m.isAvailable) return false;
+      if (avail === "unavailable" && m.isAvailable) return false;
+      if (q && !`${m.name} ${m.description ?? ""}`.toLowerCase().includes(q))
+        return false;
+      return true;
     });
-  }, [items, search, selectedCategory]);
+  }, [items, search, categoryId, avail]);
 
-  const openAdd = () => {
-    setEditingItem(null);
-    setSheetOpen(true);
+  const activeFilters = (categoryId !== "all" ? 1 : 0) + (avail !== "all" ? 1 : 0);
+
+  const openCreate = () => {
+    setEditing(null);
+    setDialogOpen(true);
   };
-
   const openEdit = (item: MenuItem) => {
-    setEditingItem(item);
-    setSheetOpen(true);
+    setEditing(item);
+    setDialogOpen(true);
+  };
+  const clearFilters = () => {
+    setCategoryId("all");
+    setAvail("all");
   };
 
-  const handleSave = (input: Parameters<typeof addItem>[0]) => {
-    if (editingItem) {
-      updateItem(editingItem.id, input);
-      toast("Item updated", { tone: "success" });
-    } else {
-      addItem(input);
-      toast("Item added", { tone: "success" });
+  const confirm = useConfirm();
+
+  const remove = async (item: MenuItem) => {
+    if (!(await confirm({ title: `Delete "${item.name}"?`, confirmLabel: "Delete" }))) return;
+    try {
+      await menuService.remove(item.id);
+      toast("Menu item deleted", { tone: "success" });
+      refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to delete item", {
+        tone: "error",
+      });
     }
   };
 
-  const handleAddCategory = () => {
-    if (!newCategoryName.trim()) return;
-    addCategory(newCategoryName.trim());
-    setNewCategoryName("");
-    toast("Category added", { tone: "success" });
-  };
-
-  if (!hydrated) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <Skeleton className="h-80" />
-          <Skeleton className="h-96" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="w-full">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Menu</h1>
-          <p className="text-sm text-muted-foreground">
-            {items.length} items · {categories.length} categories
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
+            Menu
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {items.length} item{items.length === 1 ? "" : "s"} · manage your dishes.
           </p>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="size-4" />
-          Add item
+        <Button onClick={openCreate} size="sm">
+          <Plus className="size-4" /> Add item
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        {/* Categories */}
-        <Card>
-          <CardContent className="p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Categories
-            </p>
-            <ul className="space-y-1">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategory("all")}
-                  className={cn(
-                    "w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
-                    selectedCategory === "all"
-                      ? "bg-brand-tint text-brand-deep"
-                      : "hover:bg-secondary",
-                  )}
-                >
-                  All items
-                </button>
-              </li>
-              {sortedCategories.map((cat, idx) => (
-                <li key={cat.id} className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={cn(
-                      "min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
-                      selectedCategory === cat.id
-                        ? "bg-brand-tint text-brand-deep"
-                        : "hover:bg-secondary",
-                    )}
-                  >
-                    {cat.name}
-                  </button>
-                  <div className="flex shrink-0 flex-col">
-                    <button
-                      type="button"
-                      className="rounded p-0.5 text-muted-foreground hover:bg-secondary disabled:opacity-30"
-                      disabled={idx === 0}
-                      onClick={() => reorderCategory(cat.id, "up")}
-                      aria-label="Move up"
-                    >
-                      <ChevronUp className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded p-0.5 text-muted-foreground hover:bg-secondary disabled:opacity-30"
-                      disabled={idx === sortedCategories.length - 1}
-                      onClick={() => reorderCategory(cat.id, "down")}
-                      aria-label="Move down"
-                    >
-                      <ChevronDown className="size-3.5" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 flex gap-2 border-t border-border pt-4">
-              <Input
-                placeholder="New category…"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                className="h-9 text-sm"
-              />
-              <Button size="sm" variant="outline" onClick={handleAddCategory}>
-                Add
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Items grid */}
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search items…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          {filteredItems.length === 0 ? (
-            <EmptyState
-              icon={UtensilsCrossed}
-              title="No items found"
-              description={search ? "Try a different search term." : "Add your first menu item."}
-              action={
-                !search ? (
-                  <Button onClick={openAdd}>
-                    <Plus className="size-4" />
-                    Add item
-                  </Button>
-                ) : undefined
-              }
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredItems.map((item) => (
-                <Card
-                  key={item.id}
-                  className={cn(
-                    "overflow-hidden transition-opacity",
-                    !item.isAvailable && "opacity-70",
-                  )}
-                >
-                  <div className="relative aspect-[4/3] bg-subtle">
-                    <Image
-                      src={item.imageUrl}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, 33vw"
-                    />
-                    <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-                      {!item.isAvailable && <StatusPill tone="red">Sold out</StatusPill>}
-                      {isModel3dUrl(item.model3dUrl) && (
-                        <StatusPill tone="brand" dot={false} className="gap-1 px-2 text-[10px]">
-                          <Box className="size-3" aria-hidden />
-                          3D
-                        </StatusPill>
-                      )}
-                    </div>
-                  </div>
-                  <CardContent className="space-y-3 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-display font-semibold text-ink">{item.name}</p>
-                        <p className="text-sm font-medium text-brand">
-                          {formatCurrency(item.price)}
-                        </p>
-                      </div>
-                      <GripVertical className="size-4 shrink-0 text-muted-foreground" />
-                    </div>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
-                    <div className="flex flex-wrap gap-1">
-                      {item.tags.slice(0, 2).map((t) => (
-                        <StatusPill key={t} tone="neutral" dot={false} className="text-[10px] px-2">
-                          {t}
-                        </StatusPill>
-                      ))}
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(item)}>
-                        Edit
-                      </Button>
-                      <Button
-                        variant={item.isAvailable ? "secondary" : "default"}
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          toggleItemAvailability(item.id);
-                          toast(item.isAvailable ? "Marked sold out" : "Back in stock", {
-                            tone: "success",
-                          });
-                        }}
-                      >
-                        {item.isAvailable ? "Sold out" : "Restock"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search menu…"
+            className="h-9 pl-9"
+            aria-label="Search menu"
+          />
         </div>
+        <Button
+          variant={showFilters || activeFilters ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <SlidersHorizontal className="size-4" /> Filters
+          {activeFilters > 0 && (
+            <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-white">
+              {activeFilters}
+            </span>
+          )}
+        </Button>
+        <span className="ml-auto text-sm text-muted-foreground">
+          {filtered.length} of {items.length}
+        </span>
       </div>
 
-      <MenuItemSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        categories={sortedCategories}
-        item={editingItem}
-        defaultCategoryId={selectedCategory !== "all" ? selectedCategory : undefined}
-        onSave={handleSave}
+      {showFilters && (
+        <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Category
+            <select
+              className={SELECT_CLASS}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="all">All</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Availability
+            <select
+              className={SELECT_CLASS}
+              value={avail}
+              onChange={(e) => setAvail(e.target.value as AvailFilter)}
+            >
+              <option value="all">All</option>
+              <option value="available">Available</option>
+              <option value="unavailable">Unavailable</option>
+            </select>
+          </label>
+          {activeFilters > 0 && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="size-4" /> Clear
+            </Button>
+          )}
+        </div>
+      )}
+
+      <Card className="mt-4 overflow-hidden p-0">
+        {loading ? (
+          <div className="space-y-2 p-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : error ? (
+          <EmptyState
+            className="py-12"
+            icon={UtensilsCrossed}
+            title="Couldn't load menu"
+            description={error}
+            action={
+              <Button variant="outline" onClick={refetch}>
+                Retry
+              </Button>
+            }
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            className="py-12"
+            icon={UtensilsCrossed}
+            title={items.length === 0 ? "No menu items yet" : "No matches"}
+            description={
+              items.length === 0
+                ? "Add your first dish to get started."
+                : "Try adjusting your search or filters."
+            }
+            action={
+              items.length === 0 ? (
+                <Button onClick={openCreate}>
+                  <Plus className="size-4" /> Add item
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {item.category?.name ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatCurrency(item.price)}
+                  </TableCell>
+                  <TableCell>
+                    <StatusPill tone={item.isAvailable ? "green" : "neutral"}>
+                      {item.isAvailable ? "Available" : "Unavailable"}
+                    </StatusPill>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Edit"
+                        onClick={() => openEdit(item)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        onClick={() => remove(item)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+
+      <MenuFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        item={editing}
+        onSaved={refetch}
       />
     </div>
   );

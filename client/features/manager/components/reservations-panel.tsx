@@ -18,23 +18,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import {
+  listReservations,
+  setReservationStatus,
+  type StorefrontReservation,
+} from "@/features/reserve/services/reservation.service";
+import { useReservationsStream } from "@/features/manager/hooks/use-reservations-stream";
 import { formatSlotLabel } from "@/lib/reservation-utils";
-import type { Reservation, ReservationTask } from "@/lib/types";
+import type { ReservationTask } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const ACTIVE_RESERVATION = new Set(["requested", "confirmed", "seated"]);
 
 export function ReservationsPanel() {
   const activeBranch = useSession((s) => s.activeBranch);
-  const user = useSession((s) => s.user);
-  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [reservations, setReservations] = useState<StorefrontReservation[]>([]);
   const [tasks, setTasks] = useState<ReservationTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const refresh = async () => {
+    // Reservations are real; reminder tasks are still a client-side helper.
     const [r, t] = await Promise.all([
-      api.getReservations(activeBranch.id),
+      listReservations(activeBranch.id),
       api.getReservationTasks(activeBranch.id),
     ]);
     setReservations(r);
@@ -43,10 +49,14 @@ export function ReservationsPanel() {
   };
 
   useEffect(() => {
-    refresh();
-    const poll = setInterval(refresh, 8000);
+    void refresh();
+    // Slow poll as a safety net — realtime below delivers the instant updates.
+    const poll = setInterval(() => void refresh(), 30000);
     return () => clearInterval(poll);
   }, [activeBranch.id]);
+
+  // Live reservation book — new bookings + status changes reflect instantly.
+  useReservationsStream(refresh);
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = useMemo(
@@ -171,7 +181,7 @@ export function ReservationsPanel() {
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {formatSlotLabel(r.date, r.time)} · {r.partySize} guests · Table{" "}
-                        {tableLabel(r.tableId)}
+                        {r.tableName ?? tableLabel(r.tableId)}
                       </p>
                       <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Phone className="size-3.5" />
@@ -209,7 +219,7 @@ export function ReservationsPanel() {
                             runAction(
                               r.id,
                               () =>
-                                api.confirmReservation(r.id, user?.id ?? "staff-mgr"),
+                                setReservationStatus(r.id, "confirmed"),
                               "Reservation confirmed — table held",
                             )
                           }
@@ -224,7 +234,7 @@ export function ReservationsPanel() {
                           variant="outline"
                           disabled={busyId === r.id}
                           onClick={() =>
-                            runAction(r.id, () => api.seatReservation(r.id), "Guest seated")
+                            runAction(r.id, () => setReservationStatus(r.id, "seated"), "Guest seated")
                           }
                         >
                           <UserCheck className="size-4" />
@@ -237,7 +247,7 @@ export function ReservationsPanel() {
                           variant="outline"
                           disabled={busyId === r.id}
                           onClick={() =>
-                            runAction(r.id, () => api.completeReservation(r.id), "Completed")
+                            runAction(r.id, () => setReservationStatus(r.id, "completed"), "Completed")
                           }
                         >
                           Complete
@@ -251,7 +261,7 @@ export function ReservationsPanel() {
                             className="text-destructive"
                             disabled={busyId === r.id}
                             onClick={() =>
-                              runAction(r.id, () => api.markReservationNoShow(r.id), "Marked no-show")
+                              runAction(r.id, () => setReservationStatus(r.id, "no-show"), "Marked no-show")
                             }
                           >
                             No-show
@@ -261,7 +271,7 @@ export function ReservationsPanel() {
                             variant="ghost"
                             disabled={busyId === r.id}
                             onClick={() =>
-                              runAction(r.id, () => api.cancelReservation(r.id), "Cancelled")
+                              runAction(r.id, () => setReservationStatus(r.id, "cancelled"), "Cancelled")
                             }
                           >
                             <X className="size-4" />

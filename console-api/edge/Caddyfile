@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# TableTap edge proxy — automatic TLS + host-based routing for tenant domains.
+#
+# Caddy terminates HTTPS for every tenant hostname and obtains certificates
+# ON DEMAND (per-SNI, at first request) via Let's Encrypt. Before issuing a cert
+# for a hostname it asks the control plane whether we actually serve it — so a
+# stranger pointing their domain at us can NOT trigger unbounded cert issuance.
+#
+# The upstreams preserve the original Host header, which is exactly what the API
+# needs: host → tenant resolution keys off Host (custom domain or subdomain).
+#
+# Env (see docker-compose.edge.yml):
+#   ACME_EMAIL          contact for Let's Encrypt
+#   CONSOLE_API_URL     e.g. http://tabletap-console-api:3005
+#   WEB_UPSTREAM        the Next.js app,       e.g. tabletap-web:3000
+#   API_UPSTREAM        the restaurant API,    e.g. tabletap-api:3003
+# ─────────────────────────────────────────────────────────────────────────────
+{
+	email {$ACME_EMAIL}
+
+	# On-demand TLS: only mint a certificate when the control plane authorizes
+	# the SNI hostname (200 = serve it, anything else = refuse). This is the
+	# guardrail against ACME abuse / rate-limit exhaustion — the `ask` endpoint
+	# is what bounds issuance to hostnames we actually serve.
+	on_demand_tls {
+		ask {$CONSOLE_API_URL}/api/edge/authorize-tls
+	}
+}
+
+# Every hostname is matched here; the ask gate above decides which ones actually
+# get a certificate. `on_demand` ties issuance to that gate.
+https:// {
+	tls {
+		on_demand
+	}
+
+	# API traffic → restaurant API (Host preserved for tenant resolution).
+	@api path /api/*
+	handle @api {
+		reverse_proxy {$API_UPSTREAM} {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	# Everything else → the Next.js app. It reads the Host to decide which tenant
+	# and whether to render the storefront or the admin surface.
+	handle {
+		reverse_proxy {$WEB_UPSTREAM} {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+}
+
+# Redirect plain HTTP to HTTPS (Caddy does this automatically for named sites;
+# explicit here because the site above is the catch-all `https://`).
+http:// {
+	redir https://{host}{uri} permanent
+}

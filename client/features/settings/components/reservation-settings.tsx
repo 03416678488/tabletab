@@ -8,32 +8,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
-import { useSettingsStore } from "@/hooks/use-settings-store";
 import { toast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
+import { fetchStorefrontBranches } from "@/features/storefront/services/storefront-branches";
+import {
+  fetchReservationSettings,
+  saveReservationSettings,
+} from "@/features/reserve/services/reservation-settings.service";
 import type { BranchReservationSettings } from "@/lib/types";
 
 export function ReservationSettings() {
-  const branches = useSettingsStore((s) => s.branches);
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [branchId, setBranchId] = useState("");
   const [settings, setSettings] = useState<BranchReservationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!branchId && branches[0]) setBranchId(branches[0].id);
-  }, [branchId, branches]);
+    fetchStorefrontBranches()
+      .then((list) => {
+        setBranches(list.map((b) => ({ id: b.id, name: b.name })));
+        setBranchId((prev) => prev || list[0]?.id || "");
+      })
+      .catch(() => setBranches([]));
+  }, []);
 
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
     setLoading(true);
-    api.getReservationSettings(branchId).then((s) => {
-      if (!cancelled) {
-        setSettings(s);
-        setLoading(false);
-      }
-    });
+    fetchReservationSettings(branchId)
+      .then((s) => !cancelled && setSettings(s))
+      .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
@@ -49,7 +54,7 @@ export function ReservationSettings() {
     setSaving(true);
     try {
       const { branchId: _, ...rest } = settings;
-      await api.updateReservationSettings(branchId, rest);
+      await saveReservationSettings(branchId, rest);
       toast("Reservation settings saved", { tone: "success" });
     } catch {
       toast("Could not save settings", { tone: "error" });

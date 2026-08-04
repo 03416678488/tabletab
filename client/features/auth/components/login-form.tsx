@@ -37,7 +37,7 @@ export function LoginForm() {
           </div>
           <CardTitle>Owner sign in</CardTitle>
           <CardDescription>
-            Sign in to your TableTap dashboard.
+            Sign in to your dashboard.
           </CardDescription>
         </CardHeader>
 

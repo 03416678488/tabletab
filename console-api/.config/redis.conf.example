@@ -1,0 +1,13 @@
+# Copy this file to redis.conf and set STRONG, unique passwords.
+
+#   cp .config/redis.conf.example .config/redis.conf
+# The real redis.conf is gitignored — never commit real passwords.
+
+# Format: user <name> on ><password> <key-patterns> <channels> <commands>
+user default on >CHANGE_ME_DEFAULT ~* &* +@all
+user root    on >CHANGE_ME_ROOT    ~* &* +@all
+
+# Persistence: snapshot to disk if >=1 key changed in the last 60s
+save 60 1
+dbfilename dump.rdb
+dir /data

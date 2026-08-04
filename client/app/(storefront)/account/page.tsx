@@ -42,7 +42,7 @@ function AccountContent() {
     label: "",
     line1: "",
     line2: "",
-    city: "Portland",
+    city: "",
     postalCode: "",
     isDefault: false,
   });
@@ -81,7 +81,7 @@ function AccountContent() {
       label: "Home",
       line1: "",
       line2: "",
-      city: "Portland",
+      city: "",
       postalCode: "",
       isDefault: false,
     });

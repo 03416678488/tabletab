@@ -1,0 +1,20 @@
+{
+  "settings.title": "Settings",
+  "settings.company": "Business Info",
+  "settings.site": "System",
+  "settings.theme": "Branding",
+  "settings.currencies": "Currencies",
+  "settings.taxes": "Taxes",
+  "settings.languages": "Languages",
+  "common.save": "Save",
+  "common.add": "Add",
+  "common.edit": "Edit",
+  "common.delete": "Delete",
+  "common.cancel": "Cancel",
+  "common.name": "Name",
+  "common.code": "Code",
+  "common.status": "Status",
+  "common.actions": "Actions",
+  "common.active": "Active",
+  "common.inactive": "Inactive"
+}

@@ -93,7 +93,7 @@ export function WaiterBoard() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">Waiter station</h1>

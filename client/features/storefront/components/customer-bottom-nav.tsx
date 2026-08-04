@@ -37,7 +37,7 @@ export function CustomerBottomNav() {
             return (
               <Link
                 key={link.href}
-                href="/login"
+                href="/signin"
                 className={cn(
                   "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium transition-colors",
                   pathname.startsWith("/login") || pathname.startsWith("/signup")

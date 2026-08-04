@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
+import { TenantRequest } from '@modules/tenancy/tenancy.types';
+import { RealtimeService } from '@modules/realtime/realtime.service';
+import { branchesChannel } from '@modules/realtime/channels';
 
 import { Branch } from './entities/branch.entity';
 import { BranchValidatorService } from './services/branch-validator.service';
@@ -23,8 +27,15 @@ export class BranchService extends AbstractService<Branch> {
     protected readonly pagination: PaginationProvider,
     private readonly _validator: BranchValidatorService,
     private readonly _helper: BranchHelperService,
+    private readonly _realtime: RealtimeService,
+    @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
+  }
+
+  /** Nudge the storefront to reconcile branches (open/online/delivery/pickup). */
+  private emitBranchesChanged(id: string): void {
+    this._realtime.publish(branchesChannel(this._req.tenant?.id), 'branch.changed', { id });
   }
 
   getAll(query: GetBranchQueryDto): Promise<Paginated<Branch>> {
@@ -38,17 +49,23 @@ export class BranchService extends AbstractService<Branch> {
 
   async createBranch(dto: CreateBranchDto): Promise<Branch> {
     await this._validator.validateCreate(dto);
-    return this.create(this._helper.resolveCreatePayload(dto));
+    const branch = await this.create(this._helper.resolveCreatePayload(dto));
+    this.emitBranchesChanged(branch.id);
+    return branch;
   }
 
   async updateBranch(id: string, dto: UpdateBranchDto): Promise<Branch> {
     await this._validator.validateUpdate(id, dto);
     await this.repository.update(id, this._helper.resolveUpdatePayload(dto));
-    return this.getById(id);
+    const branch = await this.getById(id);
+    this.emitBranchesChanged(branch.id);
+    return branch;
   }
 
   async deleteBranch(id: string) {
     await this._validator.ensureExists(id);
-    return this.delete(id);
+    const result = await this.delete(id);
+    this.emitBranchesChanged(id);
+    return result;
   }
 }
