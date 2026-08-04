@@ -70,5 +70,8 @@ export function usePaginatedMenuItems({ categoryId, search, perPage = 12 }: Para
     void fetchPage(page + 1, false).finally(() => setLoadingMore(false));
   }, [loading, loadingMore, hasMore, page, fetchPage]);
 
-  return { items, loading, loadingMore, error, hasMore, loadMore };
+  /** Reload the first page in place (e.g. on a live menu-changed event). */
+  const refresh = useCallback(() => void fetchPage(1, true), [fetchPage]);
+
+  return { items, loading, loadingMore, error, hasMore, loadMore, refresh };
 }

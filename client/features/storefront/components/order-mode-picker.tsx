@@ -18,10 +18,13 @@ const MODES: {
 interface OrderModePickerProps {
   value: OrderMode;
   onChange: (mode: OrderMode) => void;
+  /** Per-mode availability from the branch's live settings; a mode omitted or
+      `true` is available, `false` disables (and dims) its tab. */
+  availability?: Partial<Record<OrderMode, boolean>>;
 }
 
 /** Compact segmented control for delivery / pickup / reserve (foodpanda-style). */
-export function OrderModePicker({ value, onChange }: OrderModePickerProps) {
+export function OrderModePicker({ value, onChange, availability }: OrderModePickerProps) {
   return (
     <div
       role="tablist"
@@ -31,18 +34,24 @@ export function OrderModePicker({ value, onChange }: OrderModePickerProps) {
       {MODES.map((mode) => {
         const Icon = mode.icon;
         const selected = value === mode.id;
+        const disabled = availability?.[mode.id] === false;
         return (
           <button
             key={mode.id}
             type="button"
             role="tab"
             aria-selected={selected}
-            onClick={() => onChange(mode.id)}
+            aria-disabled={disabled}
+            disabled={disabled}
+            title={disabled ? `${mode.label} isn't available at this branch` : undefined}
+            onClick={() => !disabled && onChange(mode.id)}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors sm:flex-none",
-              selected
-                ? "bg-brand text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-secondary hover:text-ink",
+              disabled
+                ? "cursor-not-allowed text-muted-foreground/40"
+                : selected
+                  ? "bg-brand text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary hover:text-ink",
             )}
           >
             <Icon className="size-4" />

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { TenantLogo } from "@/components/brand/tenant-logo";
+import { useSettings } from "@/features/app-settings/components/settings-provider";
 import { useTenant } from "@/hooks/use-tenant";
 import { useSiteFooterConfig } from "@/features/website-builder/render/site-chrome";
 
@@ -48,7 +49,9 @@ const SOCIALS: { label: string; href: string; icon: React.ReactNode }[] = [
 
 export function StorefrontFooter() {
   const tenant = useTenant();
+  const { get } = useSettings();
   const year = new Date().getFullYear();
+  const brandName = get("company", "name") || tenant.name;
 
   // Footer customisation from the website builder (falls back to defaults).
   const footerCfg = useSiteFooterConfig();
@@ -60,7 +63,7 @@ export function StorefrontFooter() {
     footerCfg?.about?.trim() ||
     "Fresh Mediterranean plates, wood-fired pizza, and signature mains — delivered to your door or ready for pickup.";
   const copyright =
-    footerCfg?.copyright?.trim() || `© ${year} ${tenant.name}. All rights reserved.`;
+    footerCfg?.copyright?.trim() || `© ${year} ${brandName}. All rights reserved.`;
   const configSocials = footerCfg?.socials?.filter((s) => s.platform.trim()) ?? [];
 
   return (

@@ -75,4 +75,34 @@ export class CreateBranchDto {
   @Min(0)
   @IsOptional()
   deliveryEtaMinutes?: number;
+
+  // ── Reservation settings ──
+  @IsBoolean()
+  @IsOptional()
+  reservationsEnabled?: boolean;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  reservationTurnMins?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  reservationReminderLeadMins?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  reservationNoShowGraceMins?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  reservationBookingWindowDays?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  reservationCutoffMins?: number;
 }

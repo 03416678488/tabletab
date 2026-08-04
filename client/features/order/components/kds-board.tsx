@@ -77,7 +77,7 @@ function elapsed(iso: string, now: number) {
 }
 
 export function KdsBoard() {
-  const { orders, loading, error, lastUpdated, refetch } = useOrderBoard(8000);
+  const { orders, loading, error, lastUpdated, refetch, connected } = useOrderBoard();
   const now = useNow();
   const [busyId, setBusyId] = useState<string | null>(null);
   const inFlight = useRef<Set<string>>(new Set());
@@ -116,8 +116,15 @@ export function KdsBoard() {
           <h1 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight text-ink">
             <ChefHat className="size-5 text-brand" /> Kitchen Display
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {orders.length} active ticket{orders.length === 1 ? "" : "s"} · auto-refreshing
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+            {orders.length} active ticket{orders.length === 1 ? "" : "s"} ·
+            <span
+              className={cn(
+                "inline-block size-2 rounded-full",
+                connected ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/40",
+              )}
+            />
+            {connected ? "Live" : "Reconnecting…"}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void refetch()}>

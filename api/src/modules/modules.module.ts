@@ -15,6 +15,8 @@ import { TableModule } from '@modules/table/table.module';
 import { QrCodeModule } from '@modules/qr-code/qr-code.module';
 import { OrderModule } from '@modules/order/order.module';
 import { CustomerModule } from '@modules/customer/customer.module';
+import { ReservationModule } from '@modules/reservation/reservation.module';
+import { RealtimeModule } from '@modules/realtime/realtime.module';
 import { RolePermissionModule } from '@modules/role-permission/role-permission.module';
 import { SettingModule } from '@modules/setting/setting.module';
 import { CurrencyModule } from '@modules/currency/currency.module';
@@ -23,6 +25,7 @@ import { LanguageModule } from '@modules/language/language.module';
 import { TranslationModule } from '@modules/translation/translation.module';
 import { KioskMachineModule } from '@modules/kiosk-machine/kiosk-machine.module';
 import { AnalyticsModule } from '@modules/analytics/analytics.module';
+import { DashboardModule } from '@modules/dashboard/dashboard.module';
 import { TimeSlotModule } from '@modules/time-slot/time-slot.module';
 import { RegisterModule } from '@modules/register/register.module';
 import { TransactionModule } from '@modules/transaction/transaction.module';
@@ -54,6 +57,8 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     QrCodeModule,
     OrderModule,
     CustomerModule,
+    ReservationModule,
+    RealtimeModule,
     RolePermissionModule,
     SettingModule,
     CurrencyModule,
@@ -62,6 +67,7 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     TranslationModule,
     KioskMachineModule,
     AnalyticsModule,
+    DashboardModule,
     TimeSlotModule,
     RegisterModule,
     TransactionModule,

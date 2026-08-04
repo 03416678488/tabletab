@@ -13,6 +13,7 @@ import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-gro
 
 const FIELDS: { key: string; label: string; type?: string }[] = [
   { key: "name", label: "Name" },
+  { key: "tagline", label: "Tagline" },
   { key: "email", label: "Email", type: "email" },
   { key: "phone", label: "Phone" },
   { key: "website", label: "Website" },
@@ -34,7 +35,7 @@ export function CompanyForm() {
 
   return (
     <Card className="p-5">
-      <h2 className="font-display text-lg font-semibold text-ink">Company</h2>
+      <h2 className="font-display text-lg font-semibold text-ink">Business Info</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {FIELDS.map((f) => (
           <div key={f.key} className="space-y-1.5">

@@ -4,7 +4,14 @@ import { useFieldArray } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Field, TextAreaField, TextField, ToggleField } from "@/features/website-builder/components/form-fields";
+import { useSettings } from "@/features/app-settings/components/settings-provider";
+import {
+  Field,
+  ImageField,
+  TextAreaField,
+  TextField,
+  ToggleField,
+} from "@/features/website-builder/components/form-fields";
 import { useLiveForm } from "@/features/website-builder/hooks/use-live-form";
 import {
   type FooterConfig,
@@ -39,13 +46,15 @@ export function HeaderConfigForm({
     onChange(v as HeaderConfig),
   );
   const { fields, append, remove } = useFieldArray({ control, name: "links" });
+  // Empty brand name falls back to the Business Info name — show it as the hint.
+  const businessName = useSettings().get("company", "name");
   return (
     <div className="space-y-3">
       <TextField
         register={register}
         name="brandName"
         label="Brand name"
-        placeholder="Defaults to your restaurant name"
+        placeholder={businessName ? `Defaults to “${businessName}”` : "Defaults to your business name"}
       />
       <div className="grid grid-cols-2 gap-2">
         <TextField register={register} name="ctaLabel" label="Button label" />
@@ -98,6 +107,7 @@ export function FooterConfigForm({
   const socials = useFieldArray({ control, name: "socials" });
   return (
     <div className="space-y-3">
+      <ImageField control={control} name="logoUrl" label="Footer logo" />
       <TextAreaField register={register} name="about" label="About text" rows={3} />
       <TextField register={register} name="copyright" label="Copyright line" />
 

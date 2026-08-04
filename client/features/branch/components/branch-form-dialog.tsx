@@ -81,6 +81,8 @@ function toDefaults(branch: Branch | null): BranchFormValues {
     onlineOrderingEnabled: branch?.onlineOrderingEnabled ?? true,
     deliveryEnabled: branch?.deliveryEnabled ?? true,
     pickupEnabled: branch?.pickupEnabled ?? true,
+    reservationsEnabled: branch?.reservationsEnabled ?? true,
+    reservationTurnMins: branch?.reservationTurnMins ?? undefined,
   };
 }
 
@@ -165,6 +167,10 @@ export function BranchFormDialog({
         : {}),
       deliveryEnabled: values.deliveryEnabled,
       pickupEnabled: values.pickupEnabled,
+      reservationsEnabled: values.reservationsEnabled,
+      ...(values.reservationTurnMins !== undefined
+        ? { reservationTurnMins: values.reservationTurnMins }
+        : {}),
     };
 
     try {
@@ -309,12 +315,21 @@ export function BranchFormDialog({
                 {...register("deliveryEtaMinutes", { setValueAs: toOptionalNumber })}
               />
             </Field>
+            <Field label="Reservation turn (min)" error={errors.reservationTurnMins?.message}>
+              <Input
+                type="number"
+                step="5"
+                placeholder="e.g. 90"
+                {...register("reservationTurnMins", { setValueAs: toOptionalNumber })}
+              />
+            </Field>
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
             <Toggle label="Open" {...register("isOpen")} />
             <Toggle label="Online ordering" {...register("onlineOrderingEnabled")} />
             <Toggle label="Delivery" {...register("deliveryEnabled")} />
             <Toggle label="Pickup" {...register("pickupEnabled")} />
+            <Toggle label="Reservations" {...register("reservationsEnabled")} />
           </div>
 
           <DialogFooter>

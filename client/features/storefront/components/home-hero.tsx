@@ -37,7 +37,7 @@ export function HomeHero() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link href="/login">Sign in</Link>
+              <Link href="/signin">Sign in</Link>
             </Button>
           </div>
           <p className="mt-6 text-sm text-muted-foreground">

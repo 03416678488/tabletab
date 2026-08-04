@@ -3,24 +3,33 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
-  ArrowUpRight,
   CalendarDays,
   Clock,
+  CreditCard,
   DollarSign,
+  Flame,
+  Repeat,
   ShoppingBag,
   Sparkles,
+  Target,
   TrendingUp,
+  UserPlus,
   UserX,
   Users,
 } from "lucide-react";
 import { KpiCard } from "@/features/admin/components/kpi-card";
-import { RevenueChart } from "@/features/admin/components/revenue-chart";
+import { RevenueOrdersChart } from "@/features/admin/components/revenue-orders-chart";
+import { PeakHoursHeatmap } from "@/features/admin/components/peak-hours-heatmap";
+import { CategoryDonut } from "@/features/admin/components/category-donut";
+import { TargetGauge } from "@/features/admin/components/target-gauge";
+import { ShareBars } from "@/features/admin/components/share-bars";
 import { SplitBars } from "@/features/admin/components/split-bars";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReservationStatusPill, StatusPill } from "@/components/ui/status-pill";
 import { ROLE_LABELS } from "@/lib/nav";
 import { api } from "@/lib/api";
+import { analyticsService } from "@/features/admin/services/analytics.service";
 import { formatSlotLabel } from "@/lib/reservation-utils";
 import type { AnalyticsPeriod, OwnerAnalytics, Reservation, ReservationTask } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -45,12 +54,17 @@ export function AdminDashboard() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.getOwnerAnalytics(period).then((d) => {
-      if (!cancelled) {
-        setData(d);
-        setLoading(false);
-      }
-    });
+    analyticsService
+      .getOwnerAnalytics(period)
+      .then((d) => {
+        if (!cancelled) {
+          setData(d);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -103,8 +117,7 @@ export function AdminDashboard() {
               Performance at a glance
             </h1>
             <p className="mt-2 max-w-lg text-sm text-teal-100/90">
-              Revenue, operations, and team metrics across all branches — updated from live
-              mock data.
+              Revenue, operations, and customer metrics — aggregated live from your orders.
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-white/10 p-1 backdrop-blur-sm">
@@ -133,6 +146,7 @@ export function AdminDashboard() {
           label="Today's revenue"
           value={formatCurrency(kpis.revenueToday)}
           trend={kpis.revenueTrendPct}
+          spark={kpis.revenueSpark}
           icon={DollarSign}
           accent="brand"
         />
@@ -140,20 +154,24 @@ export function AdminDashboard() {
           label="Orders today"
           value={String(kpis.ordersToday)}
           trend={kpis.ordersTrendPct}
+          spark={kpis.ordersSpark}
           icon={ShoppingBag}
           accent="accent"
         />
         <KpiCard
           label="Avg order value"
           value={formatCurrency(kpis.avgOrderValue)}
-          sublabel="Across dine-in & online"
+          trend={kpis.avgOrderTrendPct}
+          spark={kpis.aovSpark}
           icon={TrendingUp}
           accent="neutral"
         />
         <KpiCard
           label="Avg kitchen response"
           value={`${kpis.avgKitchenResponseMins} min`}
-          sublabel="Placed → acknowledged"
+          trend={kpis.kitchenTrendPct}
+          spark={kpis.kitchenSpark}
+          lowerIsBetter
           icon={Clock}
           accent="brand"
         />
@@ -255,38 +273,151 @@ export function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Revenue chart + splits */}
+      {/* Revenue vs orders + target gauge */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="font-display">Revenue</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {period === "day" ? "Last 7 days" : period === "month" ? "Last 12 months" : "3-year trend"}
-              </p>
-            </div>
-            <span className="flex items-center gap-1 text-sm font-medium text-brand">
-              View report <ArrowUpRight className="size-4" />
-            </span>
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display">Revenue &amp; orders</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {period === "day" ? "Last 7 days" : period === "month" ? "Last 12 months" : "3-year trend"}
+              {" "}· revenue vs order volume
+            </p>
           </CardHeader>
           <CardContent>
-            <RevenueChart data={data.revenueSeries} />
+            <RevenueOrdersChart data={data.revenueSeries} />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="font-display text-base">Sales mix</CardTitle>
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <Target className="size-5 text-brand" />
+            <CardTitle className="font-display text-base">Revenue target</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-8">
-            <SplitBars title="By channel" items={data.channelSplit} />
-            <SplitBars title="By branch" items={data.branchSplit} />
+          <CardContent>
+            <TargetGauge
+              target={data.target}
+              periodLabel={period === "day" ? "daily" : period === "month" ? "monthly" : "annual"}
+            />
           </CardContent>
         </Card>
       </div>
 
+      {/* Peak hours heatmap */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2 pb-2">
+          <Flame className="size-5 text-brand" />
+          <div>
+            <CardTitle className="font-display">Peak hours</CardTitle>
+            <p className="text-sm text-muted-foreground">Order volume by day &amp; hour</p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <PeakHoursHeatmap data={data.hourlyHeatmap} />
+        </CardContent>
+      </Card>
+
+      {/* Category mix · payment & fulfillment · customers */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-base">Sales by category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryDonut data={data.categorySplit} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <CreditCard className="size-5 text-brand" />
+            <CardTitle className="font-display text-base">Payments &amp; fulfillment</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h3 className="mb-3 font-display text-sm font-semibold text-ink">Payment method</h3>
+              <ShareBars
+                items={data.paymentSplit.map((p) => ({
+                  label: p.label,
+                  pct: p.pct,
+                  hint: formatCurrency(p.amount),
+                }))}
+              />
+            </div>
+            <div>
+              <h3 className="mb-3 font-display text-sm font-semibold text-ink">Fulfillment</h3>
+              <ShareBars
+                items={data.fulfillment.map((f) => ({
+                  label: f.label,
+                  pct: f.pct,
+                  hint: `${f.orders.toLocaleString()} orders`,
+                }))}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <Repeat className="size-5 text-brand" />
+            <CardTitle className="font-display text-base">Customers</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border/60 bg-subtle/40 p-3">
+                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <UserPlus className="size-3.5" /> New
+                </p>
+                <p className="mt-1 font-display text-2xl font-bold text-ink">
+                  {data.customers.newCount}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-subtle/40 p-3">
+                <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Users className="size-3.5" /> Returning
+                </p>
+                <p className="mt-1 font-display text-2xl font-bold text-ink">
+                  {data.customers.returningCount}
+                </p>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Returning share</span>
+                <span className="font-semibold text-ink">{data.customers.returningPct}%</span>
+              </div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-subtle">
+                <div
+                  className="h-full rounded-full bg-brand"
+                  style={{ width: `${data.customers.returningPct}%` }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Repeat rate</span>
+              <span className="font-semibold text-ink">{data.customers.repeatRatePct}%</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Avg visits / month</span>
+              <span className="font-semibold text-ink">{data.customers.avgVisitsPerMonth}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sales mix by channel & branch */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="font-display text-base">Sales mix</CardTitle>
+          <p className="text-sm text-muted-foreground">Revenue share by channel and branch</p>
+        </CardHeader>
+        <CardContent className="grid gap-8 sm:grid-cols-2">
+          <SplitBars title="By channel" items={data.channelSplit} />
+          <SplitBars title="By branch" items={data.branchSplit} />
+        </CardContent>
+      </Card>
+
       {/* Best sellers + staff */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className={cn("grid gap-6", data.staffPerformance.length > 0 && "lg:grid-cols-2")}>
         <Card>
           <CardHeader>
             <CardTitle className="font-display">Best-selling items</CardTitle>
@@ -315,6 +446,7 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
 
+        {data.staffPerformance.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
             <Users className="size-5 text-brand" />
@@ -386,6 +518,7 @@ export function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2,
   Minus,
@@ -20,15 +20,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
 import { toast } from "@/hooks/use-toast";
+import { useMenuStream } from "@/hooks/use-menu-stream";
 import { ApiError } from "@/lib/httpClient";
 
 import { Dropdown } from "@/components/ui/dropdown";
-import { usePaginatedMenuItems } from "@/features/menu/hooks/use-paginated-menu-items";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  MENU_ITEMS_ALL_KEY,
+  useAllMenuItems,
+} from "@/features/menu/hooks/use-all-menu-items";
 import { useCategories } from "@/features/category/hooks/use-categories";
 import { useTables } from "@/features/table/hooks/use-tables";
 import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useTaxGroups } from "@/features/tax/hooks/use-tax-groups";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
+import { useSettings } from "@/features/app-settings/components/settings-provider";
 import { groupRate } from "@/features/tax/services/tax-group.service";
 import { CustomerSelect } from "@/features/customer/components/customer-select";
 import type { Customer } from "@/features/customer/types/customer.types";
@@ -74,6 +80,7 @@ interface PersistedCart {
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export function PosTerminal() {
+  const businessName = useSettings().get("company", "name");
   const { categories, loading: categoriesLoading } = useCategories();
   const { tables } = useTables();
   const { taxes } = useTaxes();
@@ -84,10 +91,25 @@ export function PosTerminal() {
   const [categoryId, setCategoryId] = useState<string>("all");
   const [customizing, setCustomizing] = useState<MenuItem | null>(null);
 
-  const { items, loading, loadingMore, hasMore, loadMore } = usePaginatedMenuItems({
-    categoryId,
-    search,
-  });
+  // Load the whole catalog once (cached), then filter client-side — instant
+  // category/search with no per-click network round-trips.
+  const { data: allItems = [], isLoading: loading } = useAllMenuItems();
+  const queryClient = useQueryClient();
+  const refresh = useCallback(
+    () => void queryClient.invalidateQueries({ queryKey: MENU_ITEMS_ALL_KEY }),
+    [queryClient],
+  );
+  // Live menu updates — an 86'd/repriced item reflects on the POS instantly.
+  useMenuStream(refresh);
+
+  const items = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allItems.filter((it) => {
+      if (categoryId !== "all" && it.categoryId !== categoryId) return false;
+      if (q && !`${it.name} ${it.description ?? ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [allItems, categoryId, search]);
 
   const [orderType, setOrderType] = useState<OrderType>("table");
   const [tableId, setTableId] = useState("");
@@ -153,21 +175,6 @@ export function PosTerminal() {
     };
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(payload));
   }, [cart, orderType, tableId, discountKind, discountInput, taxId]);
-
-  // Infinite scroll: load the next page when the sentinel scrolls into view.
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) loadMore();
-      },
-      { rootMargin: "200px" },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loadMore]);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
@@ -350,6 +357,7 @@ export function PosTerminal() {
         }
         printReceipt({
           orderNumber,
+          businessName,
           lines: cart.map((l) => ({ name: l.name, qty: l.quantity, price: l.unitPrice * l.quantity })),
           subtotal,
           discount,
@@ -429,19 +437,11 @@ export function PosTerminal() {
               />
             </Card>
           ) : (
-            <>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
-                {items.map((it) => (
-                  <MenuCard key={it.id} item={it} onAdd={() => setCustomizing(it)} />
-                ))}
-                {loadingMore &&
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={`more-${i}`} className="h-64 rounded-2xl" />
-                  ))}
-              </div>
-              {/* Sentinel: triggers the next page as it nears the viewport */}
-              {hasMore && <div ref={sentinelRef} className="h-8" />}
-            </>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
+              {items.map((it) => (
+                <MenuCard key={it.id} item={it} onAdd={() => setCustomizing(it)} />
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -49,4 +49,28 @@ export class Branch extends AbstractEntity {
 
   @Column({ type: 'int', nullable: true })
   deliveryEtaMinutes: number;
+
+  // ── Reservation settings (per branch) ──
+  @Column({ type: 'boolean', default: true })
+  reservationsEnabled: boolean;
+
+  /** Table turn time (minutes) — the default booking duration. */
+  @Column({ type: 'int', default: 90 })
+  reservationTurnMins: number;
+
+  /** How long before the slot to remind the guest (minutes). */
+  @Column({ type: 'int', default: 30 })
+  reservationReminderLeadMins: number;
+
+  /** Grace period after the slot before a booking is auto no-show (minutes). */
+  @Column({ type: 'int', default: 15 })
+  reservationNoShowGraceMins: number;
+
+  /** How far ahead guests may book (days). */
+  @Column({ type: 'int', default: 14 })
+  reservationBookingWindowDays: number;
+
+  /** Latest a booking may be made before the slot (minutes). */
+  @Column({ type: 'int', default: 60 })
+  reservationCutoffMins: number;
 }

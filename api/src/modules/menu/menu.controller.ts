@@ -3,21 +3,44 @@ import {
   Controller,
   Delete,
   Get,
+  type MessageEvent,
   Param,
   ParseUUIDPipe,
   Post,
   Put,
   Query,
+  Sse,
 } from '@nestjs/common';
+import { type Observable } from 'rxjs';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { CurrentTenant } from '@modules/tenancy/current-tenant.decorator';
+import { TenantRecord } from '@modules/tenancy/tenancy.types';
+import { RealtimeService } from '@modules/realtime/realtime.service';
+import { menuChannel } from '@modules/realtime/channels';
+import { sseFromChannel } from '@modules/realtime/sse.util';
 
 import { MenuService } from './menu.service';
 import { CreateMenuItemDto, UpdateMenuItemDto, GetMenuItemQueryDto } from './dto';
 
 @Controller('menu-items')
 export class MenuController {
-  constructor(private readonly _menuService: MenuService) {}
+  constructor(
+    private readonly _menuService: MenuService,
+    private readonly _realtime: RealtimeService,
+  ) {}
+
+  /**
+   * Live menu-changed stream (availability / price / add / remove). Public — the
+   * menu is public, so native `EventSource` works (no auth header needed). Events
+   * just say "menu changed"; the client refetches to reconcile. Declared before
+   * `:id` so `stream` isn't captured as an item id.
+   */
+  @Public()
+  @Sse('stream')
+  streamMenu(@CurrentTenant() tenant: TenantRecord | null): Observable<MessageEvent> {
+    return sseFromChannel(this._realtime, menuChannel(tenant?.id));
+  }
 
   // Public so the storefront can render menu items (e.g. the "Menu grid" block).
   @Public()

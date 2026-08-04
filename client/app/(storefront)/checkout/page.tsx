@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
 import { CreditCard, MapPin, ShoppingBag, Truck } from "lucide-react";
 import { CartSummary } from "@/features/order/components/cart-summary";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { toast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
-import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
-import type { Address, Branch } from "@/lib/types";
+import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
+import { branchOnlineConfig } from "@/features/storefront/services/storefront-branches";
+import { placeStorefrontOrder } from "@/features/storefront/services/storefront-orders";
+import type { Address } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 function CheckoutContent() {
@@ -33,13 +35,19 @@ function CheckoutContent() {
   const tax = useCart((s) => s.tax());
   const clear = useCart((s) => s.clear);
 
-  const [branch, setBranch] = useState<Branch | null>(null);
-  const [online, setOnline] = useState<BranchOnlineConfig | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Cached branches (React Query) — branch + online config derived reactively.
+  const { branches, isLoading: branchesLoading } = useStorefrontBranches();
+  const branch = useMemo(
+    () => (branchId ? branches.find((b) => b.id === branchId) ?? null : null),
+    [branches, branchId],
+  );
+  const online = useMemo(() => (branch ? branchOnlineConfig(branch) : null), [branch]);
+  const loading = Boolean(branchId) && branchesLoading;
   const [paying, setPaying] = useState(false);
 
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [pickupTime, setPickupTime] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState({
     label: "Home",
@@ -56,36 +64,25 @@ function CheckoutContent() {
     (user?.addresses.find((a) => a.isDefault) ?? user?.addresses[0])?.id ??
     null;
 
+  // Default fulfillment + pickup slot once the branch config resolves; on later
+  // (live) config changes, move the guest off a mode staff just disabled.
+  const defaultedRef = useRef(false);
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!branchId) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const [b, cfg] = await Promise.all([
-          api.getBranch(branchId),
-          api.getBranchOnlineConfig(branchId),
-        ]);
-        if (!cancelled) {
-          setBranch(b ?? null);
-          setOnline(cfg);
-          if (cfg.deliveryAvailable) {
-            setFulfillmentType("delivery");
-          } else if (cfg.pickupAvailable) {
-            setFulfillmentType("pickup");
-          }
-          if (cfg.pickupSlots[0]) setPickupTime(cfg.pickupSlots[0]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [branchId, setFulfillmentType]);
+    if (!online) return;
+    if (!defaultedRef.current) {
+      defaultedRef.current = true;
+      if (online.deliveryAvailable) setFulfillmentType("delivery");
+      else if (online.pickupAvailable) setFulfillmentType("pickup");
+    } else if (fulfillmentType === "delivery" && !online.deliveryAvailable && online.pickupAvailable) {
+      setFulfillmentType("pickup");
+    } else if (fulfillmentType === "pickup" && !online.pickupAvailable && online.deliveryAvailable) {
+      setFulfillmentType("delivery");
+    }
+    if (!pickupTime && online.pickupSlots[0]) setPickupTime(online.pickupSlots[0]);
+  }, [online, fulfillmentType, pickupTime, setFulfillmentType]);
+
+  // Live branch updates refetch the cached branches, re-deriving the config.
+  useStorefrontSync();
 
   const deliveryFee =
     fulfillmentType === "delivery" && online?.deliveryAvailable ? online.deliveryFee : 0;
@@ -112,34 +109,43 @@ function CheckoutContent() {
       return;
     }
 
+    // Format the chosen delivery address (or pickup time) into a single line for
+    // the order — the backend stores it as free text on customerAddress.
+    const selectedAddress = user.addresses.find((a) => a.id === effectiveAddressId);
+    const addressText =
+      fulfillmentType === "delivery" && selectedAddress
+        ? [selectedAddress.line1, selectedAddress.line2, selectedAddress.city, selectedAddress.postalCode]
+            .filter(Boolean)
+            .join(", ")
+        : undefined;
+
     setPaying(true);
     try {
-      const order = await api.createOrder({
+      const order = await placeStorefrontOrder({
         branchId,
         fulfillmentType: fulfillmentType === "delivery" ? "delivery" : "pickup",
-        items: items.map((i) => ({
-          menuItemId: i.menuItemId,
-          name: i.name,
-          quantity: i.quantity,
-          unitPrice: i.unitPrice,
-          modifiers: i.modifiers,
-          notes: i.notes,
-        })),
+        items,
         customerId: user.id,
         customerName: user.name,
-        deliveryAddressId:
-          fulfillmentType === "delivery" ? effectiveAddressId ?? undefined : undefined,
-        pickupTime: fulfillmentType === "pickup" ? pickupTime ?? undefined : undefined,
-        subtotal,
-        deliveryFee,
+        customerPhone: user.phone || undefined,
+        customerAddress: addressText,
         tax,
-        total,
+        deliveryFee,
+        // Internal pickup marker (parsed back out on the track page) + the
+        // customer's own note, one per line.
+        notes:
+          [
+            fulfillmentType === "pickup" && pickupTime ? `Pickup at ${pickupTime}` : "",
+            note.trim(),
+          ]
+            .filter(Boolean)
+            .join("\n") || undefined,
       });
       clear();
       toast("Order placed!", { tone: "success" });
       router.push(`/track/${order.id}`);
-    } catch {
-      toast("Payment failed — please try again", { tone: "error" });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Payment failed — please try again", { tone: "error" });
     } finally {
       setPaying(false);
     }
@@ -328,6 +334,23 @@ function CheckoutContent() {
               </CardContent>
             </Card>
           )}
+
+          {/* Optional order note */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Add a note (optional)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+                maxLength={300}
+                placeholder="e.g. Ring the doorbell, no cutlery needed…"
+                className="w-full rounded-xl border border-input bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30"
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-4">
@@ -359,7 +382,7 @@ function CheckoutContent() {
                 </p>
                 <div className="mt-4 flex flex-col gap-2">
                   <Button asChild className="w-full" size="lg">
-                    <Link href="/login?returnUrl=/checkout">Sign in</Link>
+                    <Link href="/signin?returnUrl=/checkout">Sign in</Link>
                   </Button>
                   <Button asChild variant="outline" className="w-full" size="lg">
                     <Link href="/signup?returnUrl=/checkout">Create account</Link>

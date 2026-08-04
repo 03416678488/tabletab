@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "@/lib/httpClient";
 import { tableService } from "@/features/table/services/table.service";
+import { useTablesStream } from "@/features/table/hooks/use-tables-stream";
 import type { DiningTable } from "@/features/table/types/table.types";
 
 export function useTables() {
@@ -28,5 +29,8 @@ export function useTables() {
     void refetch();
   }, [refetch]);
 
-  return { tables, loading, error, refetch };
+  // Live floor updates — another device adding/renaming a table reflects here.
+  const { connected } = useTablesStream(refetch);
+
+  return { tables, loading, error, refetch, connected };
 }

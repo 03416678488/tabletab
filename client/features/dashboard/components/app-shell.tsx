@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
+import { QuickSettingsFab } from "@/features/dashboard/components/quick-settings-fab";
 import { SidebarNav } from "@/features/dashboard/components/sidebar-nav";
 import { Topbar } from "@/features/dashboard/components/topbar";
 import { useSession } from "@/hooks/use-session";
@@ -50,6 +51,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Topbar collapsed={collapsed} onToggleSidebar={toggleSidebar} />
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">{children}</main>
       </div>
+
+      {/* Floating quick-settings control — visible on every dashboard page. */}
+      <QuickSettingsFab />
     </div>
   );
 }

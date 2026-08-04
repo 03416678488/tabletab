@@ -4,19 +4,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError } from "@/lib/httpClient";
 import { orderService } from "@/features/order/services/order.service";
+import { useBoardStream } from "@/features/order/hooks/use-board-stream";
 import type { Order } from "@/features/order/types/order.types";
 
 /**
- * Live kitchen/pickup board. Polls `/orders/board` on an interval so the screen
- * stays current without a manual refresh.
+ * Live kitchen/pickup board. Realtime via SSE (`/orders/board/stream`): new
+ * orders and status changes push a "board changed" event and we refetch. A slow
+ * poll stays as a safety net for anything missed during a reconnect.
  */
-export function useOrderBoard(pollMs = 8000) {
+export function useOrderBoard(pollMs = 30000) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
-  // Track first load so polling refreshes don't flash the skeleton.
+  // Track first load so refreshes don't flash the skeleton.
   const initial = useRef(true);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refetch = useCallback(async () => {
     try {
@@ -34,11 +37,22 @@ export function useOrderBoard(pollMs = 8000) {
     }
   }, []);
 
+  // Coalesce bursts (e.g. several line items placed at once) into one refetch.
+  const scheduleRefetch = useCallback(() => {
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => void refetch(), 250);
+  }, [refetch]);
+
+  const { connected } = useBoardStream(scheduleRefetch);
+
   useEffect(() => {
     void refetch();
     const id = setInterval(() => void refetch(), pollMs);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      if (debounce.current) clearTimeout(debounce.current);
+    };
   }, [refetch, pollMs]);
 
-  return { orders, loading, error, lastUpdated, refetch };
+  return { orders, loading, error, lastUpdated, refetch, connected };
 }

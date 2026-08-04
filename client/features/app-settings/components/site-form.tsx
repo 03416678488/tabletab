@@ -39,7 +39,7 @@ export function SiteForm() {
 
   return (
     <Card className="p-5">
-      <h2 className="font-display text-lg font-semibold text-ink">Site</h2>
+      <h2 className="font-display text-lg font-semibold text-ink">System</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label="Date Format">
           <select className={SELECT} value={values.date_format ?? ""} onChange={(e) => set("date_format", e.target.value)}>
@@ -93,9 +93,6 @@ export function SiteForm() {
               </label>
             ))}
           </div>
-        </Field>
-        <Field label="Copyright">
-          <Input value={values.copyright ?? ""} onChange={(e) => set("copyright", e.target.value)} />
         </Field>
       </div>
 

@@ -224,6 +224,17 @@ export function ImageSliderConfigForm({ config, onChange }: ConfigFormProps) {
           </div>
         )}
       </div>
+      <SelectField
+        control={control}
+        name="perView"
+        label="Slides per view"
+        options={[
+          { value: "1", label: "1 (one at a time)" },
+          { value: "2", label: "2 side by side" },
+          { value: "3", label: "3 side by side" },
+          { value: "4", label: "4 side by side" },
+        ]}
+      />
       <Field label="Slides" error={formState.errors.images?.message as string | undefined}>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
@@ -240,13 +251,21 @@ export function ImageSliderConfigForm({ config, onChange }: ConfigFormProps) {
                     <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
                     <TextField register={register} name={`images.${i}.href`} placeholder="Link" />
                   </div>
+                  <TextField
+                    register={register}
+                    name={`images.${i}.badge`}
+                    placeholder="Top-right badge, e.g. 10% Off"
+                  />
                 </SortableRow>
               ))}
             </div>
           </SortableContext>
         </DndContext>
       </Field>
-      <AddButton onClick={() => append({ url: "", caption: "", href: "" })} label="Add slide" />
+      <AddButton
+        onClick={() => append({ url: "", caption: "", href: "", badge: "" })}
+        label="Add slide"
+      />
     </div>
   );
 }
@@ -353,13 +372,21 @@ export function BannerSliderConfigForm({ config, onChange }: ConfigFormProps) {
                     <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
                     <TextField register={register} name={`images.${i}.href`} placeholder="Link" />
                   </div>
+                  <TextField
+                    register={register}
+                    name={`images.${i}.badge`}
+                    placeholder="Top-right badge, e.g. 10% Off"
+                  />
                 </SortableRow>
               ))}
             </div>
           </SortableContext>
         </DndContext>
       </Field>
-      <AddButton onClick={() => append({ url: "", caption: "", href: "" })} label="Add slide" />
+      <AddButton
+        onClick={() => append({ url: "", caption: "", href: "", badge: "" })}
+        label="Add slide"
+      />
     </div>
   );
 }

@@ -38,7 +38,11 @@ export function ThemeForm() {
   return (
     <div className="space-y-5">
       <Card className="p-5">
-        <h2 className="font-display text-lg font-semibold text-ink">Theme</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">Branding</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Logo and favicon for the admin panel. The storefront footer logo lives in Website
+          Settings → Footer.
+        </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Logo</Label>
@@ -47,13 +51,6 @@ export function ThemeForm() {
           <div className="space-y-1.5">
             <Label>Favicon</Label>
             <ImagePickerField value={values.fav_icon ?? ""} onChange={(u) => set("fav_icon", u)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Footer Logo</Label>
-            <ImagePickerField
-              value={values.footer_logo ?? ""}
-              onChange={(u) => set("footer_logo", u)}
-            />
           </div>
         </div>
       </Card>

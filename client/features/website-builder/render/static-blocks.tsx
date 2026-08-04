@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { AppImage } from "@/components/ui/app-image";
 import { cn, isLocalUpload } from "@/lib/utils";
 import { EmblaSlider } from "@/features/website-builder/render/embla-slider";
 import type {
@@ -56,6 +57,20 @@ export function HeroRender({ config }: { config: HeroConfig }) {
 }
 
 export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
+  // Always one-up on mobile/tablet; the multi-up grid only kicks in on desktop.
+  const perViewBasis =
+    {
+      1: "basis-full",
+      2: "basis-full lg:basis-1/2",
+      3: "basis-full lg:basis-1/3",
+      4: "basis-full lg:basis-1/4",
+    }[config.perView] ?? "basis-full";
+
+  // Multi-up slides are tall portrait cards on desktop; but when they collapse to
+  // one-up below `lg` a wide banner ratio reads better. Single slides stay wide.
+  const slideAspect =
+    config.perView > 1 ? "aspect-[16/9] lg:aspect-[3/4]" : "aspect-[21/9]";
+
   return (
     <section className={cn(shell, "py-4")}>
       {config.title && (
@@ -63,23 +78,28 @@ export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
       )}
       <EmblaSlider
         autoplayMs={config.autoplay ? config.autoplaySeconds * 1000 : undefined}
-        slideClassName="basis-full"
+        slideClassName={perViewBasis}
       >
         {config.images.map((img, i) => (
           <Link
             key={i}
             href={img.href || "#"}
-            className="relative block aspect-[21/9] overflow-hidden rounded-3xl bg-subtle"
+            className={cn(
+              "relative block overflow-hidden rounded-3xl bg-subtle",
+              slideAspect,
+            )}
           >
-            {img.url && (
-              <Image
-                src={img.url}
-                alt={img.caption}
-                fill
-                unoptimized={isLocalUpload(img.url)}
-                className="object-cover"
-                sizes="100vw"
-              />
+            <AppImage
+              src={img.url}
+              alt={img.caption}
+              fill
+              className="object-cover"
+              sizes="100vw"
+            />
+            {img.badge && (
+              <span className="absolute right-3 top-3 rounded-full bg-brand px-3 py-1 text-xs font-bold text-primary-foreground shadow-md">
+                {img.badge}
+              </span>
             )}
             {img.caption && (
               <span className="absolute bottom-4 left-4 rounded-full bg-ink/70 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur">
@@ -248,15 +268,17 @@ export function BannerSliderRender({ config }: { config: BannerSliderConfig }) {
           href={img.href || "#"}
           className="relative block h-full overflow-hidden rounded-3xl bg-subtle"
         >
-          {img.url && (
-            <Image
-              src={img.url}
-              alt={img.caption}
-              fill
-              unoptimized={isLocalUpload(img.url)}
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-            />
+          <AppImage
+            src={img.url}
+            alt={img.caption}
+            fill
+            className="object-cover"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+          />
+          {img.badge && (
+            <span className="absolute right-3 top-3 rounded-full bg-brand px-3 py-1 text-xs font-bold text-primary-foreground shadow-md">
+              {img.badge}
+            </span>
           )}
           {img.caption && (
             <span className="absolute bottom-4 left-4 rounded-full bg-ink/70 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur">

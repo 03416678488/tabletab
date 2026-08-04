@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { orderService } from "@/features/order/services/order.service";
+import { useTablesStream } from "@/features/table/hooks/use-tables-stream";
 import type { TableStat } from "@/features/order/types/order.types";
 
 /** Live per-table order aggregation, keyed by tableId for easy lookup. */
@@ -24,6 +25,9 @@ export function useTableStats() {
   useEffect(() => {
     void refetch();
   }, [refetch]);
+
+  // Occupancy shifts live as orders open/close tables (order → tables channel).
+  useTablesStream(refetch);
 
   const byTable = useMemo(() => {
     const map = new Map<string, TableStat>();

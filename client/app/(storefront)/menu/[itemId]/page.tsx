@@ -13,7 +13,9 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { useCart } from "@/hooks/use-cart";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { toast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
+import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
+import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
+import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
 import type { CartItemModifier, MenuItem, MenuTag } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -40,46 +42,32 @@ export default function ProductDetailsPage({
   const cartBranchId = useCart((s) => s.branchId);
   const locationBranchId = useLocationStore((s) => s.branchId);
 
-  const [item, setItem] = useState<MenuItem | null>(null);
-  const [related, setRelated] = useState<MenuItem[]>([]);
-  const [firstBranchId, setFirstBranchId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-
   const [quantity, setQuantity] = useState(1);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [notes, setNotes] = useState("");
 
+  // Cached storefront data (React Query).
+  const { products, isLoading: productsLoading } = useStorefrontProducts();
+  const { branches, isLoading: branchesLoading } = useStorefrontBranches();
+  useStorefrontSync();
+  const loading = productsLoading || branchesLoading;
+
+  const item = useMemo(() => products.find((p) => p.id === itemId) ?? null, [products, itemId]);
+  const related = useMemo(
+    () =>
+      item
+        ? products.filter((i) => i.categoryId === item.categoryId && i.id !== item.id).slice(0, 4)
+        : [],
+    [products, item],
+  );
+  const firstBranchId = branches[0]?.id ?? null;
+  const notFound = !loading && !item;
+
+  // Reset the customization form whenever the viewed item changes.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setNotFound(false);
-      setQuantity(1);
-      setSelected({});
-      setNotes("");
-      try {
-        const found = await api.getMenuItem(itemId);
-        if (cancelled) return;
-        if (!found) {
-          setNotFound(true);
-          return;
-        }
-        const [siblings, branches] = await Promise.all([
-          api.getMenuItems(found.categoryId),
-          api.getBranches(),
-        ]);
-        if (cancelled) return;
-        setItem(found);
-        setRelated(siblings.filter((i) => i.id !== found.id).slice(0, 4));
-        setFirstBranchId(branches[0]?.id ?? null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    setQuantity(1);
+    setSelected({});
+    setNotes("");
   }, [itemId]);
 
   const modifiers: CartItemModifier[] = useMemo(() => {

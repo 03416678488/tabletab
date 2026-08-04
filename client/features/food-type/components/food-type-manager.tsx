@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pencil, Plus, Salad, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -21,7 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
-import { useFoodTypes } from "@/features/food-type/hooks/use-food-types";
+import { usePaginatedFoodTypes } from "@/features/food-type/hooks/use-paginated-food-types";
 import { foodTypeService } from "@/features/food-type/services/food-type.service";
 import { FoodTypeFormDialog } from "@/features/food-type/components/food-type-form-dialog";
 import type { FoodType } from "@/features/food-type/types/food-type.types";
@@ -32,7 +33,6 @@ const SELECT_CLASS =
 type StatusFilter = "all" | "active" | "inactive";
 
 export function FoodTypeManager() {
-  const { foodTypes, loading, error, refetch } = useFoodTypes();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<FoodType | null>(null);
 
@@ -40,18 +40,13 @@ export function FoodTypeManager() {
   const [showFilters, setShowFilters] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return foodTypes.filter((f) => {
-      if (status === "active" && !f.isActive) return false;
-      if (status === "inactive" && f.isActive) return false;
-      if (q && !`${f.name} ${f.description ?? ""}`.toLowerCase().includes(q))
-        return false;
-      return true;
-    });
-  }, [foodTypes, search, status]);
+  // Search + status are applied server-side; the list is paginated.
+  const isActive = status === "all" ? undefined : status === "active";
+  const { foodTypes, loading, error, page, totalPages, totalItems, goToPage, refetch } =
+    usePaginatedFoodTypes({ search, isActive });
 
   const activeFilters = status !== "all" ? 1 : 0;
+  const filtersActive = Boolean(search.trim()) || status !== "all";
 
   const openCreate = () => {
     setEditing(null);
@@ -69,7 +64,8 @@ export function FoodTypeManager() {
     try {
       await foodTypeService.remove(foodType.id);
       toast("Food type deleted", { tone: "success" });
-      refetch();
+      if (foodTypes.length === 1 && page > 1) goToPage(page - 1);
+      else refetch();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Failed to delete food type", {
         tone: "error",
@@ -85,7 +81,7 @@ export function FoodTypeManager() {
             Food Types
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {foodTypes.length} type{foodTypes.length === 1 ? "" : "s"} · tag your dishes.
+            {totalItems} type{totalItems === 1 ? "" : "s"} · tag your dishes.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -117,7 +113,7 @@ export function FoodTypeManager() {
           )}
         </Button>
         <span className="ml-auto text-sm text-muted-foreground">
-          {filtered.length} of {foodTypes.length}
+          {foodTypes.length} of {totalItems}
         </span>
       </div>
 
@@ -162,22 +158,22 @@ export function FoodTypeManager() {
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : foodTypes.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={Salad}
-            title={foodTypes.length === 0 ? "No food types yet" : "No matches"}
+            title={filtersActive ? "No matches" : "No food types yet"}
             description={
-              foodTypes.length === 0
-                ? "Add your first food type to tag dishes."
-                : "Try adjusting your search or filters."
+              filtersActive
+                ? "Try adjusting your search or filters."
+                : "Add your first food type to tag dishes."
             }
             action={
-              foodTypes.length === 0 ? (
+              filtersActive ? undefined : (
                 <Button onClick={openCreate}>
                   <Plus className="size-4" /> Add food type
                 </Button>
-              ) : undefined
+              )
             }
           />
         ) : (
@@ -192,7 +188,7 @@ export function FoodTypeManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((foodType) => (
+              {foodTypes.map((foodType) => (
                 <TableRow key={foodType.id}>
                   <TableCell className="font-medium">{foodType.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -232,6 +228,15 @@ export function FoodTypeManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && foodTypes.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={goToPage}
+          className="mt-4"
+        />
+      )}
 
       <FoodTypeFormDialog
         open={dialogOpen}

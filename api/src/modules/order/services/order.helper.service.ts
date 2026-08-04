@@ -29,7 +29,8 @@ export class OrderHelperService {
     const subtotal = round2(items.reduce((sum, it) => sum + (it.lineTotal ?? 0), 0));
     const tax = round2(dto.tax ?? 0);
     const discount = round2(dto.discount ?? 0);
-    const total = round2(subtotal + tax - discount);
+    const deliveryFee = round2(dto.deliveryFee ?? 0);
+    const total = round2(subtotal + tax + deliveryFee - discount);
 
     return {
       orderNumber: this.generateOrderNumber(),
@@ -45,6 +46,7 @@ export class OrderHelperService {
       subtotal,
       tax,
       discount,
+      deliveryFee,
       total,
       items: items as OrderItem[],
     };

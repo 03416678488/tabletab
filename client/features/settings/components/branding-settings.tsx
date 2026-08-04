@@ -102,7 +102,6 @@ export function BrandingSettings() {
         <p className="text-sm text-muted-foreground">
           Customize colors and logo for your online storefront and in-venue QR ordering.
           Changes apply after you click <strong className="font-medium text-ink">Save branding</strong>.
-          Staff dashboards keep TableTap branding.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">

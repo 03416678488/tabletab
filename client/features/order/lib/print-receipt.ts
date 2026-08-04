@@ -8,6 +8,8 @@ interface ReceiptLine {
 
 interface ReceiptData {
   orderNumber: string;
+  /** Business name printed as the receipt header (from Business Info). */
+  businessName?: string;
   lines: ReceiptLine[];
   subtotal: number;
   discount: number;
@@ -45,7 +47,7 @@ export function printReceipt(data: ReceiptData) {
     .tot{border-top:1px dashed #999;font-weight:bold}
     .pay{margin-top:10px;border-top:1px dashed #999;padding-top:8px;text-align:center}
   </style></head><body>
-    <h1>TableTap</h1>
+    <h1>${escapeHtml(data.businessName?.trim() || "Receipt")}</h1>
     <p class="muted">Order ${escapeHtml(data.orderNumber)}<br>${new Date().toLocaleString()}</p>
     <table>
       <thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th></tr></thead>

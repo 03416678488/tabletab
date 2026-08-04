@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
-import { api } from "@/lib/api";
 import type { MenuCategory, MenuItem } from "@/lib/types";
-import { cn, formatCurrency, isLocalUpload } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { EmblaSlider } from "@/features/website-builder/render/embla-slider";
-import {
-  fetchStorefrontMenus,
-  fetchStorefrontProducts,
-  type StorefrontMenu,
-} from "@/features/website-builder/services/storefront-menus";
+import { ProductCard } from "@/features/storefront/components/product-card";
+import { useStorefrontMenus } from "@/features/storefront/hooks/use-storefront-menus";
+import { useStorefrontCategories } from "@/features/storefront/hooks/use-storefront-categories";
+import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
+import type { StorefrontMenu } from "@/features/website-builder/services/storefront-menus";
 import type {
   FeaturedCategoriesConfig,
   MenuGridConfig,
@@ -22,42 +19,10 @@ import type {
 
 const shell = "mx-auto max-w-6xl px-4 sm:px-6";
 
-/** Shared product-card presentation used by product/menu blocks. */
-function ProductCard({ item }: { item: MenuItem }) {
-  return (
-    <Link href="/order" className="group block">
-      <span className="relative block aspect-square w-full overflow-hidden rounded-2xl bg-subtle shadow-[var(--shadow-card)]">
-        {item.imageUrl && (
-          <Image
-            src={item.imageUrl}
-            alt={item.name}
-            fill
-            unoptimized={isLocalUpload(item.imageUrl)}
-            className="object-cover transition-transform duration-500 group-hover:scale-110"
-            sizes="200px"
-          />
-        )}
-      </span>
-      <p className="mt-2 line-clamp-1 text-sm font-semibold text-ink">{item.name}</p>
-      <p className="text-sm text-brand">{formatCurrency(item.price)}</p>
-    </Link>
-  );
-}
-
 export function MenuGridRender({ config }: { config: MenuGridConfig }) {
-  const [menus, setMenus] = useState<StorefrontMenu[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    let off = false;
-    fetchStorefrontMenus()
-      .then((m) => !off && setMenus(m))
-      .catch(() => !off && setMenus([]))
-      .finally(() => !off && setLoaded(true));
-    return () => {
-      off = true;
-    };
-  }, []);
+  // Cached + live via SSE (see useStorefrontSync): sold-out dishes drop out and
+  // menu edits reconcile without a reload.
+  const { menus, isSuccess: loaded } = useStorefrontMenus();
 
   // Restrict to the author's selected menus (in their order); empty = all menus.
   const selected = config.menuIds.length
@@ -112,20 +77,9 @@ export function MenuGridRender({ config }: { config: MenuGridConfig }) {
 }
 
 export function FeaturedCategoriesRender({ config }: { config: FeaturedCategoriesConfig }) {
-  const [cats, setCats] = useState<MenuCategory[]>([]);
-  const [items, setItems] = useState<MenuItem[]>([]);
-
-  useEffect(() => {
-    let off = false;
-    Promise.all([api.getCategories(), api.getMenuItems()]).then(([c, m]) => {
-      if (off) return;
-      setCats(c);
-      setItems(m);
-    });
-    return () => {
-      off = true;
-    };
-  }, []);
+  // Real catalog, cached + live via SSE (see useStorefrontSync).
+  const { categories: cats } = useStorefrontCategories();
+  const { products: items } = useStorefrontProducts();
 
   const byId = new Map(cats.map((c) => [c.id, c]));
   // Preserve the author's chosen order; skip categories that no longer exist.
@@ -179,17 +133,8 @@ export function FeaturedCategoriesRender({ config }: { config: FeaturedCategorie
 }
 
 export function ProductCarouselRender({ config }: { config: ProductCarouselConfig }) {
-  const [items, setItems] = useState<MenuItem[]>([]);
-
-  useEffect(() => {
-    let off = false;
-    fetchStorefrontProducts()
-      .then((m) => !off && setItems(m))
-      .catch(() => !off && setItems([]));
-    return () => {
-      off = true;
-    };
-  }, []);
+  // Real catalog, cached + live via SSE (see useStorefrontSync).
+  const { products: items } = useStorefrontProducts();
 
   // Author-picked products keep their chosen order; empty = all products.
   const byId = new Map(items.map((i) => [i.id, i]));

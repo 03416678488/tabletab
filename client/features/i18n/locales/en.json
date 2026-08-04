@@ -1,7 +1,8 @@
 {
   "settings.title": "Settings",
-  "settings.company": "Company",
-  "settings.site": "Site",
+  "settings.company": "Business Info",
+  "settings.site": "System",
+  "settings.theme": "Branding",
   "settings.currencies": "Currencies",
   "settings.taxes": "Taxes",
   "settings.languages": "Languages",

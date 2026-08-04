@@ -16,10 +16,11 @@ const sora = Sora({
   display: "swap",
 });
 
+// Neutral, brand-agnostic default — the real title is set client-side from the
+// business name (see SettingsProvider.applyTitle) so there's no brand flash.
 export const metadata: Metadata = {
-  title: "TableTap — Restaurant ordering, reimagined",
-  description:
-    "Multi-tenant restaurant ordering: in-venue QR ordering, online delivery & pickup, and staff dashboards.",
+  title: "Restaurant Ordering",
+  description: "Order online for delivery & pickup.",
 };
 
 export default function RootLayout({

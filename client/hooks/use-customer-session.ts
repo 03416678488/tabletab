@@ -131,6 +131,8 @@ export const useCustomerSession = create<CustomerSessionStore>()(
     }),
     {
       name: "tabletap-customer",
+      // v2: real accounts + token — drop any mock-era persisted session.
+      version: 2,
       partialize: (state) => ({
         user: state.user,
         token: state.token,

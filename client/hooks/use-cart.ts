@@ -85,7 +85,8 @@ export const useCart = create<CartStore>()(
       totalWithFees: (deliveryFee) =>
         cartTotal(cartSubtotal(get().items), deliveryFee, cartTax(cartSubtotal(get().items))),
     }),
-    { name: "tabletap-cart" },
+    // v2: switched from mock to real menu/branch ids — drop any pre-existing cart.
+    { name: "tabletap-cart", version: 2 },
   ),
 );
 

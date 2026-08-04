@@ -38,7 +38,7 @@ function toMenuItem(i: ApiMenuItem): MenuItem {
   };
 }
 
-/** All available products for the storefront menu. */
+/** All available products for the storefront menu (single flat fetch, capped). */
 export async function fetchStorefrontProducts(): Promise<MenuItem[]> {
   const res = await httpClient.get<{ items?: ApiMenuItem[] } | ApiMenuItem[]>("/menu-items", {
     params: { perPage: 200 },
@@ -46,6 +46,53 @@ export async function fetchStorefrontProducts(): Promise<MenuItem[]> {
   return unwrap(res.data)
     .filter((i) => i.isAvailable !== false)
     .map(toMenuItem);
+}
+
+interface ApiPaginated<T> {
+  items: T[];
+  meta: { totalItems: number; totalPages: number; currentPage: number; itemsPerPage: number };
+}
+
+export interface CatalogPage {
+  items: MenuItem[];
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+/**
+ * One page of available products, filtered server-side by search/category so the
+ * storefront scales past the flat 200 cap (used by the infinite-scroll catalog).
+ * `isAvailable: "true"` hides sold-out items and keeps the paging counts exact.
+ */
+export async function fetchStorefrontProductsPage(params: {
+  page: number;
+  perPage?: number;
+  search?: string;
+  /** Multi-category filter (server-side `IN`). */
+  categoryIds?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+}): Promise<CatalogPage> {
+  const { page, perPage = 48, search, categoryIds, minPrice, maxPrice } = params;
+  const res = await httpClient.get<ApiPaginated<ApiMenuItem>>("/menu-items", {
+    params: {
+      page,
+      perPage,
+      isAvailable: "true",
+      ...(search?.trim() ? { search: search.trim() } : {}),
+      ...(categoryIds && categoryIds.length ? { categoryIds: categoryIds.join(",") } : {}),
+      ...(minPrice != null ? { minPrice } : {}),
+      ...(maxPrice != null ? { maxPrice } : {}),
+    },
+  });
+  const data = res.data;
+  return {
+    items: (data.items ?? []).map(toMenuItem),
+    totalItems: data.meta?.totalItems ?? 0,
+    totalPages: data.meta?.totalPages ?? 1,
+    currentPage: data.meta?.currentPage ?? page,
+  };
 }
 
 /** Menu categories (for grouping/filtering the storefront menu). */

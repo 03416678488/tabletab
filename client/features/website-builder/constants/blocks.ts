@@ -47,10 +47,11 @@ const imageSliderDefault: ImageSliderConfig = {
   title: "Highlights",
   autoplay: true,
   autoplaySeconds: 4,
+  perView: 1,
   images: [
-    { url: stock("1513104890138-7c749659a591"), caption: "Weekend brunch", href: "/order" },
-    { url: stock("1517248135467-4c7edcad34c4"), caption: "Chef's specials", href: "/order" },
-    { url: stock("1526367790999-0150786686a2"), caption: "Free delivery", href: "/order" },
+    { url: stock("1513104890138-7c749659a591"), caption: "Weekend brunch", href: "/order", badge: "" },
+    { url: stock("1517248135467-4c7edcad34c4"), caption: "Chef's specials", href: "/order", badge: "10% Off" },
+    { url: stock("1526367790999-0150786686a2"), caption: "Free delivery", href: "/order", badge: "" },
   ],
 };
 
@@ -97,9 +98,9 @@ const bannerSliderDefault: BannerSliderConfig = {
   autoplaySeconds: 4,
   perView: 1,
   images: [
-    { url: stock("1504674900247-0877df9cc836", 800, 600), caption: "", href: "/order" },
-    { url: stock("1517248135467-4c7edcad34c4", 800, 600), caption: "", href: "/order" },
-    { url: stock("1526367790999-0150786686a2", 800, 600), caption: "", href: "/order" },
+    { url: stock("1504674900247-0877df9cc836", 800, 600), caption: "", href: "/order", badge: "" },
+    { url: stock("1517248135467-4c7edcad34c4", 800, 600), caption: "", href: "/order", badge: "" },
+    { url: stock("1526367790999-0150786686a2", 800, 600), caption: "", href: "/order", badge: "" },
   ],
 };
 

@@ -19,6 +19,8 @@ export const branchSchema = z.object({
   onlineOrderingEnabled: z.boolean(),
   deliveryEnabled: z.boolean(),
   pickupEnabled: z.boolean(),
+  reservationsEnabled: z.boolean(),
+  reservationTurnMins: z.number().min(0, "Must be 0 or more").optional(),
 });
 
 export type BranchFormValues = z.infer<typeof branchSchema>;

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Search, ShoppingBag, User } from "lucide-react";
+import { Menu, Search, User } from "lucide-react";
 import { NearestBranch } from "@/features/storefront/components/nearest-branch";
+import { CartMenu } from "@/features/storefront/components/cart-menu";
 import { SearchDialog } from "@/features/storefront/components/search-dialog";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
@@ -77,21 +78,11 @@ export function StorefrontHeader() {
             </Button>
           ) : (
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/login">Sign in</Link>
+              <Link href="/signin">Sign in</Link>
             </Button>
           )}
 
-          <Button asChild variant="outline" size="sm" className="relative">
-            <Link href="/checkout" aria-label="View cart">
-              <ShoppingBag className="size-4" />
-              <span className="hidden sm:inline">Cart</span>
-              {hydrated && itemCount > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-primary-foreground">
-                  {itemCount}
-                </span>
-              )}
-            </Link>
-          </Button>
+          <CartMenu />
 
           <Sheet>
             <SheetTrigger asChild>
@@ -123,7 +114,7 @@ export function StorefrontHeader() {
                   </Link>
                 ) : (
                   <>
-                    <Link href="/login" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                    <Link href="/signin" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
                       Sign in
                     </Link>
                     <Link href="/signup" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
@@ -132,7 +123,7 @@ export function StorefrontHeader() {
                   </>
                 )}
                 <Link href="/checkout" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
-                  Cart ({itemCount})
+                  Cart ({hydrated ? itemCount : 0})
                 </Link>
               </nav>
             </SheetContent>

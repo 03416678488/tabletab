@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   BarChart3,
   Bell,
-  Bot,
   Building2,
   CalendarClock,
   Clock,
@@ -17,7 +16,6 @@ import {
   MessageSquare,
   Monitor,
   Palette,
-  Share2,
   ShieldCheck,
   ShoppingCart,
   SlidersHorizontal,
@@ -36,7 +34,6 @@ import { CurrencyManager } from "@/features/currency/components/currency-manager
 import { LanguageManager } from "@/features/language/components/language-manager";
 import { KioskMachineManager } from "@/features/kiosk-machine/components/kiosk-machine-manager";
 import { AnalyticsManager } from "@/features/analytics/components/analytics-manager";
-import { TimeSlotManager } from "@/features/time-slot/components/time-slot-manager";
 import { RolePermissionManager } from "@/features/role-permission/components/role-permission-manager";
 
 type SectionKey =
@@ -48,10 +45,8 @@ type SectionKey =
   | "order"
   | "otp"
   | "notification"
-  | "social"
   | "cookies"
   | "theme"
-  | "ai_agent"
   | "sms"
   | "payment"
   | "social_login"
@@ -59,12 +54,11 @@ type SectionKey =
   | "languages"
   | "kiosk"
   | "analytics"
-  | "time_slots"
   | "roles";
 
 const SECTIONS: { key: SectionKey; i18n: string; label: string; icon: typeof Building2 }[] = [
-  { key: "company", i18n: "settings.company", label: "Company", icon: Building2 },
-  { key: "site", i18n: "settings.site", label: "Site", icon: SlidersHorizontal },
+  { key: "company", i18n: "settings.company", label: "Business Info", icon: Building2 },
+  { key: "site", i18n: "settings.site", label: "System", icon: SlidersHorizontal },
   { key: "opening_times", i18n: "settings.opening_times", label: "Opening Times", icon: Clock },
   { key: "reservation", i18n: "settings.reservation", label: "Reservation Time", icon: CalendarClock },
   { key: "kiosk", i18n: "settings.kiosk", label: "Kiosk Machines", icon: Monitor },
@@ -72,12 +66,9 @@ const SECTIONS: { key: SectionKey; i18n: string; label: string; icon: typeof Bui
   { key: "order", i18n: "settings.order", label: "Order Setup", icon: ShoppingCart },
   { key: "otp", i18n: "settings.otp", label: "OTP", icon: Bell },
   { key: "notification", i18n: "settings.notification", label: "Notification", icon: Bell },
-  { key: "social", i18n: "settings.social", label: "Social Media", icon: Share2 },
   { key: "cookies", i18n: "settings.cookies", label: "Cookies", icon: Cookie },
   { key: "analytics", i18n: "settings.analytics", label: "Analytics", icon: BarChart3 },
-  { key: "theme", i18n: "settings.theme", label: "Theme", icon: Palette },
-  { key: "time_slots", i18n: "settings.time_slots", label: "Time Slots", icon: Clock },
-  { key: "ai_agent", i18n: "settings.ai_agent", label: "AI Agent", icon: Bot },
+  { key: "theme", i18n: "settings.theme", label: "Branding", icon: Palette },
   { key: "sms", i18n: "settings.sms", label: "SMS Gateway", icon: MessageSquare },
   { key: "payment", i18n: "settings.payment", label: "Payment Gateway", icon: CreditCard },
   { key: "social_login", i18n: "settings.social_login", label: "Social Login", icon: KeyRound },
@@ -147,7 +138,6 @@ export function SettingsShell() {
           )}
           {active === "kiosk" && <KioskMachineManager />}
           {active === "analytics" && <AnalyticsManager />}
-          {active === "time_slots" && <TimeSlotManager />}
           {active === "mail" && (
             <SettingsForm
               group="mail"
@@ -245,18 +235,6 @@ export function SettingsShell() {
               ]}
             />
           )}
-          {active === "social" && (
-            <SettingsForm
-              group="social_media"
-              title="Social Media"
-              fields={[
-                { key: "facebook", label: "Facebook", type: "url" },
-                { key: "youtube", label: "YouTube", type: "url" },
-                { key: "instagram", label: "Instagram", type: "url" },
-                { key: "twitter", label: "Twitter", type: "url" },
-              ]}
-            />
-          )}
           {active === "cookies" && (
             <SettingsForm
               group="cookies"
@@ -265,28 +243,6 @@ export function SettingsShell() {
             />
           )}
           {active === "theme" && <ThemeForm />}
-          {active === "ai_agent" && (
-            <SettingsForm
-              group="ai_agent"
-              title="AI Agent"
-              fields={[
-                {
-                  key: "provider",
-                  label: "Provider",
-                  type: "select",
-                  options: [
-                    { value: "openai", label: "OpenAI" },
-                    { value: "anthropic", label: "Anthropic (Claude)" },
-                    { value: "gemini", label: "Google Gemini" },
-                  ],
-                },
-                { key: "api_key", label: "API Key", type: "password" },
-                { key: "model", label: "Model" },
-                { key: "system_prompt", label: "System Prompt", type: "textarea" },
-                { key: "enabled", label: "Enabled", type: "toggle" },
-              ]}
-            />
-          )}
           {active === "sms" && (
             <ProviderTabs
               tabs={[

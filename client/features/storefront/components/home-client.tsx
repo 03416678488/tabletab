@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { HomeLanding } from "@/features/storefront/components/home-landing";
+import { LandingSkeleton } from "@/features/storefront/components/landing-skeleton";
 import { LocationPermissionDialog } from "@/features/storefront/components/location-permission-dialog";
 import type { Block } from "@/features/website-builder/schemas/blocks";
 import { websiteService } from "@/features/website-builder/services/website.service";
@@ -41,7 +42,7 @@ export function HomeClient() {
   }, []);
 
   // Avoid flashing the default home before we know whether a custom one exists.
-  if (!hydrated || published === undefined) return <div className="min-h-[70vh]" />;
+  if (!hydrated || published === undefined) return <LandingSkeleton />;
 
   return (
     <>

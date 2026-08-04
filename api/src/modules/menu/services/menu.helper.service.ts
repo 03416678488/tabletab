@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import {
+  Between,
+  FindOptionsWhere,
+  ILike,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+} from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
@@ -57,9 +64,25 @@ export class MenuHelperService {
   resolveListFilters(query: GetMenuItemQueryDto): FindOptionsWhere<MenuItem> {
     const where: FindOptionsWhere<MenuItem> = {};
     if (query.search) where.name = ILike(`%${trimSpaces(query.search)}%`);
-    if (query.categoryId) where.categoryId = query.categoryId;
+
+    // Multi-category (categoryIds) takes precedence over the single categoryId.
+    const ids = query.categoryIds
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (ids && ids.length) where.categoryId = In(ids);
+    else if (query.categoryId) where.categoryId = query.categoryId;
+
     if (query.isAvailable !== undefined)
       where.isAvailable = query.isAvailable === 'true';
+
+    // Price range — any combination of min/max.
+    const { minPrice, maxPrice } = query;
+    if (minPrice !== undefined && maxPrice !== undefined)
+      where.price = Between(minPrice, maxPrice);
+    else if (minPrice !== undefined) where.price = MoreThanOrEqual(minPrice);
+    else if (maxPrice !== undefined) where.price = LessThanOrEqual(maxPrice);
+
     return where;
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pencil, Plus, Search, SlidersHorizontal, Tags, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -21,7 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
-import { useCategories } from "@/features/category/hooks/use-categories";
+import { usePaginatedCategories } from "@/features/category/hooks/use-paginated-categories";
 import { categoryService } from "@/features/category/services/category.service";
 import { CategoryFormDialog } from "@/features/category/components/category-form-dialog";
 import type { Category } from "@/features/category/types/category.types";
@@ -32,7 +33,6 @@ const SELECT_CLASS =
 type StatusFilter = "all" | "active" | "inactive";
 
 export function CategoryManager() {
-  const { categories, loading, error, refetch } = useCategories();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
 
@@ -40,18 +40,13 @@ export function CategoryManager() {
   const [showFilters, setShowFilters] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return categories.filter((c) => {
-      if (status === "active" && !c.isActive) return false;
-      if (status === "inactive" && c.isActive) return false;
-      if (q && !`${c.name} ${c.description ?? ""}`.toLowerCase().includes(q))
-        return false;
-      return true;
-    });
-  }, [categories, search, status]);
+  // Search + status are applied server-side; the list is paginated.
+  const isActive = status === "all" ? undefined : status === "active";
+  const { categories, loading, error, page, totalPages, totalItems, goToPage, refetch } =
+    usePaginatedCategories({ search, isActive });
 
   const activeFilters = status !== "all" ? 1 : 0;
+  const filtersActive = Boolean(search.trim()) || status !== "all";
 
   const openCreate = () => {
     setEditing(null);
@@ -69,7 +64,8 @@ export function CategoryManager() {
     try {
       await categoryService.remove(category.id);
       toast("Category deleted", { tone: "success" });
-      refetch();
+      if (categories.length === 1 && page > 1) goToPage(page - 1);
+      else refetch();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Failed to delete category", {
         tone: "error",
@@ -85,7 +81,7 @@ export function CategoryManager() {
             Categories
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {categories.length} categor{categories.length === 1 ? "y" : "ies"} · organize your menu.
+            {totalItems} categor{totalItems === 1 ? "y" : "ies"} · organize your menu.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -117,7 +113,7 @@ export function CategoryManager() {
           )}
         </Button>
         <span className="ml-auto text-sm text-muted-foreground">
-          {filtered.length} of {categories.length}
+          {categories.length} of {totalItems}
         </span>
       </div>
 
@@ -162,22 +158,22 @@ export function CategoryManager() {
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : categories.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={Tags}
-            title={categories.length === 0 ? "No categories yet" : "No matches"}
+            title={filtersActive ? "No matches" : "No categories yet"}
             description={
-              categories.length === 0
-                ? "Add your first category to organize the menu."
-                : "Try adjusting your search or filters."
+              filtersActive
+                ? "Try adjusting your search or filters."
+                : "Add your first category to organize the menu."
             }
             action={
-              categories.length === 0 ? (
+              filtersActive ? undefined : (
                 <Button onClick={openCreate}>
                   <Plus className="size-4" /> Add category
                 </Button>
-              ) : undefined
+              )
             }
           />
         ) : (
@@ -192,7 +188,7 @@ export function CategoryManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((category) => (
+              {categories.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell className="font-medium">{category.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -232,6 +228,15 @@ export function CategoryManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && categories.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={goToPage}
+          className="mt-4"
+        />
+      )}
 
       <CategoryFormDialog
         open={dialogOpen}

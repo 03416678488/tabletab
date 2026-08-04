@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
 
 export function StaffAuthGuard({ children }: { children: React.ReactNode }) {
@@ -27,9 +27,8 @@ export function StaffAuthGuard({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="space-y-4 p-8">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
+      <div className="flex min-h-screen items-center justify-center bg-subtle">
+        <Loader2 className="size-8 animate-spin text-brand" />
       </div>
     );
   }

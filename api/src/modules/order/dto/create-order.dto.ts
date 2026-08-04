@@ -76,6 +76,11 @@ export class CreateOrderDto {
   @IsNumber()
   @Min(0)
   @IsOptional()
+  deliveryFee?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
   discount?: number;
 
   @IsArray()

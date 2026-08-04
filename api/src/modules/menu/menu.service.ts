@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -7,6 +8,9 @@ import { PaginationProvider } from '@modules/common/pagination/pagination.provid
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
 import { FoodType } from '@modules/food-type/entities/food-type.entity';
 import { Menu } from '@modules/menus/entities/menu.entity';
+import { TenantRequest } from '@modules/tenancy/tenancy.types';
+import { RealtimeService } from '@modules/realtime/realtime.service';
+import { menuChannel } from '@modules/realtime/channels';
 
 import { MenuItem } from './entities/menu-item.entity';
 import { MenuValidatorService } from './services/menu-validator.service';
@@ -24,8 +28,18 @@ export class MenuService extends AbstractService<MenuItem> {
     protected readonly pagination: PaginationProvider,
     private readonly _validator: MenuValidatorService,
     private readonly _helper: MenuHelperService,
+    private readonly _realtime: RealtimeService,
+    @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
+  }
+
+  /**
+   * Nudge the tenant's storefront/POS to reconcile the menu (availability, price,
+   * add/remove). Public per-tenant channel — the menu isn't sensitive.
+   */
+  private emitMenuChanged(itemId: string): void {
+    this._realtime.publish(menuChannel(this._req.tenant?.id), 'menu.changed', { id: itemId });
   }
 
   getAll(query: GetMenuItemQueryDto): Promise<Paginated<MenuItem>> {
@@ -45,6 +59,7 @@ export class MenuService extends AbstractService<MenuItem> {
       menus: this.toRefs<Menu>(dto.menuIds),
     });
     const saved = await this.repository.save(entity);
+    this.emitMenuChanged(saved.id);
     return this.getById(saved.id);
   }
 
@@ -58,12 +73,15 @@ export class MenuService extends AbstractService<MenuItem> {
     if (dto.foodTypeIds !== undefined) item.foodTypes = this.toRefs<FoodType>(dto.foodTypeIds);
     if (dto.menuIds !== undefined) item.menus = this.toRefs<Menu>(dto.menuIds);
     await this.repository.save(item);
+    this.emitMenuChanged(id);
     return this.getById(id);
   }
 
   async deleteMenuItem(id: string) {
     await this._validator.ensureExists(id);
-    return this.delete(id);
+    const result = await this.delete(id);
+    this.emitMenuChanged(id);
+    return result;
   }
 
   /** Turn an id list into partial relation refs TypeORM persists into the join table. */

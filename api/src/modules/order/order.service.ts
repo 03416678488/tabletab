@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+
+import { TenantRequest } from '@modules/tenancy/tenancy.types';
+import { boardChannel, orderChannel, tablesChannel } from '@modules/realtime/channels';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
@@ -11,6 +15,7 @@ import { OrderItem } from './entities/order-item.entity';
 import { OrderValidatorService } from './services/order-validator.service';
 import { OrderHelperService } from './services/order.helper.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
+import { RealtimeService } from '@modules/realtime/realtime.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -48,8 +53,37 @@ export class OrderService extends AbstractService<Order> {
     protected readonly pagination: PaginationProvider,
     private readonly _validator: OrderValidatorService,
     private readonly _helper: OrderHelperService,
+    private readonly _realtime: RealtimeService,
+    @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
+  }
+
+  /** Push a minimal status event to the order's tracking channel (post-commit). */
+  private emitOrder(order: Order, type: 'order.created' | 'order.updated'): void {
+    this._realtime.publish(orderChannel(order.id), type, {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      updatedAt: order.updatedAt,
+    });
+  }
+
+  /**
+   * Nudge the tenant's kitchen/pickup board to reconcile. Scoped by the request's
+   * tenant so one restaurant's boards never wake up for another's orders.
+   */
+  private emitBoard(order: Order): void {
+    this._realtime.publish(boardChannel(this._req.tenant?.id), 'board.changed', {
+      orderId: order.id,
+      status: order.status,
+    });
+    // A table order shifts floor occupancy — nudge the floor views too.
+    if (order.tableId) {
+      this._realtime.publish(tablesChannel(this._req.tenant?.id), 'tables.changed', {
+        tableId: order.tableId,
+      });
+    }
   }
 
   getAll(query: GetOrderQueryDto): Promise<Paginated<Order>> {
@@ -79,7 +113,10 @@ export class OrderService extends AbstractService<Order> {
   async createOrder(dto: CreateOrderDto): Promise<Order> {
     await this._validator.validateCreate(dto);
     const saved = await this.create(this._helper.resolveCreatePayload(dto));
-    return this.getById(saved.id);
+    const order = await this.getById(saved.id);
+    this.emitOrder(order, 'order.created');
+    this.emitBoard(order);
+    return order;
   }
 
   async updateOrder(id: string, dto: UpdateOrderDto): Promise<Order> {
@@ -127,7 +164,12 @@ export class OrderService extends AbstractService<Order> {
     }
 
     if (Object.keys(patch).length) await this.repository.update(id, patch);
-    return this.getById(id);
+    const order = await this.getById(id);
+    if (dto.status !== undefined) {
+      this.emitOrder(order, 'order.updated');
+      this.emitBoard(order);
+    }
+    return order;
   }
 
   /** The current open order for a table (for loading into the POS to edit). */

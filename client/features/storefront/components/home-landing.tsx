@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -28,12 +28,15 @@ import { useLocationStore } from "@/hooks/use-location-store";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { branchDistanceKm, nearestBranch } from "@/lib/geo";
-import { fetchStorefrontBranches } from "@/features/storefront/services/storefront-branches";
+import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
+import { useStorefrontCategories } from "@/features/storefront/hooks/use-storefront-categories";
+import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
+import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
+import { fetchReservationSettings } from "@/features/reserve/services/reservation-settings.service";
 import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
 import type {
   Branch,
   BranchReservationSettings,
-  MenuCategory,
   MenuItem,
 } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -71,15 +74,47 @@ export function HomeLanding({
   const setFulfillmentType = useCart((s) => s.setFulfillmentType);
   const user = useCustomerSession((s) => s.user);
 
-  const [branch, setBranch] = useState<Branch | null>(null);
-  const [allBranches, setAllBranches] = useState<Branch[]>([]);
-  const [online, setOnline] = useState<BranchOnlineConfig | null>(null);
+  // Cached live branches (React Query); branch + online config derived reactively.
+  const { branches: allBranches, isLoading: branchesLoading } = useStorefrontBranches();
+  const branch = useMemo(
+    () =>
+      branchId
+        ? allBranches.find((b) => b.id === branchId) ?? null
+        : nearestBranch(allBranches, coords),
+    [allBranches, branchId, coords],
+  );
+  const online = useMemo(() => (branch ? branchOnlineConfig(branch) : null), [branch]);
+  // Per-mode availability from the branch's live settings (drives the tab picker).
+  const availability = useMemo(
+    () => ({
+      delivery: online?.deliveryAvailable ?? true,
+      pickup: online?.pickupAvailable ?? true,
+      reserve: branch ? branch.reservationsEnabled !== false : true,
+    }),
+    [online, branch],
+  );
+  // If the selected mode becomes unavailable (staff toggled it off), move to the
+  // first available one so the customer never sits on a dead tab.
+  useEffect(() => {
+    if (!branch) return;
+    if (availability[fulfillment] === false) {
+      const next = (["delivery", "pickup", "reserve"] as const).find((m) => availability[m]);
+      if (next) setFulfillment(next);
+    }
+  }, [availability, fulfillment, branch, setFulfillment]);
+
   const [reservationSettings, setReservationSettings] =
     useState<BranchReservationSettings | null>(null);
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [items, setItems] = useState<MenuItem[]>([]);
   const [reorderItems, setReorderItems] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Menu content (categories + items) — real catalog, cached (React Query).
+  const { categories: rawCategories, isLoading: catsLoading } = useStorefrontCategories();
+  const { products: items, isLoading: itemsLoading } = useStorefrontProducts();
+  const categories = useMemo(
+    () => [...rawCategories].sort((a, b) => a.sortOrder - b.sortOrder),
+    [rawCategories],
+  );
+  const loading = branchesLoading || catsLoading || itemsLoading;
 
 
   // Scroll-spy state for the sticky category nav.
@@ -97,42 +132,27 @@ export function HomeLanding({
     return () => ro.disconnect();
   }, []);
 
+  // Reservation settings follow the resolved branch.
   useEffect(() => {
+    if (!branch) {
+      setReservationSettings(null);
+      return;
+    }
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const [branches, cats, menu] = await Promise.all([
-          // Live branches (with real coordinates) — fall back to mock if offline.
-          fetchStorefrontBranches().catch(() => api.getBranches()),
-          api.getCategories(),
-          api.getMenuItems(),
-        ]);
-        // Use the branch the user picked; otherwise the nearest branch to their
-        // coordinates (falling back to the first open branch when unknown).
-        const resolved = branchId
-          ? branches.find((b) => b.id === branchId) ?? null
-          : nearestBranch(branches, coords);
-        const resolvedId = resolved?.id ?? null;
-        // Reservation settings stay on the mock layer for now; the delivery/pickup
-        // config is derived from the real branch's own settings.
-        const resSettings = resolvedId ? await api.getReservationSettings(resolvedId) : null;
-        if (cancelled) return;
-        setAllBranches(branches);
-        setBranch(resolved);
-        setOnline(resolved ? branchOnlineConfig(resolved) : null);
-        setReservationSettings(resSettings);
-        setCategories([...cats].sort((a, b) => a.sortOrder - b.sortOrder));
-        setItems(menu);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
+    fetchReservationSettings(branch.id)
+      .catch(() => null)
+      .then((s) => {
+        if (!cancelled) setReservationSettings(s);
+      });
     return () => {
       cancelled = true;
     };
-    // Re-resolve when the user picks a branch or their coordinates change.
-  }, [branchId, coords]);
+  }, [branch]);
+
+  // Live branch + menu — staff toggles (open/closed, delivery/pickup, reservation)
+  // and menu edits (price, sold-out, add/remove) reconcile the storefront in real
+  // time by invalidating the cached branch/menu queries.
+  useStorefrontSync();
 
   // "Order again" — resolve the signed-in customer's past order items to menu items.
   useEffect(() => {
@@ -246,7 +266,11 @@ export function HomeLanding({
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             {/* Fulfillment tabs */}
             <div className="order-2 md:order-1">
-              <OrderModePicker value={fulfillment} onChange={setFulfillment} />
+              <OrderModePicker
+                value={fulfillment}
+                onChange={setFulfillment}
+                availability={availability}
+              />
             </div>
 
           {/* Branch context */}

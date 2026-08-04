@@ -50,6 +50,8 @@ export const sliderImageSchema = z.object({
   url: url.min(1, "Image URL is required"),
   caption: z.string().default(""),
   href: z.string().default(""),
+  /** Optional top-right corner label, e.g. "10% Off". */
+  badge: z.string().default(""),
 });
 
 export const imageSliderConfigSchema = z.object({
@@ -57,6 +59,8 @@ export const imageSliderConfigSchema = z.object({
   autoplay: z.boolean().default(true),
   /** Seconds each slide stays before advancing (when autoplay is on). */
   autoplaySeconds: z.coerce.number().min(1).max(30).default(4),
+  /** How many slides are visible at once. */
+  perView: z.coerce.number().int().min(1).max(4).default(1),
   images: z.array(sliderImageSchema).min(1, "Add at least one image"),
 });
 
@@ -169,6 +173,8 @@ export const headerConfigSchema = z.object({
 });
 
 export const footerConfigSchema = z.object({
+  /** Optional footer logo image; falls back to the brand name text. */
+  logoUrl: z.string().default(""),
   about: z.string().default(""),
   columns: z
     .array(

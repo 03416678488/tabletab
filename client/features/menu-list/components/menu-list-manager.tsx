@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { BookOpen, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -21,7 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
-import { useMenus } from "@/features/menu-list/hooks/use-menus";
+import { usePaginatedMenus } from "@/features/menu-list/hooks/use-paginated-menus";
 import { menusService } from "@/features/menu-list/services/menu.service";
 import { MenuFormDialog } from "@/features/menu-list/components/menu-form-dialog";
 import type { Menu } from "@/features/menu-list/types/menu.types";
@@ -32,7 +33,6 @@ const SELECT_CLASS =
 type StatusFilter = "all" | "active" | "inactive";
 
 export function MenuListManager() {
-  const { menus, loading, error, refetch } = useMenus();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Menu | null>(null);
 
@@ -40,18 +40,13 @@ export function MenuListManager() {
   const [showFilters, setShowFilters] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return menus.filter((m) => {
-      if (status === "active" && !m.isActive) return false;
-      if (status === "inactive" && m.isActive) return false;
-      if (q && !`${m.name} ${m.description ?? ""}`.toLowerCase().includes(q))
-        return false;
-      return true;
-    });
-  }, [menus, search, status]);
+  // Search + status are applied server-side; the list is paginated.
+  const isActive = status === "all" ? undefined : status === "active";
+  const { menus, loading, error, page, totalPages, totalItems, goToPage, refetch } =
+    usePaginatedMenus({ search, isActive });
 
   const activeFilters = status !== "all" ? 1 : 0;
+  const filtersActive = Boolean(search.trim()) || status !== "all";
 
   const openCreate = () => {
     setEditing(null);
@@ -69,7 +64,9 @@ export function MenuListManager() {
     try {
       await menusService.remove(menu.id);
       toast("Menu deleted", { tone: "success" });
-      refetch();
+      // Step back a page if we just removed the last row on it.
+      if (menus.length === 1 && page > 1) goToPage(page - 1);
+      else refetch();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Failed to delete menu", {
         tone: "error",
@@ -85,7 +82,7 @@ export function MenuListManager() {
             Menu
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {menus.length} menu{menus.length === 1 ? "" : "s"} · organize your offerings.
+            {totalItems} menu{totalItems === 1 ? "" : "s"} · organize your offerings.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -117,7 +114,7 @@ export function MenuListManager() {
           )}
         </Button>
         <span className="ml-auto text-sm text-muted-foreground">
-          {filtered.length} of {menus.length}
+          {menus.length} of {totalItems}
         </span>
       </div>
 
@@ -162,22 +159,22 @@ export function MenuListManager() {
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : menus.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={BookOpen}
-            title={menus.length === 0 ? "No menus yet" : "No matches"}
+            title={filtersActive ? "No matches" : "No menus yet"}
             description={
-              menus.length === 0
-                ? "Add your first menu to get started."
-                : "Try adjusting your search or filters."
+              filtersActive
+                ? "Try adjusting your search or filters."
+                : "Add your first menu to get started."
             }
             action={
-              menus.length === 0 ? (
+              filtersActive ? undefined : (
                 <Button onClick={openCreate}>
                   <Plus className="size-4" /> Add menu
                 </Button>
-              ) : undefined
+              )
             }
           />
         ) : (
@@ -192,7 +189,7 @@ export function MenuListManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((menu) => (
+              {menus.map((menu) => (
                 <TableRow key={menu.id}>
                   <TableCell className="font-medium">{menu.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -230,6 +227,15 @@ export function MenuListManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && menus.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={goToPage}
+          className="mt-4"
+        />
+      )}
 
       <MenuFormDialog
         open={dialogOpen}

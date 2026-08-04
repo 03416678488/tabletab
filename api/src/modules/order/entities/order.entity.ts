@@ -73,6 +73,9 @@ export class Order extends AbstractEntity {
   discount: number;
 
   @Column({ type: 'double precision', default: 0 })
+  deliveryFee: number;
+
+  @Column({ type: 'double precision', default: 0 })
   total: number;
 
   @OneToMany(() => OrderItem, (item) => item.order, {

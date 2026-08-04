@@ -13,8 +13,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useCart } from "@/hooks/use-cart";
-import { api } from "@/lib/api";
-import type { Branch, MenuCategory, MenuItem } from "@/lib/types";
+import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
+import { useStorefrontCategories } from "@/features/storefront/hooks/use-storefront-categories";
+import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
+import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
+import type { MenuItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function BranchMenuPage({
@@ -27,48 +30,40 @@ export default function BranchMenuPage({
   const setBranch = useCart((s) => s.setBranch);
   const addItem = useCart((s) => s.addItem);
 
-  const [branch, setBranchState] = useState<Branch | null>(null);
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [items, setItems] = useState<MenuItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modifierItem, setModifierItem] = useState<MenuItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // Cached storefront data (React Query) — branch/category/menu.
+  const { branches, isLoading: branchesLoading, isError: branchesError } = useStorefrontBranches();
+  const { categories: rawCategories, isLoading: catsLoading, isError: catsError } =
+    useStorefrontCategories();
+  const { products: items, isLoading: itemsLoading, isError: itemsError } = useStorefrontProducts();
+  useStorefrontSync();
+
+  const loading = branchesLoading || catsLoading || itemsLoading;
+  const branch = useMemo(
+    () => branches.find((b) => b.id === branchId) ?? null,
+    [branches, branchId],
+  );
+  const categories = useMemo(
+    () => [...rawCategories].sort((a, c) => a.sortOrder - c.sortOrder),
+    [rawCategories],
+  );
+  const error =
+    branchesError || catsError || itemsError
+      ? "Could not load menu."
+      : !loading && !branch
+        ? "Branch not found"
+        : null;
+
+  // Anchor the cart to this branch, and default to the first category.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [b, cats, menu] = await Promise.all([
-          api.getBranch(branchId),
-          api.getCategories(),
-          api.getMenuItems(),
-        ]);
-        if (!b) {
-          if (!cancelled) setError("Branch not found");
-          return;
-        }
-        if (!cancelled) {
-          setBranchState(b);
-          setBranch(branchId);
-          const sorted = [...cats].sort((a, c) => a.sortOrder - c.sortOrder);
-          setCategories(sorted);
-          setItems(menu);
-          setActiveCategory(sorted[0]?.id ?? null);
-        }
-      } catch {
-        if (!cancelled) setError("Could not load menu.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [branchId, setBranch]);
+    if (branch) setBranch(branchId);
+  }, [branch, branchId, setBranch]);
+  useEffect(() => {
+    if (!activeCategory && categories[0]) setActiveCategory(categories[0].id);
+  }, [categories, activeCategory]);
 
   const filteredItems = useMemo(() => {
     if (!activeCategory) return items;

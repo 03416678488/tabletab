@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/httpClient";
 import { menusService } from "@/features/menu-list/services/menu.service";
 import type { Menu } from "@/features/menu-list/types/menu.types";
 
+/** All menus (unpaginated) — used to populate dropdowns/multiselects. */
 export function useMenus() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);

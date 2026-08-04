@@ -64,7 +64,12 @@ export function SiteFooterRender({ config }: { config: FooterConfig }) {
     <footer className="mt-8 border-t border-border bg-subtle">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.5fr_repeat(3,1fr)]">
         <div>
-          <p className="font-display text-lg font-bold text-ink">Restaurant</p>
+          {config.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={config.logoUrl} alt="Logo" className="h-10 w-auto max-w-[180px] object-contain" />
+          ) : (
+            <p className="font-display text-lg font-bold text-ink">Restaurant</p>
+          )}
           {config.about && (
             <p className="mt-2 max-w-xs text-sm text-muted-foreground">{config.about}</p>
           )}

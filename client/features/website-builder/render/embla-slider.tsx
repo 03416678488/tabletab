@@ -17,6 +17,8 @@ interface EmblaSliderProps {
    * `className`). Slides then fill that height instead of using their own aspect.
    */
   fill?: boolean;
+  /** Show the prev/next arrow buttons (the dot pagination is unaffected). */
+  showArrows?: boolean;
 }
 
 /**
