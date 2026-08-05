@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Menu, Search, User } from "lucide-react";
-import { NearestBranch } from "@/features/storefront/components/nearest-branch";
 import { CartMenu } from "@/features/storefront/components/cart-menu";
 import { SearchDialog } from "@/features/storefront/components/search-dialog";
 import { TenantLogo } from "@/components/brand/tenant-logo";
@@ -22,7 +20,6 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useSiteHeaderConfig } from "@/features/website-builder/render/site-chrome";
 
 export function StorefrontHeader() {
-  const pathname = usePathname();
   const itemCount = useCart((s) => s.itemCount());
   const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
   const hydrated = useHydrated();
@@ -31,7 +28,6 @@ export function StorefrontHeader() {
   // Header customisation from the website builder (nav links, toggles).
   const headerCfg = useSiteHeaderConfig();
   const navLinks = headerCfg?.links ?? [];
-  const showLocation = headerCfg?.showLocation ?? true;
   const showSearch = headerCfg?.showSearch ?? true;
 
   return (
@@ -39,10 +35,6 @@ export function StorefrontHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <TenantLogo href="/" showTagline nameOverride={headerCfg?.brandName} />
-          {/* Landing has its own branch context bar — avoid showing it twice. */}
-          {showLocation && pathname !== "/" && (
-            <NearestBranch variant="inline" className="hidden md:flex" />
-          )}
           {navLinks.length > 0 && (
             <nav className="ml-1 hidden items-center gap-5 lg:flex">
               {navLinks.map((l, i) => (
@@ -96,9 +88,6 @@ export function StorefrontHeader() {
                 <SheetTitle>Menu</SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-1 px-6 pb-6">
-                <Link href="/order" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
-                  Order online
-                </Link>
                 {navLinks.map((l, i) => (
                   <Link
                     key={i}
@@ -130,10 +119,6 @@ export function StorefrontHeader() {
           </Sheet>
         </div>
       </div>
-
-      {/* Mobile: full-width nearest-branch bar under the main row.
-          Hidden on the landing, which shows its own branch context bar. */}
-      {showLocation && pathname !== "/" && <NearestBranch variant="bar" className="md:hidden" />}
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>

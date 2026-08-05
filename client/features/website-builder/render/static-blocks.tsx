@@ -11,6 +11,7 @@ import type {
   ImageSliderConfig,
   PromoConfig,
   RichCtaConfig,
+  RichTextConfig,
 } from "@/features/website-builder/schemas/blocks";
 
 const shell = "mx-auto max-w-6xl px-4 sm:px-6";
@@ -58,12 +59,15 @@ export function HeroRender({ config }: { config: HeroConfig }) {
 
 export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
   // Always one-up on mobile/tablet; the multi-up grid only kicks in on desktop.
+  // The desktop basis subtracts a share of the 16px `gap-4` (gap × (n-1)/n) so
+  // exactly `perView` slides fit within the content column with the gaps — the
+  // cards stay flush with the section title (no clipped/overflowing last card).
   const perViewBasis =
     {
       1: "basis-full",
-      2: "basis-full lg:basis-1/2",
-      3: "basis-full lg:basis-1/3",
-      4: "basis-full lg:basis-1/4",
+      2: "basis-full lg:basis-[calc(50%_-_8px)]",
+      3: "basis-full lg:basis-[calc(33.333%_-_10.667px)]",
+      4: "basis-full lg:basis-[calc(25%_-_12px)]",
     }[config.perView] ?? "basis-full";
 
   // Multi-up slides are tall portrait cards on desktop; but when they collapse to
@@ -79,6 +83,7 @@ export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
       <EmblaSlider
         autoplayMs={config.autoplay ? config.autoplaySeconds * 1000 : undefined}
         slideClassName={perViewBasis}
+        showArrows={config.showArrows}
       >
         {config.images.map((img, i) => (
           <Link
@@ -199,6 +204,23 @@ export function RichCtaRender({ config }: { config: RichCtaConfig }) {
   );
 }
 
+export function RichTextRender({ config }: { config: RichTextConfig }) {
+  if (!config.html?.trim()) return null;
+  return (
+    <section className={cn(shell, "py-4")}>
+      <div
+        className={cn(
+          "rich-text",
+          config.width === "prose" && "mx-auto max-w-2xl",
+          config.align === "center" && "text-center",
+        )}
+        // Authored by staff in the builder's WYSIWYG editor (trusted source).
+        dangerouslySetInnerHTML={{ __html: config.html }}
+      />
+    </section>
+  );
+}
+
 export function BannerSliderRender({ config }: { config: BannerSliderConfig }) {
   const tone =
     config.tone === "dark"
@@ -261,6 +283,7 @@ export function BannerSliderRender({ config }: { config: BannerSliderConfig }) {
       slideClassName={perViewBasis}
       className="h-[320px] min-w-0 sm:h-[380px] lg:h-full"
       fill
+      showArrows={config.showArrows}
     >
       {config.images.map((img, i) => (
         <Link

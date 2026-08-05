@@ -1,5 +1,7 @@
 import {
+  CalendarCheck,
   Columns2,
+  GalleryHorizontalEnd,
   Images,
   LayoutList,
   type LucideIcon,
@@ -7,6 +9,7 @@ import {
   MousePointerClick,
   ShoppingBag,
   Sparkles,
+  Type,
   UtensilsCrossed,
 } from "lucide-react";
 
@@ -17,9 +20,12 @@ import type {
   HeroConfig,
   ImageSliderConfig,
   MenuGridConfig,
+  MenuSliderConfig,
   ProductCarouselConfig,
   PromoConfig,
+  ReservationConfig,
   RichCtaConfig,
+  RichTextConfig,
 } from "@/features/website-builder/schemas/blocks";
 
 export interface BlockMeta {
@@ -39,7 +45,7 @@ const heroDefault: HeroConfig = {
   subtitle: "Order from your favourite local kitchen in a few taps.",
   imageUrl: stock("1504674900247-0877df9cc836", 1600, 800),
   ctaLabel: "Order now",
-  ctaHref: "/order",
+  ctaHref: "/",
   align: "center",
 };
 
@@ -48,10 +54,11 @@ const imageSliderDefault: ImageSliderConfig = {
   autoplay: true,
   autoplaySeconds: 4,
   perView: 1,
+  showArrows: true,
   images: [
-    { url: stock("1513104890138-7c749659a591"), caption: "Weekend brunch", href: "/order", badge: "" },
-    { url: stock("1517248135467-4c7edcad34c4"), caption: "Chef's specials", href: "/order", badge: "10% Off" },
-    { url: stock("1526367790999-0150786686a2"), caption: "Free delivery", href: "/order", badge: "" },
+    { url: stock("1513104890138-7c749659a591"), caption: "Weekend brunch", href: "/", badge: "" },
+    { url: stock("1517248135467-4c7edcad34c4"), caption: "Chef's specials", href: "/", badge: "10% Off" },
+    { url: stock("1526367790999-0150786686a2"), caption: "Free delivery", href: "/", badge: "" },
   ],
 };
 
@@ -63,7 +70,7 @@ const promoDefault: PromoConfig = {
       title: "Free delivery",
       subtitle: "On your first order over $25",
       cta: "Order now",
-      href: "/order",
+      href: "/",
       imageUrl: stock("1526367790999-0150786686a2"),
     },
     {
@@ -71,7 +78,7 @@ const promoDefault: PromoConfig = {
       title: "Chef's specials · 20% off",
       subtitle: "Handpicked plates, limited time",
       cta: "Explore",
-      href: "/order",
+      href: "/",
       imageUrl: stock("1517248135467-4c7edcad34c4"),
     },
     {
@@ -79,7 +86,7 @@ const promoDefault: PromoConfig = {
       title: "Family bundles",
       subtitle: "Feed everyone for less",
       cta: "See bundles",
-      href: "/order",
+      href: "/",
       imageUrl: stock("1504674900247-0877df9cc836"),
     },
   ],
@@ -91,16 +98,17 @@ const bannerSliderDefault: BannerSliderConfig = {
   title: "Fresh from the kitchen",
   subtitle: "Handpicked plates, made to order — see what's cooking this week.",
   ctaLabel: "Order now",
-  ctaHref: "/order",
+  ctaHref: "/",
   tone: "brand",
   bannerImage: "",
   autoplay: true,
   autoplaySeconds: 4,
   perView: 1,
+  showArrows: true,
   images: [
-    { url: stock("1504674900247-0877df9cc836", 800, 600), caption: "", href: "/order", badge: "" },
-    { url: stock("1517248135467-4c7edcad34c4", 800, 600), caption: "", href: "/order", badge: "" },
-    { url: stock("1526367790999-0150786686a2", 800, 600), caption: "", href: "/order", badge: "" },
+    { url: stock("1504674900247-0877df9cc836", 800, 600), caption: "", href: "/", badge: "" },
+    { url: stock("1517248135467-4c7edcad34c4", 800, 600), caption: "", href: "/", badge: "" },
+    { url: stock("1526367790999-0150786686a2", 800, 600), caption: "", href: "/", badge: "" },
   ],
 };
 
@@ -110,6 +118,13 @@ const menuGridDefault: MenuGridConfig = {
   layout: "grid",
   limit: 8,
   showViewAll: true,
+  showArrows: true,
+};
+
+const menuSliderDefault: MenuSliderConfig = {
+  title: "Explore our menus",
+  menuIds: [],
+  showArrows: true,
 };
 
 const productCarouselDefault: ProductCarouselConfig = {
@@ -117,13 +132,14 @@ const productCarouselDefault: ProductCarouselConfig = {
   itemIds: [],
   layout: "slider",
   limit: 8,
+  showArrows: true,
 };
 
 const richCtaDefault: RichCtaConfig = {
   heading: "Hungry? We've got you.",
   text: "Browse the full menu and get your order started.",
   ctaLabel: "See the menu",
-  ctaHref: "/order",
+  ctaHref: "/",
   tone: "brand",
 };
 
@@ -133,6 +149,20 @@ const featuredCategoriesDefault: FeaturedCategoriesConfig = {
   layout: "slider",
   limit: 8,
   showViewAll: true,
+  showArrows: true,
+};
+
+const richTextDefault: RichTextConfig = {
+  html: "<h2>About us</h2><p>Tell your story here — add headings, formatted text, links, and images. Use the toolbar to style everything, just like a document.</p>",
+  width: "prose",
+  align: "left",
+};
+
+const reservationDefault: ReservationConfig = {
+  title: "Reserve a table",
+  subtitle: "Pick a location and book your table in a few taps.",
+  buttonLabel: "Find a table",
+  tone: "light",
 };
 
 export const BLOCK_META: Record<BlockType, BlockMeta> = {
@@ -171,6 +201,13 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
     icon: UtensilsCrossed,
     defaultConfig: menuGridDefault,
   },
+  "menu-slider": {
+    type: "menu-slider",
+    label: "Menu slider",
+    description: "Your menus as image cards in a slider — all or hand-picked.",
+    icon: GalleryHorizontalEnd,
+    defaultConfig: menuSliderDefault,
+  },
   "featured-categories": {
     type: "featured-categories",
     label: "Featured categories",
@@ -192,6 +229,20 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
     icon: MousePointerClick,
     defaultConfig: richCtaDefault,
   },
+  "rich-text": {
+    type: "rich-text",
+    label: "Text & images",
+    description: "A rich text editor — headings, formatting, links and images.",
+    icon: Type,
+    defaultConfig: richTextDefault,
+  },
+  reservation: {
+    type: "reservation",
+    label: "Reservation",
+    description: "Book-a-table widget — branches come live from your settings.",
+    icon: CalendarCheck,
+    defaultConfig: reservationDefault,
+  },
 };
 
 /** Palette order — how block types are offered in the "Add block" menu. */
@@ -201,7 +252,10 @@ export const BLOCK_PALETTE: BlockType[] = [
   "banner-slider",
   "promo",
   "menu-grid",
+  "menu-slider",
   "featured-categories",
   "product-carousel",
+  "rich-text",
+  "reservation",
   "rich-cta",
 ];

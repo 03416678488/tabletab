@@ -2,15 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ShoppingBag, User } from "lucide-react";
-import { useCart } from "@/hooks/use-cart";
+import { Home, User } from "lucide-react";
 import { useCustomerSession } from "@/hooks/use-customer-session";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
-  { href: "/order", label: "Order", icon: ShoppingBag, match: (p: string) => p.startsWith("/order") || p === "/checkout" },
   {
     href: "/account",
     label: "Account",
@@ -22,9 +19,7 @@ const links = [
 /** Mobile bottom nav — hidden on md+ where header nav is used. */
 export function CustomerBottomNav() {
   const pathname = usePathname();
-  const itemCount = useCart((s) => s.itemCount());
   const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
-  const hydrated = useHydrated();
 
   return (
     <nav
@@ -52,7 +47,6 @@ export function CustomerBottomNav() {
           }
           const active = link.match(pathname);
           const Icon = link.icon;
-          const showBadge = hydrated && link.href === "/order" && itemCount > 0;
 
           return (
             <Link
@@ -65,11 +59,6 @@ export function CustomerBottomNav() {
             >
               <Icon className={cn("size-5", active && "text-brand")} />
               {link.label}
-              {showBadge && (
-                <span className="absolute right-[calc(50%-1.25rem)] top-2 flex size-4 items-center justify-center rounded-full bg-brand text-[9px] font-bold text-primary-foreground">
-                  {itemCount}
-                </span>
-              )}
             </Link>
           );
         })}

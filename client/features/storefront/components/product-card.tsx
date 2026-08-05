@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Minus, Plus, UtensilsCrossed } from "lucide-react";
 import { AppImage } from "@/components/ui/app-image";
+import { ProductDetailsDialog } from "@/features/storefront/components/product-details-dialog";
 import { useCart } from "@/hooks/use-cart";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useLocationStore } from "@/hooks/use-location-store";
@@ -50,6 +52,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
   const removeItem = useCart((s) => s.removeItem);
   const locationBranchId = useLocationStore((s) => s.branchId);
   const hydrated = useHydrated();
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // The plain (unmodified) cart line for this item — what the stepper controls.
   const baseLine = cartItems.find(
@@ -57,12 +60,13 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
   );
   const qty = hydrated ? baseLine?.quantity ?? 0 : 0;
 
+  // Quick, unmodified add — used by the on-card quantity stepper and by any
+  // caller that supplies its own `onAdd`.
   const add = () => {
     if (onAdd) {
       onAdd(item);
       return;
     }
-    // Self-contained add: anchor the cart to the chosen branch, then add.
     if (!cartBranchId && locationBranchId) setCartBranch(locationBranchId);
     addItem({
       menuItemId: item.id,
@@ -73,6 +77,16 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
       modifiers: [],
     });
     toast(`${item.name} added to cart`, { tone: "success" });
+  };
+
+  // Primary "+" action: an override wins; otherwise open the details/customise
+  // dialog (product details, size/variant/add-ons/modifiers) before adding.
+  const handlePrimaryAdd = () => {
+    if (onAdd) {
+      onAdd(item);
+      return;
+    }
+    setDetailsOpen(true);
   };
 
   const decrement = () => {
@@ -90,7 +104,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
       )}
     >
       {/* Stretched link — whole card opens the details page. */}
-      <Link href={`/menu/${item.id}`} className="absolute inset-0 z-0" aria-label={item.name}>
+      <Link href={`/menu/item/${item.id}`} className="absolute inset-0 z-0" aria-label={item.name}>
         <span className="sr-only">{item.name}</span>
       </Link>
 
@@ -144,7 +158,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
           <button
             type="button"
             disabled={!item.isAvailable}
-            onClick={add}
+            onClick={handlePrimaryAdd}
             aria-label={hasModifiers ? `Customize ${item.name}` : `Add ${item.name}`}
             className="absolute bottom-2 right-2 z-10 flex size-9 items-center justify-center rounded-full bg-brand text-primary-foreground shadow-md transition-transform hover:bg-brand-hover active:scale-90 disabled:pointer-events-none disabled:opacity-50"
           >
@@ -152,6 +166,11 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
           </button>
         )}
       </div>
+
+      {/* Customise-&-add dialog (skipped when a caller overrides add). */}
+      {!onAdd && (
+        <ProductDetailsDialog item={detailsOpen ? item : null} open={detailsOpen} onOpenChange={setDetailsOpen} />
+      )}
 
       <div className="flex flex-1 flex-col gap-1 p-3">
         <h3 className="line-clamp-1 text-sm font-semibold text-ink">{item.name}</h3>

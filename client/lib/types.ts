@@ -9,7 +9,7 @@ export type ID = string;
 export type OrderChannel = "in-venue" | "online";
 export type FulfillmentType = "dine-in" | "delivery" | "pickup";
 
-export type StaffRole = "admin" | "manager" | "chef" | "waiter";
+export type StaffRole = "admin" | "manager" | "chef" | "waiter" | "delivery";
 
 export type TableStatus = "available" | "seated" | "needs-service" | "inactive";
 
@@ -21,6 +21,7 @@ export type OrderStatus =
   | "ready"
   | "out-for-delivery"
   | "served"
+  | "delivered"
   | "completed"
   | "cancelled";
 
@@ -117,6 +118,12 @@ export type MenuTag =
   | "spicy"
   | "chef-special";
 
+/** A named priced option (size / variant / add-on). Price adds to the base. */
+export interface MenuOption {
+  name: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: ID;
   categoryId: ID;
@@ -124,10 +131,18 @@ export interface MenuItem {
   description: string;
   price: number;
   imageUrl: string;
+  /** All gallery images (first is usually the main `imageUrl`). */
+  images?: string[];
   /** Optional .glb / .gltf URL or data URL — shown in 3D menu display mode. */
   model3dUrl?: string;
   tags: MenuTag[];
   modifiers: MenuModifierGroup[];
+  /** Choose-one options that set the base size (price adds to base). */
+  sizes?: MenuOption[];
+  /** Choose-one variants/fillings (price adds to base). */
+  variants?: MenuOption[];
+  /** Optional add-ons with per-unit quantity (price × qty adds to base). */
+  addOns?: MenuOption[];
   isAvailable: boolean;
 }
 
@@ -503,13 +518,21 @@ export interface StaffUser {
   invitedAt?: string;
 }
 
+export type AddressType = "home" | "work" | "other";
+
 export interface Address {
   id: ID;
+  /** Free-text name for the address (defaults to the type: Home/Work/Others). */
   label: string;
+  /** Category shown as the "Address Type" selector. */
+  type?: AddressType;
   line1: string;
   line2?: string;
   city: string;
   postalCode: string;
+  /** Exact pinned location from the map picker. */
+  lat?: number;
+  lng?: number;
   isDefault: boolean;
 }
 

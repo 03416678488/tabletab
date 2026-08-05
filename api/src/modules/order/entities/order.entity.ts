@@ -8,13 +8,19 @@ import { OrderItem } from './order-item.entity';
 /** Where the order originated. */
 export type OrderType = 'pos' | 'online' | 'table';
 
+/** Whether the order has been paid. Online/POS-paid = paid on creation; dine-in
+ *  and POS pay-later = unpaid until collected at completion. */
+export type PaymentStatus = 'unpaid' | 'paid';
+
 /** Lifecycle of an order. `preparing` is what surfaces a table's KOT badge. */
 export type OrderStatus =
   | 'placed'
   | 'confirmed'
   | 'preparing'
   | 'ready'
+  | 'out-for-delivery'
   | 'served'
+  | 'delivered'
   | 'completed'
   | 'cancelled';
 
@@ -60,6 +66,18 @@ export class Order extends AbstractEntity {
   @Column({ type: 'varchar', nullable: true })
   customerAddress: string | null;
 
+  @Column({ type: 'double precision', nullable: true })
+  customerLat: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  customerLng: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  paymentMethod: string | null;
+
+  @Column({ type: 'varchar', default: 'unpaid' })
+  paymentStatus: PaymentStatus;
+
   @Column({ type: 'varchar', nullable: true })
   notes: string | null;
 
@@ -77,6 +95,13 @@ export class Order extends AbstractEntity {
 
   @Column({ type: 'double precision', default: 0 })
   total: number;
+
+  /** The promotion applied to this order (server-validated), if any. */
+  @Column({ type: 'uuid', nullable: true })
+  promotionId: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  promotionCode: string | null;
 
   @OneToMany(() => OrderItem, (item) => item.order, {
     cascade: true,

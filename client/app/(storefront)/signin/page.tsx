@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnUrl = searchParams.get("returnUrl") ?? "/order";
+  const returnUrl = searchParams.get("returnUrl") ?? "/";
   const login = useCustomerSession((s) => s.login);
   const isLoading = useCustomerSession((s) => s.isLoading);
 

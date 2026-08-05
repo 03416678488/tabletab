@@ -16,6 +16,7 @@ import { OrderValidatorService } from './services/order-validator.service';
 import { OrderHelperService } from './services/order.helper.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
 import { RealtimeService } from '@modules/realtime/realtime.service';
+import { PromotionService } from '@modules/promotion/promotion.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -54,6 +55,7 @@ export class OrderService extends AbstractService<Order> {
     private readonly _validator: OrderValidatorService,
     private readonly _helper: OrderHelperService,
     private readonly _realtime: RealtimeService,
+    private readonly _promotions: PromotionService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -88,13 +90,14 @@ export class OrderService extends AbstractService<Order> {
 
   getAll(query: GetOrderQueryDto): Promise<Paginated<Order>> {
     const where = this._helper.resolveListFilters(query);
-    return this.pagination.paginationQuery(query, this.repository, where, [
-      'table',
-      'table.area',
-      'branch',
-      'customer',
-      'items',
-    ]);
+    return this.pagination.paginationQuery(
+      query,
+      this.repository,
+      where,
+      ['table', 'table.area', 'branch', 'customer', 'items'],
+      undefined,
+      { createdAt: 'DESC' },
+    );
   }
 
   getById(id: string): Promise<Order> {
@@ -112,7 +115,42 @@ export class OrderService extends AbstractService<Order> {
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
     await this._validator.validateCreate(dto);
-    const saved = await this.create(this._helper.resolveCreatePayload(dto));
+    const payload = this._helper.resolveCreatePayload(dto);
+
+    // Server-authoritative promo: when a code is supplied we re-validate it
+    // against the computed subtotal and apply the discount ourselves — the
+    // client's amount is never trusted. (Manual POS discounts, sent as
+    // `dto.discount` with no code, pass through untouched via the helper.)
+    let redeem: { promotionId: string; code: string | null; discountAmount: number } | null = null;
+    if (dto.promotionCode) {
+      const subtotal = payload.subtotal ?? 0;
+      const result = await this._promotions.validateCode({
+        code: dto.promotionCode,
+        subtotal,
+        customerId: dto.customerId,
+      });
+      const discount = result.valid ? result.discountAmount : 0;
+      payload.discount = discount;
+      payload.total = round2(subtotal + (payload.tax ?? 0) + (payload.deliveryFee ?? 0) - discount);
+      if (result.valid && result.promotion) {
+        payload.promotionId = result.promotion.id;
+        payload.promotionCode = result.promotion.code;
+        redeem = {
+          promotionId: result.promotion.id,
+          code: result.promotion.code,
+          discountAmount: discount,
+        };
+      }
+    }
+
+    const saved = await this.create(payload);
+    if (redeem) {
+      await this._promotions.redeem({
+        ...redeem,
+        customerId: dto.customerId ?? null,
+        orderId: saved.id,
+      });
+    }
     const order = await this.getById(saved.id);
     this.emitOrder(order, 'order.created');
     this.emitBoard(order);
@@ -124,6 +162,8 @@ export class OrderService extends AbstractService<Order> {
 
     const patch: Partial<Order> = {};
     if (dto.status !== undefined) patch.status = dto.status;
+    if (dto.paymentStatus !== undefined) patch.paymentStatus = dto.paymentStatus;
+    if (dto.paymentMethod !== undefined) patch.paymentMethod = dto.paymentMethod || null;
     if (dto.customerName !== undefined) patch.customerName = dto.customerName;
     if (dto.customerPhone !== undefined) patch.customerPhone = dto.customerPhone;
     if (dto.customerAddress !== undefined) patch.customerAddress = dto.customerAddress;

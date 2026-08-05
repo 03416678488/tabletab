@@ -50,6 +50,7 @@ const ORDER_STATUS_META: Record<OrderStatus, { label: string; tone: Tone }> = {
   ready: { label: "Ready", tone: "brand" },
   "out-for-delivery": { label: "Out for delivery", tone: "blue" },
   served: { label: "Served", tone: "green" },
+  delivered: { label: "Delivered", tone: "green" },
   completed: { label: "Completed", tone: "green" },
   cancelled: { label: "Cancelled", tone: "red" },
 };

@@ -31,15 +31,20 @@ import {
   TextField,
   ToggleField,
 } from "@/features/website-builder/components/form-fields";
+import { RichTextEditor } from "@/features/website-builder/components/rich-text-editor";
+import { LinkField } from "@/features/website-builder/components/link-field";
 import {
   bannerSliderConfigSchema,
   featuredCategoriesConfigSchema,
   heroConfigSchema,
   imageSliderConfigSchema,
   menuGridConfigSchema,
+  menuSliderConfigSchema,
   productCarouselConfigSchema,
   promoConfigSchema,
+  reservationConfigSchema,
   richCtaConfigSchema,
+  richTextConfigSchema,
 } from "@/features/website-builder/schemas/blocks";
 
 export interface ConfigFormProps {
@@ -173,7 +178,7 @@ export function HeroConfigForm({ config, onChange }: ConfigFormProps) {
       <ImageField control={control} name="imageUrl" label="Background image" />
       <div className="grid grid-cols-2 gap-2">
         <TextField register={register} name="ctaLabel" label="Button label" />
-        <TextField register={register} name="ctaHref" label="Button link" />
+        <LinkField control={control} name="ctaHref" label="Button link" />
       </div>
       <SelectField
         control={control}
@@ -235,6 +240,7 @@ export function ImageSliderConfigForm({ config, onChange }: ConfigFormProps) {
           { value: "4", label: "4 side by side" },
         ]}
       />
+      <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
       <Field label="Slides" error={formState.errors.images?.message as string | undefined}>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
@@ -249,7 +255,7 @@ export function ImageSliderConfigForm({ config, onChange }: ConfigFormProps) {
                   <ImageField control={control} name={`images.${i}.url`} label="Image" />
                   <div className="grid grid-cols-2 gap-2">
                     <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
-                    <TextField register={register} name={`images.${i}.href`} placeholder="Link" />
+                    <LinkField control={control} name={`images.${i}.href`} />
                   </div>
                   <TextField
                     register={register}
@@ -312,7 +318,7 @@ export function BannerSliderConfigForm({ config, onChange }: ConfigFormProps) {
         <TextField register={register} name="subtitle" label="Subtitle" />
         <div className="grid grid-cols-2 gap-2">
           <TextField register={register} name="ctaLabel" label="Button label" />
-          <TextField register={register} name="ctaHref" label="Button link" />
+          <LinkField control={control} name="ctaHref" label="Button link" />
         </div>
         <SelectField
           control={control}
@@ -354,6 +360,7 @@ export function BannerSliderConfigForm({ config, onChange }: ConfigFormProps) {
             />
           </div>
         )}
+        <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
       </div>
 
       <Field label="Slides" error={formState.errors.images?.message as string | undefined}>
@@ -370,7 +377,7 @@ export function BannerSliderConfigForm({ config, onChange }: ConfigFormProps) {
                   <ImageField control={control} name={`images.${i}.url`} label="Image" />
                   <div className="grid grid-cols-2 gap-2">
                     <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
-                    <TextField register={register} name={`images.${i}.href`} placeholder="Link" />
+                    <LinkField control={control} name={`images.${i}.href`} />
                   </div>
                   <TextField
                     register={register}
@@ -422,7 +429,7 @@ export function PromoConfigForm({ config, onChange }: ConfigFormProps) {
               <TextField register={register} name={`banners.${i}.subtitle`} placeholder="Subtitle" />
               <div className="grid grid-cols-2 gap-2">
                 <TextField register={register} name={`banners.${i}.cta`} placeholder="Button" />
-                <TextField register={register} name={`banners.${i}.href`} placeholder="Link" />
+                <LinkField control={control} name={`banners.${i}.href`} />
               </div>
               <ImageField control={control} name={`banners.${i}.imageUrl`} label="Image" />
             </div>
@@ -509,8 +516,75 @@ export function MenuGridConfigForm({ config, onChange, menuOptions }: ConfigForm
         ]}
       />
       <TextField register={register} name="limit" label="Max dishes per menu" />
-      <div className="rounded-xl border border-border p-3">
+      <div className="space-y-2 rounded-xl border border-border p-3">
         <ToggleField control={control} name="showViewAll" label="Show “View all” links" />
+        {watch("layout") === "slider" && (
+          <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Menu slider (menu cards) ─────────────────────────────────────────────────
+export function MenuSliderConfigForm({ config, onChange, menuOptions }: ConfigFormProps) {
+  const { register, control, watch, setValue } = useLiveForm(
+    menuSliderConfigSchema,
+    config,
+    onChange,
+  );
+  const ids = (watch("menuIds") ?? []) as string[];
+  const opts = menuOptions ?? [];
+  const labelFor = (id: string) => opts.find((o) => o.value === id)?.label ?? id;
+  const available = opts.filter((o) => !ids.includes(o.value));
+
+  const setIds = (next: string[]) => setValue("menuIds", next, { shouldDirty: true });
+  const add = (id: string) => id && !ids.includes(id) && setIds([...ids, id]);
+  const removeId = (id: string) => setIds(ids.filter((x) => x !== id));
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    if (from !== -1 && to !== -1) setIds(arrayMove(ids, from, to));
+  };
+
+  return (
+    <div className="space-y-3">
+      <TextField register={register} name="title" label="Section title" />
+
+      <Field label="Menus to show (drag to reorder)">
+        {ids.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Showing every active menu. Add specific menus below to limit and order them.
+          </p>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {ids.map((id) => (
+                  <SortableChip key={id} id={id} label={labelFor(id)} onRemove={() => removeId(id)} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </Field>
+
+      {available.length > 0 && (
+        <Dropdown
+          value=""
+          onChange={add}
+          options={available}
+          placeholder={opts.length ? "Add a menu…" : "No menus found"}
+          searchable={available.length > 6}
+        />
+      )}
+
+      <div className="rounded-xl border border-border p-3">
+        <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
       </div>
     </div>
   );
@@ -588,8 +662,11 @@ export function FeaturedCategoriesConfigForm({ config, onChange, categoryOptions
         ]}
       />
       <TextField register={register} name="limit" label="Max items per category" />
-      <div className="rounded-xl border border-border p-3">
+      <div className="space-y-2 rounded-xl border border-border p-3">
         <ToggleField control={control} name="showViewAll" label="Show “View all” links" />
+        {watch("layout") === "slider" && (
+          <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
+        )}
       </div>
     </div>
   );
@@ -668,6 +745,71 @@ export function ProductCarouselConfigForm({ config, onChange, productOptions }: 
         ]}
       />
       <TextField register={register} name="limit" label="Max items" />
+      {watch("layout") === "slider" && (
+        <div className="rounded-xl border border-border p-3">
+          <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Text & images (rich text) ────────────────────────────────────────────────
+export function RichTextConfigForm({ config, onChange }: ConfigFormProps) {
+  const { control, watch, setValue } = useLiveForm(richTextConfigSchema, config, onChange);
+  const html = (watch("html") ?? "") as string;
+  return (
+    <div className="space-y-3">
+      <Field label="Content">
+        <RichTextEditor
+          value={html}
+          onChange={(v) => setValue("html", v, { shouldDirty: true })}
+        />
+      </Field>
+      <SelectField
+        control={control}
+        name="width"
+        label="Width"
+        options={[
+          { value: "prose", label: "Readable (narrow column)" },
+          { value: "wide", label: "Wide (full content width)" },
+        ]}
+      />
+      <SelectField
+        control={control}
+        name="align"
+        label="Alignment"
+        options={[
+          { value: "left", label: "Left" },
+          { value: "center", label: "Center" },
+        ]}
+      />
+    </div>
+  );
+}
+
+// ── Reservation ──────────────────────────────────────────────────────────────
+export function ReservationConfigForm({ config, onChange }: ConfigFormProps) {
+  const { register, control } = useLiveForm(reservationConfigSchema, config, onChange);
+  return (
+    <div className="space-y-3">
+      <p className="rounded-lg border border-border bg-subtle/50 px-3 py-2 text-xs text-muted-foreground">
+        Branches come live from your settings — only locations with reservations
+        enabled appear here. Manage them in Settings → Reservations.
+      </p>
+      <TextField register={register} name="title" label="Title" />
+      <TextAreaField register={register} name="subtitle" label="Subtitle" rows={2} />
+      <TextField register={register} name="buttonLabel" label="Button label" />
+      <SelectField
+        control={control}
+        name="tone"
+        label="Colour"
+        options={[
+          { value: "light", label: "Light" },
+          { value: "brand", label: "Brand" },
+          { value: "dark", label: "Dark" },
+        ]}
+      />
     </div>
   );
 }
@@ -681,7 +823,7 @@ export function RichCtaConfigForm({ config, onChange }: ConfigFormProps) {
       <TextAreaField register={register} name="text" label="Text" rows={2} />
       <div className="grid grid-cols-2 gap-2">
         <TextField register={register} name="ctaLabel" label="Button label" />
-        <TextField register={register} name="ctaHref" label="Button link" />
+        <LinkField control={control} name="ctaHref" label="Button link" />
       </div>
       <SelectField
         control={control}

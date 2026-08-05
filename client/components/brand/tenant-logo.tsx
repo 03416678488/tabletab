@@ -36,8 +36,10 @@ export function TenantLogo({
   const name = nameOverride?.trim() || get("company", "name") || tenant.name;
   // Tagline comes only from Business Info — empty means show none.
   const tagline = get("company", "tagline");
-  // Logo: tenant branding, else the Branding-settings logo.
-  const logoSrc = branding.logoDataUrl ?? branding.logoUrl ?? (get("theme", "logo") || undefined);
+  // Logo: preview override first, then the admin Branding logo (real settings),
+  // falling back to any tenant branding logo.
+  const logoSrc =
+    branding.logoDataUrl ?? (get("theme", "logo") || branding.logoUrl || undefined);
   const compact = variant === "compact";
 
   const content = (

@@ -1,10 +1,10 @@
-import { ThemeProvider } from "@/components/brand/theme-provider";
-import { VenueShell } from "@/features/venue/components/venue-shell";
-
-export default function VenueLayout({ children }: { children: React.ReactNode }) {
+/** The QR landing resolves the table then redirects into the storefront, so this
+    is just a full-screen container for the brief resolving state. Brand colours
+    come from the root SettingsProvider (admin settings). */
+export default function QrLandingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider className="min-h-dvh">
-      <VenueShell>{children}</VenueShell>
-    </ThemeProvider>
+    <div className="flex min-h-dvh items-center justify-center bg-subtle p-6">
+      {children}
+    </div>
   );
 }

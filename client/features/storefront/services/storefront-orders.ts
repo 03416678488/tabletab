@@ -18,6 +18,10 @@ interface ApiOrder {
   customerName: string | null;
   customerPhone: string | null;
   customerAddress: string | null;
+  customerLat: number | null;
+  customerLng: number | null;
+  paymentMethod: string | null;
+  paymentStatus: string | null;
   subtotal: number;
   tax: number;
   discount: number;
@@ -33,6 +37,13 @@ interface ApiOrder {
 export interface StorefrontOrder extends Order {
   /** Free-text delivery address captured at checkout (delivery orders). */
   deliveryAddress?: string;
+  /** Pinned coords of the delivery address (for the tracking map). */
+  deliveryLat?: number;
+  deliveryLng?: number;
+  /** Payment method chosen at checkout. */
+  paymentMethod?: string;
+  /** Whether the order has been paid (dine-in pays at the table). */
+  paymentStatus?: "paid" | "unpaid";
   /** Contact phone captured at checkout. */
   customerPhone?: string;
   /** Name of the branch the order was placed at. */
@@ -41,6 +52,10 @@ export interface StorefrontOrder extends Order {
   deliveryEtaMinutes?: number;
   /** The customer's own note for the order (kitchen instructions). */
   note?: string;
+  /** True for a QR dine-in ("table") order. */
+  isDineIn?: boolean;
+  /** Table name for dine-in orders (e.g. "T2-MH"). */
+  tableName?: string;
 }
 
 /** Backend statuses map onto the storefront's status vocabulary. */
@@ -49,7 +64,9 @@ export const STATUS_MAP: Record<string, OrderStatus> = {
   confirmed: "accepted",
   preparing: "preparing",
   ready: "ready",
+  "out-for-delivery": "out-for-delivery",
   served: "served",
+  delivered: "delivered",
   completed: "completed",
   cancelled: "cancelled",
 };
@@ -75,20 +92,32 @@ function parseCustomerNote(notes: string | null): string | undefined {
   const rest = notes
     ?.split(/\\n|\r?\n/)
     .map((l) => l.trim())
-    .filter((l) => l && !/^Pickup at /i.test(l))
+    .filter((l) => l && !/^Pickup at /i.test(l) && !/^Dine-in · Table/i.test(l))
     .join("\n")
     .trim();
   return rest || undefined;
 }
 
+/** Pull the table name out of the checkout's `Dine-in · Table <name>` marker. */
+function parseTableName(notes: string | null): string | undefined {
+  const line = notes
+    ?.split(/\\n|\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => /^Dine-in · Table/i.test(l));
+  return line?.replace(/^Dine-in · Table/i, "").trim() || undefined;
+}
+
 function toOrder(o: ApiOrder): StorefrontOrder {
-  const isDelivery = Boolean(o.customerAddress);
+  const isDineIn = o.orderType === "table";
+  const isDelivery = !isDineIn && Boolean(o.customerAddress);
   return {
     id: o.id,
     reference: o.orderNumber,
     channel: "online",
     // The backend stores only orderType; a captured address means delivery.
     fulfillmentType: isDelivery ? "delivery" : "pickup",
+    isDineIn,
+    tableName: parseTableName(o.notes),
     branchId: o.branchId ?? "",
     status: STATUS_MAP[o.status] ?? "placed",
     items: o.items.map((i) => ({
@@ -109,6 +138,10 @@ function toOrder(o: ApiOrder): StorefrontOrder {
     placedAt: o.createdAt,
     pickupTime: isDelivery ? undefined : parsePickupTime(o.notes),
     deliveryAddress: o.customerAddress ?? undefined,
+    deliveryLat: o.customerLat ?? undefined,
+    deliveryLng: o.customerLng ?? undefined,
+    paymentMethod: o.paymentMethod ?? undefined,
+    paymentStatus: o.paymentStatus === "paid" ? "paid" : "unpaid",
     branchName: o.branch?.name ?? undefined,
     deliveryEtaMinutes: o.branch?.deliveryEtaMinutes ?? undefined,
     note: parseCustomerNote(o.notes),
@@ -117,36 +150,61 @@ function toOrder(o: ApiOrder): StorefrontOrder {
 
 export interface PlaceOrderInput {
   branchId: string;
-  fulfillmentType: "delivery" | "pickup";
+  /** "online" for delivery/pickup (default); "table" for a QR dine-in order. */
+  orderType?: "online" | "table";
+  /** Required for dine-in — the scanned table. */
+  tableId?: string;
+  fulfillmentType?: "delivery" | "pickup";
   items: CartItem[];
   customerId?: string;
   customerName: string;
   customerPhone?: string;
   customerAddress?: string;
+  /** Exact pinned coords of the delivery address (for the tracking map). */
+  customerLat?: number;
+  customerLng?: number;
+  /** Chosen payment method label (e.g. "Stripe", "Cash on Delivery"). */
+  paymentMethod?: string;
+  /** A promo code — re-validated + applied server-side (authoritative). */
+  promotionCode?: string;
+  /** 'paid' when charged at checkout (card/wallet); 'unpaid' for COD / dine-in. */
+  paymentStatus?: "paid" | "unpaid";
   tax: number;
   deliveryFee: number;
   notes?: string;
 }
 
-/** Place a real online order. The API computes subtotal/total + order number. */
+/** Place a real order (online or dine-in). The API computes subtotal/total + number. */
 export async function placeStorefrontOrder(input: PlaceOrderInput): Promise<StorefrontOrder> {
   const res = await httpClient.post<ApiOrder>("/orders", {
-    orderType: "online",
+    orderType: input.orderType ?? "online",
     branchId: input.branchId,
+    tableId: input.tableId,
     customerId: input.customerId,
     customerName: input.customerName,
     customerPhone: input.customerPhone,
     customerAddress: input.customerAddress,
+    customerLat: input.customerLat,
+    customerLng: input.customerLng,
+    paymentMethod: input.paymentMethod,
+    paymentStatus: input.paymentStatus,
+    promotionCode: input.promotionCode,
     notes: input.notes,
     tax: input.tax,
     deliveryFee: input.deliveryFee,
-    items: input.items.map((i) => ({
-      menuItemId: i.menuItemId,
-      name: i.name,
-      unitPrice: i.unitPrice,
-      quantity: i.quantity,
-      notes: i.notes,
-    })),
+    items: input.items.map((i) => {
+      // The API item has no modifier field, so fold the chosen options into the
+      // unit price and the name (kitchen/receipt still see the selections).
+      const mods = i.modifiers.reduce((s, m) => s + m.priceDelta, 0);
+      const modLabels = i.modifiers.map((m) => m.label).join(", ");
+      return {
+        menuItemId: i.menuItemId,
+        name: modLabels ? `${i.name} (${modLabels})` : i.name,
+        unitPrice: i.unitPrice + mods,
+        quantity: i.quantity,
+        notes: i.notes,
+      };
+    }),
   });
   return toOrder(res.data);
 }
@@ -159,4 +217,13 @@ export async function fetchStorefrontOrder(id: string): Promise<StorefrontOrder 
   } catch {
     return null;
   }
+}
+
+/** A signed-in customer's order history (newest first). */
+export async function fetchCustomerOrders(customerId: string): Promise<StorefrontOrder[]> {
+  const res = await httpClient.get<{ items?: ApiOrder[] } | ApiOrder[]>(
+    `/orders/customer/${customerId}`,
+  );
+  const list = Array.isArray(res.data) ? res.data : (res.data.items ?? []);
+  return list.map(toOrder);
 }

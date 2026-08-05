@@ -29,6 +29,10 @@ export function usePageBuilder(slug: string) {
   const [publishing, setPublishing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [everPublished, setEverPublished] = useState(false);
+  // Saved to draft but not yet pushed to the published (live) snapshot. The
+  // storefront only reads the published snapshot, so this drives the
+  // "publish to go live" hint that stops saved edits looking already-live.
+  const [needsPublish, setNeedsPublish] = useState(false);
 
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [header, setHeader] = useState<HeaderConfig>(headerConfigSchema.parse({}));
@@ -47,6 +51,11 @@ export function usePageBuilder(slug: string) {
         setHeader(content.header);
         setFooter(content.footer);
         setEverPublished(Boolean(page.published));
+        // A published page whose draft already diverges needs re-publishing.
+        setNeedsPublish(
+          Boolean(page.published) &&
+            JSON.stringify(page.content) !== JSON.stringify(page.published),
+        );
       } catch {
         toast("Couldn't load the page", { tone: "error" });
       } finally {
@@ -114,7 +123,8 @@ export function usePageBuilder(slug: string) {
     try {
       await websiteService.saveDraft(slug, content());
       setDirty(false);
-      toast("Draft saved", { tone: "success" });
+      setNeedsPublish(true);
+      toast("Draft saved — publish to make it live", { tone: "success" });
     } catch {
       toast("Couldn't save", { tone: "error" });
     } finally {
@@ -129,6 +139,7 @@ export function usePageBuilder(slug: string) {
       await websiteService.saveDraft(slug, content());
       await websiteService.publish(slug);
       setDirty(false);
+      setNeedsPublish(false);
       setEverPublished(true);
       toast("Published — your landing page is live", { tone: "success" });
     } catch {
@@ -145,6 +156,7 @@ export function usePageBuilder(slug: string) {
     publishing,
     dirty,
     everPublished,
+    needsPublish,
     blocks,
     header,
     footer,

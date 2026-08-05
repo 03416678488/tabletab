@@ -193,7 +193,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
     <>
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
         <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-          <Link href="/order">
+          <Link href="/">
             <ArrowLeft className="size-4" />
             All branches
           </Link>

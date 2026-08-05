@@ -10,15 +10,26 @@ import { formatCurrency } from "@/lib/utils";
 
 interface CartSummaryProps {
   deliveryFee?: number;
+  /** Promo discount to subtract from the total. */
+  discount?: number;
+  /** Label for the discount line, e.g. the promo code. */
+  promoLabel?: string;
   showCheckout?: boolean;
   compact?: boolean;
 }
 
-export function CartSummary({ deliveryFee = 0, showCheckout = true, compact }: CartSummaryProps) {
+export function CartSummary({
+  deliveryFee = 0,
+  discount = 0,
+  promoLabel,
+  showCheckout = true,
+  compact,
+}: CartSummaryProps) {
   const items = useCart((s) => s.items);
   const subtotal = useCart((s) => s.subtotal());
   const tax = useCart((s) => s.tax());
-  const total = useCart((s) => s.totalWithFees(deliveryFee));
+  const totalWithFees = useCart((s) => s.totalWithFees(deliveryFee));
+  const total = Math.max(0, totalWithFees - discount);
   const updateQuantity = useCart((s) => s.updateQuantity);
   const removeItem = useCart((s) => s.removeItem);
 
@@ -31,7 +42,7 @@ export function CartSummary({ deliveryFee = 0, showCheckout = true, compact }: C
         action={
           showCheckout ? (
             <Button asChild variant="outline">
-              <Link href="/order">Browse branches</Link>
+              <Link href="/">Browse branches</Link>
             </Button>
           ) : undefined
         }
@@ -113,6 +124,12 @@ export function CartSummary({ deliveryFee = 0, showCheckout = true, compact }: C
           <span className="text-muted-foreground">Tax</span>
           <span>{formatCurrency(tax)}</span>
         </div>
+        {discount > 0 && (
+          <div className="flex justify-between text-emerald-600">
+            <span>Promo{promoLabel ? ` (${promoLabel})` : ""}</span>
+            <span>−{formatCurrency(discount)}</span>
+          </div>
+        )}
         <div className="flex justify-between font-semibold text-ink">
           <span>Total</span>
           <span>{formatCurrency(total)}</span>

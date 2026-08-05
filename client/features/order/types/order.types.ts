@@ -1,11 +1,15 @@
 export type OrderType = "pos" | "online" | "table";
 
+export type PaymentStatus = "unpaid" | "paid";
+
 export type OrderStatus =
   | "placed"
   | "confirmed"
   | "preparing"
   | "ready"
+  | "out-for-delivery"
   | "served"
+  | "delivered"
   | "completed"
   | "cancelled";
 
@@ -45,6 +49,8 @@ export interface Order {
   customerName: string | null;
   customerPhone: string | null;
   customerAddress: string | null;
+  paymentMethod?: string | null;
+  paymentStatus: PaymentStatus;
   notes: string | null;
   subtotal: number;
   tax: number;
@@ -82,6 +88,8 @@ export interface CreateOrderInput {
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: string;
   notes?: string;
   tax?: number;
   discount?: number;
@@ -90,6 +98,8 @@ export interface CreateOrderInput {
 
 export interface UpdateOrderInput {
   status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  paymentMethod?: string;
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;

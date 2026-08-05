@@ -14,7 +14,7 @@ const DELIVERY_STEPS: TimelineStep[] = [
   { id: "preparing", label: "Preparing", statuses: ["preparing"] },
   { id: "ready", label: "Ready", statuses: ["ready"] },
   { id: "delivery", label: "Out for delivery", statuses: ["out-for-delivery"] },
-  { id: "completed", label: "Completed", statuses: ["completed"] },
+  { id: "delivered", label: "Delivered", statuses: ["delivered", "completed"] },
 ];
 
 const PICKUP_STEPS: TimelineStep[] = [
@@ -31,6 +31,7 @@ const STATUS_ORDER: OrderStatus[] = [
   "preparing",
   "ready",
   "out-for-delivery",
+  "delivered",
   "completed",
 ];
 
@@ -105,7 +106,7 @@ export function OrderTimeline({ status, fulfillmentType }: OrderTimelineProps) {
               >
                 {step.label}
               </p>
-              {current && status !== "completed" && (
+              {current && status !== "completed" && status !== "delivered" && (
                 <p className="mt-0.5 text-sm text-muted-foreground">In progress…</p>
               )}
             </div>

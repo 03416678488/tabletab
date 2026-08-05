@@ -1,7 +1,9 @@
 import {
   FeaturedCategoriesRender,
   MenuGridRender,
+  MenuSliderRender,
   ProductCarouselRender,
+  ReservationRender,
 } from "@/features/website-builder/render/data-blocks";
 import {
   BannerSliderRender,
@@ -9,6 +11,7 @@ import {
   ImageSliderRender,
   PromoRender,
   RichCtaRender,
+  RichTextRender,
 } from "@/features/website-builder/render/static-blocks";
 import {
   type Block,
@@ -24,9 +27,12 @@ const RENDERERS: Record<BlockType, (config: never) => React.ReactNode> = {
   "banner-slider": (config) => <BannerSliderRender config={config} />,
   promo: (config) => <PromoRender config={config} />,
   "menu-grid": (config) => <MenuGridRender config={config} />,
+  "menu-slider": (config) => <MenuSliderRender config={config} />,
   "featured-categories": (config) => <FeaturedCategoriesRender config={config} />,
   "product-carousel": (config) => <ProductCarouselRender config={config} />,
   "rich-cta": (config) => <RichCtaRender config={config} />,
+  "rich-text": (config) => <RichTextRender config={config} />,
+  reservation: (config) => <ReservationRender config={config} />,
 };
 
 /** Render a single block, coercing its stored config through the zod schema. */

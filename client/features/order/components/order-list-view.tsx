@@ -29,6 +29,8 @@ import {
   ORDER_TYPE_META,
   nextStatus,
 } from "@/features/order/constants/order.constants";
+import { PaymentDialog, type PaymentResult } from "@/features/order/components/payment-dialog";
+import { paymentMethodLabel } from "@/features/order/lib/payment-label";
 import type { Order, OrderType } from "@/features/order/types/order.types";
 
 function relativeTime(iso: string): string {
@@ -59,6 +61,7 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
   );
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [payFor, setPayFor] = useState<Order | null>(null);
   // Synchronous guard so a click can't fire again before the refetch lands.
   const inFlight = useRef<Set<string>>(new Set());
 
@@ -88,8 +91,23 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
   };
 
   const advance = (order: Order) => {
-    const next = nextStatus(order.status);
-    if (next) void patch(order, { status: next });
+    const next = nextStatus(order.status, order.orderType);
+    if (!next) return;
+    // Completing an unpaid order collects payment first.
+    if (next === "completed" && order.paymentStatus === "unpaid") {
+      setPayFor(order);
+      return;
+    }
+    void patch(order, { status: next });
+  };
+
+  const settleAndComplete = (order: Order, result: PaymentResult) => {
+    setPayFor(null);
+    void patch(order, {
+      status: "completed",
+      paymentStatus: "paid",
+      paymentMethod: paymentMethodLabel(result),
+    });
   };
   const confirm = useConfirm();
 
@@ -180,6 +198,7 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
                   <TableHead>Items</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Payment</TableHead>
                   <TableHead>Placed</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -187,9 +206,11 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
               <TableBody>
                 {filtered.map((order) => {
                   const meta = ORDER_STATUS_META[order.status];
-                  const next = nextStatus(order.status);
+                  const next = nextStatus(order.status, order.orderType);
                   const done =
-                    order.status === "completed" || order.status === "cancelled";
+                    order.status === "completed" ||
+                    order.status === "delivered" ||
+                    order.status === "cancelled";
                   return (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.orderNumber}</TableCell>
@@ -210,6 +231,14 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
                       <TableCell>
                         <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
                       </TableCell>
+                      <TableCell>
+                        <StatusPill
+                          tone={order.paymentStatus === "paid" ? "green" : "amber"}
+                          dot={false}
+                        >
+                          {order.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                        </StatusPill>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {relativeTime(order.createdAt)}
                       </TableCell>
@@ -222,7 +251,9 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
                               disabled={busyId === order.id}
                               onClick={() => advance(order)}
                             >
-                              {ORDER_STATUS_META[next].label}
+                              {next === "completed" && order.paymentStatus === "unpaid"
+                                ? "Collect payment"
+                                : ORDER_STATUS_META[next].label}
                               <ChevronRight className="size-3.5" />
                             </Button>
                           )}
@@ -256,6 +287,13 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
           </div>
         )}
       </Card>
+
+      <PaymentDialog
+        open={!!payFor}
+        total={payFor?.total ?? 0}
+        onOpenChange={(open) => !open && setPayFor(null)}
+        onConfirm={(result) => payFor && settleAndComplete(payFor, result)}
+      />
     </div>
   );
 }

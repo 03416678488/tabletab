@@ -81,7 +81,7 @@ export function CartMenu() {
               <ShoppingBag className="mx-auto mb-2 size-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">Your cart is empty.</p>
               <Button asChild variant="outline" size="sm" className="mt-3" onClick={() => setOpen(false)}>
-                <Link href="/order">Browse the menu</Link>
+                <Link href="/">Browse the menu</Link>
               </Button>
             </div>
           ) : (

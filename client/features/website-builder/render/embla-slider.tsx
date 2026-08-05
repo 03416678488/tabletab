@@ -31,6 +31,7 @@ export function EmblaSlider({
   autoplayMs,
   className,
   fill = false,
+  showArrows = true,
 }: EmblaSliderProps) {
   const [emblaRef, embla] = useEmblaCarousel({ loop: true, align: "start" });
   const [selected, setSelected] = useState(0);
@@ -73,22 +74,26 @@ export function EmblaSlider({
 
       {children.length > 1 && (
         <>
-          <button
-            type="button"
-            onClick={() => embla?.scrollPrev()}
-            aria-label="Previous"
-            className="absolute -left-3 top-1/2 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => embla?.scrollNext()}
-            aria-label="Next"
-            className="absolute -right-3 top-1/2 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
-          >
-            <ChevronRight className="size-5" />
-          </button>
+          {showArrows && (
+            <>
+              <button
+                type="button"
+                onClick={() => embla?.scrollPrev()}
+                aria-label="Previous"
+                className="absolute -left-3 top-1/2 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => embla?.scrollNext()}
+                aria-label="Next"
+                className="absolute -right-3 top-1/2 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
+              >
+                <ChevronRight className="size-5" />
+              </button>
+            </>
+          )}
 
           <div className="mt-3 flex justify-center gap-1.5">
             {snaps.map((_, i) => (

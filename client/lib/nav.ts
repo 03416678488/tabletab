@@ -1,6 +1,7 @@
 import {
   Armchair,
   ArrowDownCircle,
+  Bike,
   ArrowLeftRight,
   ArrowUpCircle,
   BarChart3,
@@ -10,6 +11,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   MapPin,
+  MessageCircle,
   MonitorCheck,
   MonitorPlay,
   Percent,
@@ -63,11 +65,12 @@ export interface NavItem {
   children?: NavChild[];
 }
 
-const ALL: StaffRole[] = ["admin", "manager", "chef", "waiter"];
+const ALL: StaffRole[] = ["admin", "manager", "chef", "waiter", "delivery"];
 const ADMIN_MANAGER: StaffRole[] = ["admin", "manager"];
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", slug: "dashboard", icon: LayoutDashboard, roles: ALL, section: "Operations", module: "dashboard" },
+  { label: "Deliveries", slug: "deliveries", icon: Bike, roles: ["admin", "manager", "delivery"], section: "Operations", module: "orders" },
   { label: "Kitchen", slug: "kitchen", icon: ChefHat, roles: ["admin", "manager", "chef"], section: "Operations", module: "kds" },
   { label: "Waiter", slug: "waiter", icon: ConciergeBell, roles: ["admin", "manager", "waiter"], section: "Operations" },
   { label: "Manager", slug: "manager", icon: ShieldCheck, roles: ["admin", "manager"], section: "Operations" },
@@ -141,6 +144,8 @@ export const navItems: NavItem[] = [
   { label: "Staff", slug: "staff", icon: UsersRound, roles: ["admin"], section: "Management", module: "users" },
   { label: "Settings", slug: "settings", icon: Settings, roles: ["admin"], section: "Management", module: "settings" },
   { label: "Website Setting", slug: "website-settings", icon: Globe, roles: ["admin"], section: "Management", module: "settings" },
+  { label: "Promotions", slug: "promotions", icon: Percent, roles: ADMIN_MANAGER, section: "Management", module: "settings" },
+  { label: "Campaigns", slug: "campaigns", icon: MessageCircle, roles: ADMIN_MANAGER, section: "Management", module: "settings" },
 
   // USERS — one listing per fixed role.
   { label: "Administrators", slug: "administrators", icon: ShieldCheck, roles: ["admin"], section: "Users", module: "users" },
@@ -173,6 +178,7 @@ export const ROLE_LABELS: Record<StaffRole, string> = {
   manager: "Manager",
   chef: "Chef",
   waiter: "Waiter",
+  delivery: "Delivery",
 };
 
 /** Default landing route after login for each role: /{role}/dashboard. */

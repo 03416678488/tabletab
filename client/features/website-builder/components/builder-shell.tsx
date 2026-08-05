@@ -71,12 +71,19 @@ export function BuilderShell({
               <Globe className="size-5 text-brand" /> Website Builder
             </h1>
           )}
-          <p className={embedded ? "text-sm text-muted-foreground" : "mt-0.5 text-sm text-muted-foreground"}>
+          <p
+            className={cn(
+              embedded ? "text-sm" : "mt-0.5 text-sm",
+              b.dirty || b.needsPublish ? "font-medium text-amber-600" : "text-muted-foreground",
+            )}
+          >
             {b.dirty
               ? "Unsaved changes"
-              : b.everPublished
-                ? "Published — live on your storefront"
-                : "Draft — not published yet"}
+              : b.needsPublish
+                ? "Saved — publish to make changes live"
+                : b.everPublished
+                  ? "Published — live on your storefront"
+                  : "Draft — not published yet"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -87,9 +94,14 @@ export function BuilderShell({
             {b.saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Save draft
           </Button>
-          <Button size="sm" onClick={b.publish} disabled={b.publishing}>
+          <Button
+            size="sm"
+            onClick={b.publish}
+            disabled={b.publishing}
+            className={cn((b.dirty || b.needsPublish) && "ring-2 ring-brand/30 ring-offset-1")}
+          >
             {b.publishing ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
-            Publish
+            Publish{b.dirty || b.needsPublish ? " changes" : ""}
           </Button>
         </div>
       </div>

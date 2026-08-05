@@ -11,7 +11,17 @@ class GetOrderFiltersDto {
   @IsOptional()
   orderType?: string;
 
-  @IsIn(['placed', 'confirmed', 'preparing', 'ready', 'served', 'completed', 'cancelled'])
+  @IsIn([
+    'placed',
+    'confirmed',
+    'preparing',
+    'ready',
+    'out-for-delivery',
+    'served',
+    'delivered',
+    'completed',
+    'cancelled',
+  ])
   @IsOptional()
   status?: string;
 
@@ -22,6 +32,10 @@ class GetOrderFiltersDto {
   @IsUUID()
   @IsOptional()
   branchId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  customerId?: string;
 }
 
 export class GetOrderQueryDto extends IntersectionType(

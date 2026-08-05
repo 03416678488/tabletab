@@ -15,7 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { toast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
+import { AddressForm } from "@/features/storefront/components/address-form";
+import { fetchCustomerOrders } from "@/features/storefront/services/storefront-orders";
 import type { Address, Order } from "@/lib/types";
 import { formatCurrency, timeAgo } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -38,14 +39,7 @@ function AccountContent() {
   const [profile, setProfile] = useState({ name: "", phone: "" });
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
-  const [addressForm, setAddressForm] = useState({
-    label: "",
-    line1: "",
-    line2: "",
-    city: "",
-    postalCode: "",
-    isDefault: false,
-  });
+  const editingAddress = user?.addresses.find((a) => a.id === editingAddressId) ?? undefined;
 
   useEffect(() => {
     if (user) {
@@ -59,7 +53,7 @@ function AccountContent() {
     (async () => {
       setOrdersLoading(true);
       try {
-        const list = await api.getCustomerOrders(user.id);
+        const list = await fetchCustomerOrders(user.id);
         if (!cancelled) setOrders(list);
       } finally {
         if (!cancelled) setOrdersLoading(false);
@@ -77,28 +71,16 @@ function AccountContent() {
   };
 
   const resetAddressForm = () => {
-    setAddressForm({
-      label: "Home",
-      line1: "",
-      line2: "",
-      city: "",
-      postalCode: "",
-      isDefault: false,
-    });
     setEditingAddressId(null);
     setShowAddressForm(false);
   };
 
-  const handleSaveAddress = async () => {
-    if (!addressForm.line1.trim() || !addressForm.postalCode.trim()) {
-      toast("Fill in required address fields", { tone: "error" });
-      return;
-    }
+  const handleSaveAddress = async (address: Omit<Address, "id">) => {
     if (editingAddressId) {
-      await updateAddress(editingAddressId, addressForm);
+      await updateAddress(editingAddressId, address);
       toast("Address updated", { tone: "success" });
     } else {
-      await addAddress(addressForm);
+      await addAddress(address);
       toast("Address added", { tone: "success" });
     }
     resetAddressForm();
@@ -106,14 +88,6 @@ function AccountContent() {
 
   const startEditAddress = (addr: Address) => {
     setEditingAddressId(addr.id);
-    setAddressForm({
-      label: addr.label,
-      line1: addr.line1,
-      line2: addr.line2 ?? "",
-      city: addr.city,
-      postalCode: addr.postalCode,
-      isDefault: addr.isDefault,
-    });
     setShowAddressForm(true);
   };
 
@@ -262,58 +236,11 @@ function AccountContent() {
             </div>
           ))}
           {showAddressForm && (
-            <div className="space-y-3 rounded-xl border border-border p-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label>Label</Label>
-                  <Input
-                    value={addressForm.label}
-                    onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Postal code</Label>
-                  <Input
-                    value={addressForm.postalCode}
-                    onChange={(e) =>
-                      setAddressForm({ ...addressForm, postalCode: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label>Street</Label>
-                <Input
-                  value={addressForm.line1}
-                  onChange={(e) => setAddressForm({ ...addressForm, line1: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Line 2 (optional)</Label>
-                <Input
-                  value={addressForm.line2}
-                  onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={addressForm.isDefault}
-                  onChange={(e) =>
-                    setAddressForm({ ...addressForm, isDefault: e.target.checked })
-                  }
-                />
-                Set as default
-              </label>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveAddress}>
-                  {editingAddressId ? "Update" : "Save"}
-                </Button>
-                <Button variant="ghost" onClick={resetAddressForm}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
+            <AddressForm
+              initial={editingAddress}
+              onSave={handleSaveAddress}
+              onCancel={resetAddressForm}
+            />
           )}
         </CardContent>
       </Card>
@@ -339,7 +266,7 @@ function AccountContent() {
               description="Your online orders will appear here."
               action={
                 <Button asChild>
-                  <Link href="/order">Start ordering</Link>
+                  <Link href="/">Start ordering</Link>
                 </Button>
               }
             />

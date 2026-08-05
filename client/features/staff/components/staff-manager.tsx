@@ -33,11 +33,12 @@ import type { Staff } from "@/features/staff/types/staff.types";
 const SELECT_CLASS =
   "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
-const ROLE_TONE: Record<StaffRole, "brand" | "blue" | "purple" | "amber"> = {
+const ROLE_TONE: Record<StaffRole, "brand" | "blue" | "purple" | "amber" | "green"> = {
   admin: "brand",
   manager: "blue",
   chef: "purple",
   waiter: "amber",
+  delivery: "green",
 };
 
 type StatusFilter = "all" | "active" | "inactive";
