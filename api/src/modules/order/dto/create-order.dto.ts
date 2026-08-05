@@ -64,6 +64,22 @@ export class CreateOrderDto {
   @IsOptional()
   customerAddress?: string;
 
+  @IsNumber()
+  @IsOptional()
+  customerLat?: number;
+
+  @IsNumber()
+  @IsOptional()
+  customerLng?: number;
+
+  @IsString()
+  @IsOptional()
+  paymentMethod?: string;
+
+  @IsIn(['unpaid', 'paid'])
+  @IsOptional()
+  paymentStatus?: 'unpaid' | 'paid';
+
   @IsString()
   @IsOptional()
   notes?: string;
@@ -82,6 +98,11 @@ export class CreateOrderDto {
   @Min(0)
   @IsOptional()
   discount?: number;
+
+  /** A promo code to validate + apply server-side (authoritative discount). */
+  @IsString()
+  @IsOptional()
+  promotionCode?: string;
 
   @IsArray()
   @ArrayMinSize(1)

@@ -15,9 +15,27 @@ import { CreateOrderItemDto } from './create-order.dto';
 
 /** Updates order status/metadata, and optionally replaces its line items + totals. */
 export class UpdateOrderDto {
-  @IsIn(['placed', 'confirmed', 'preparing', 'ready', 'served', 'completed', 'cancelled'])
+  @IsIn([
+    'placed',
+    'confirmed',
+    'preparing',
+    'ready',
+    'out-for-delivery',
+    'served',
+    'delivered',
+    'completed',
+    'cancelled',
+  ])
   @IsOptional()
   status?: OrderStatus;
+
+  @IsIn(['unpaid', 'paid'])
+  @IsOptional()
+  paymentStatus?: 'unpaid' | 'paid';
+
+  @IsString()
+  @IsOptional()
+  paymentMethod?: string;
 
   @IsString()
   @IsOptional()

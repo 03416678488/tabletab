@@ -47,7 +47,7 @@ export function SiteHeaderRender({ config }: { config: HeaderConfig }) {
           )}
           {config.ctaLabel && (
             <Link
-              href={config.ctaHref || "/order"}
+              href={config.ctaHref || "/"}
               className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-brand-hover"
             >
               {config.ctaLabel}

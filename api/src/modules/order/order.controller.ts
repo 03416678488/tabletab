@@ -75,6 +75,18 @@ export class OrderController {
     return this._orderService.getActiveByTable(tableId);
   }
 
+  // Public so a signed-in storefront customer can load their own order history.
+  // Declared before `:id` so the static `customer` segment isn't captured as an id.
+  @Public()
+  @Get('customer/:customerId')
+  getByCustomer(@Param('customerId', ParseUUIDPipe) customerId: string) {
+    return this._orderService.getAll({
+      customerId,
+      page: 1,
+      perPage: 50,
+    } as GetOrderQueryDto);
+  }
+
   // Public so a storefront customer can track their order by id (UUID = unguessable).
   @Public()
   @Get(':id')

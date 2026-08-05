@@ -12,9 +12,12 @@ import { ApiError } from "@/lib/httpClient";
 import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { orderService } from "@/features/order/services/order.service";
 import {
+  ORDER_STATUS_META,
   ORDER_TYPE_META,
   nextStatus,
 } from "@/features/order/constants/order.constants";
+import { PaymentDialog, type PaymentResult } from "@/features/order/components/payment-dialog";
+import { paymentMethodLabel } from "@/features/order/lib/payment-label";
 import type { Order, OrderStatus } from "@/features/order/types/order.types";
 
 const COLUMNS: {
@@ -81,6 +84,8 @@ export function KdsBoard() {
   const now = useNow();
   const [busyId, setBusyId] = useState<string | null>(null);
   const inFlight = useRef<Set<string>>(new Set());
+  // An order awaiting payment before it can be completed (unpaid dine-in / POS).
+  const [payFor, setPayFor] = useState<Order | null>(null);
 
   const grouped = useMemo(() => {
     const map: Record<string, Order[]> = {
@@ -94,8 +99,13 @@ export function KdsBoard() {
   }, [orders]);
 
   const bump = async (order: Order) => {
-    const next = nextStatus(order.status);
+    const next = nextStatus(order.status, order.orderType);
     if (!next || inFlight.current.has(order.id)) return; // one step per click
+    // Completing an unpaid order must collect payment first.
+    if (next === "completed" && order.paymentStatus === "unpaid") {
+      setPayFor(order);
+      return;
+    }
     inFlight.current.add(order.id);
     setBusyId(order.id);
     try {
@@ -105,6 +115,25 @@ export function KdsBoard() {
       toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
     } finally {
       inFlight.current.delete(order.id);
+      setBusyId(null);
+    }
+  };
+
+  // Payment collected → mark the order paid + completed.
+  const settleAndComplete = async (order: Order, result: PaymentResult) => {
+    setPayFor(null);
+    setBusyId(order.id);
+    try {
+      await orderService.update(order.id, {
+        status: "completed",
+        paymentStatus: "paid",
+        paymentMethod: paymentMethodLabel(result),
+      });
+      await refetch();
+      toast(`${order.orderNumber} paid & completed`, { tone: "success" });
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
+    } finally {
       setBusyId(null);
     }
   };
@@ -179,23 +208,39 @@ export function KdsBoard() {
                     Nothing here.
                   </p>
                 ) : (
-                  list.map((order) => (
-                    <Ticket
-                      key={order.id}
-                      order={order}
-                      now={now}
-                      accent={col.accent}
-                      action={col.action}
-                      busy={busyId === order.id}
-                      onBump={() => bump(order)}
-                    />
-                  ))
+                  list.map((order) => {
+                    // On the Ready column, where the order goes next depends on
+                    // its fulfillment type (served / out-for-delivery / picked up).
+                    const next = nextStatus(order.status, order.orderType);
+                    const action =
+                      col.status === "ready" && next
+                        ? ORDER_STATUS_META[next].label
+                        : col.action;
+                    return (
+                      <Ticket
+                        key={order.id}
+                        order={order}
+                        now={now}
+                        accent={col.accent}
+                        action={action}
+                        busy={busyId === order.id}
+                        onBump={() => bump(order)}
+                      />
+                    );
+                  })
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      <PaymentDialog
+        open={!!payFor}
+        total={payFor?.total ?? 0}
+        onOpenChange={(open) => !open && setPayFor(null)}
+        onConfirm={(result) => payFor && void settleAndComplete(payFor, result)}
+      />
     </div>
   );
 }

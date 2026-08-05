@@ -32,7 +32,7 @@ export function HomeHero() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link href="/order">
+              <Link href="/">
                 Start your order <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -85,7 +85,7 @@ export function HomeCtaBand() {
             Pick your nearest branch, build your order, and track it every step of the way.
           </p>
           <Button asChild size="lg" variant="secondary" className="relative mt-6">
-            <Link href="/order">
+            <Link href="/">
               Order now <ArrowRight className="size-4" />
             </Link>
           </Button>

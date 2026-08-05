@@ -1,7 +1,10 @@
 import type { TenantBranding } from "@/lib/types";
 
+// Default brand — synced with the configured tenant brand
+// (settings.theme.primary_color) so the mock branding system matches the real
+// one applied by SettingsProvider.
 export const DEFAULT_BRANDING: TenantBranding = {
-  primaryColor: "#0F766E",
+  primaryColor: "#C3090C",
   accentColor: "#F59E0B",
 };
 

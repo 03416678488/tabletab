@@ -286,6 +286,16 @@ export function SettingsShell() {
                   label: "Stripe",
                   group: "payment_stripe",
                   fields: [
+                    { key: "enabled", label: "Enabled", type: "toggle" },
+                    {
+                      key: "mode",
+                      label: "Mode",
+                      type: "select",
+                      options: [
+                        { value: "test", label: "Test" },
+                        { value: "live", label: "Live" },
+                      ],
+                    },
                     { key: "publishable_key", label: "Publishable Key" },
                     { key: "secret_key", label: "Secret Key", type: "password" },
                   ],
@@ -295,8 +305,7 @@ export function SettingsShell() {
                   label: "PayPal",
                   group: "payment_paypal",
                   fields: [
-                    { key: "client_id", label: "Client ID" },
-                    { key: "client_secret", label: "Client Secret", type: "password" },
+                    { key: "enabled", label: "Enabled", type: "toggle" },
                     {
                       key: "mode",
                       label: "Mode",
@@ -306,6 +315,8 @@ export function SettingsShell() {
                         { value: "live", label: "Live" },
                       ],
                     },
+                    { key: "client_id", label: "Client ID" },
+                    { key: "client_secret", label: "Client Secret", type: "password" },
                   ],
                 },
                 {
@@ -313,6 +324,7 @@ export function SettingsShell() {
                   label: "Razorpay",
                   group: "payment_razorpay",
                   fields: [
+                    { key: "enabled", label: "Enabled", type: "toggle" },
                     { key: "key_id", label: "Key ID" },
                     { key: "key_secret", label: "Key Secret", type: "password" },
                   ],
@@ -321,7 +333,10 @@ export function SettingsShell() {
                   key: "cod",
                   label: "Cash on Delivery",
                   group: "payment_cod",
-                  fields: [{ key: "instructions", label: "Instructions", type: "textarea" }],
+                  fields: [
+                    { key: "enabled", label: "Enabled", type: "toggle" },
+                    { key: "instructions", label: "Instructions", type: "textarea" },
+                  ],
                 },
               ]}
             />

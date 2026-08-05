@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, UtensilsCrossed } from "lucide-react";
 import { ProductCard } from "@/features/storefront/components/product-card";
+import { ProductGallery } from "@/features/storefront/components/product-gallery";
 import { ProductHeroMedia } from "@/features/menu/components/product-hero-media";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -44,6 +45,9 @@ export default function ProductDetailsPage({
 
   const [quantity, setQuantity] = useState(1);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const [sizeIndex, setSizeIndex] = useState(-1);
+  const [variantIndex, setVariantIndex] = useState(-1);
+  const [addonQty, setAddonQty] = useState<Record<number, number>>({});
   const [notes, setNotes] = useState("");
 
   // Cached storefront data (React Query).
@@ -63,12 +67,29 @@ export default function ProductDetailsPage({
   const firstBranchId = branches[0]?.id ?? null;
   const notFound = !loading && !item;
 
-  // Reset the customization form whenever the viewed item changes.
+  const sizes = item?.sizes ?? [];
+  const variants = item?.variants ?? [];
+  const addOns = item?.addOns ?? [];
+  const galleryImages = useMemo(() => {
+    if (!item) return [];
+    const imgs = (item.images ?? []).filter(Boolean);
+    return imgs.length ? imgs : item.imageUrl ? [item.imageUrl] : [];
+  }, [item]);
+
+  // Reset the customization form whenever the viewed item changes; default the
+  // size/variant to the first option (matching the POS customiser).
   useEffect(() => {
     setQuantity(1);
     setSelected({});
     setNotes("");
-  }, [itemId]);
+    setSizeIndex(sizes.length > 0 ? 0 : -1);
+    setVariantIndex(variants.length > 0 ? 0 : -1);
+    setAddonQty({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id]);
+
+  const size = sizeIndex >= 0 ? sizes[sizeIndex] : undefined;
+  const variant = variantIndex >= 0 ? variants[variantIndex] : undefined;
 
   const modifiers: CartItemModifier[] = useMemo(() => {
     if (!item) return [];
@@ -86,8 +107,21 @@ export default function ProductDetailsPage({
         }
       }
     }
+    // Size / variant / add-ons → cart modifiers (price adds to the base).
+    if (size) {
+      result.push({ groupId: "size", optionId: `size:${sizeIndex}`, label: `Size: ${size.name}`, priceDelta: size.price });
+    }
+    if (variant) {
+      result.push({ groupId: "variant", optionId: `variant:${variantIndex}`, label: variant.name, priceDelta: variant.price });
+    }
+    addOns.forEach((a, i) => {
+      const q = addonQty[i] ?? 0;
+      if (q > 0) {
+        result.push({ groupId: "addon", optionId: `addon:${i}`, label: q > 1 ? `${a.name} ×${q}` : a.name, priceDelta: a.price * q });
+      }
+    });
     return result;
-  }, [item, selected]);
+  }, [item, selected, size, variant, sizeIndex, variantIndex, addOns, addonQty]);
 
   const unitTotal = item ? item.price + modifiers.reduce((s, m) => s + m.priceDelta, 0) : 0;
   const missingRequired = useMemo(
@@ -158,7 +192,7 @@ export default function ProductDetailsPage({
           description="This item may no longer be on the menu."
           action={
             <Button asChild variant="outline">
-              <Link href="/order">Back to menu</Link>
+              <Link href="/">Back to menu</Link>
             </Button>
           }
         />
@@ -213,14 +247,22 @@ export default function ProductDetailsPage({
         </button>
 
         <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
-          {/* Media — sticky on desktop */}
+          {/* Media — sticky on desktop. Multi-image items get the synced gallery. */}
           <div className="lg:sticky lg:top-24">
-            <ProductHeroMedia
-              item={item}
-              priority
-              className="aspect-[4/3] rounded-2xl sm:aspect-[16/9] lg:aspect-square"
-              sizes="(max-width: 1024px) 100vw, 512px"
-            />
+            {galleryImages.length > 1 && !item.model3dUrl ? (
+              <ProductGallery
+                images={galleryImages}
+                alt={item.name}
+                className="aspect-[4/3] sm:aspect-[16/9] lg:aspect-square"
+              />
+            ) : (
+              <ProductHeroMedia
+                item={item}
+                priority
+                className="aspect-[4/3] rounded-2xl sm:aspect-[16/9] lg:aspect-square"
+                sizes="(max-width: 1024px) 100vw, 512px"
+              />
+            )}
           </div>
 
           {/* Details */}
@@ -249,6 +291,105 @@ export default function ProductDetailsPage({
               <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-sm font-medium text-muted-foreground">
                 This dish is currently sold out.
               </p>
+            )}
+
+            {/* Size — choose one (defaults to the first) */}
+            {sizes.length > 0 && (
+              <div className="mt-6">
+                <p className="font-display font-semibold text-ink">Choose a size</p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {sizes.map((s, i) => (
+                    <button
+                      key={`${s.name}-${i}`}
+                      type="button"
+                      onClick={() => setSizeIndex(i)}
+                      className={cn(
+                        "rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors",
+                        sizeIndex === i
+                          ? "border-brand bg-brand-tint text-brand-deep"
+                          : "border-border hover:bg-secondary",
+                      )}
+                    >
+                      {s.name}
+                      {s.price > 0 && (
+                        <span className="ml-1.5 text-muted-foreground">+{formatCurrency(s.price)}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Variant — choose one (defaults to the first) */}
+            {variants.length > 0 && (
+              <div className="mt-6">
+                <p className="font-display font-semibold text-ink">Choose a variant</p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {variants.map((v, i) => (
+                    <button
+                      key={`${v.name}-${i}`}
+                      type="button"
+                      onClick={() => setVariantIndex(i)}
+                      className={cn(
+                        "rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors",
+                        variantIndex === i
+                          ? "border-brand bg-brand-tint text-brand-deep"
+                          : "border-border hover:bg-secondary",
+                      )}
+                    >
+                      {v.name}
+                      {v.price > 0 && (
+                        <span className="ml-1.5 text-muted-foreground">+{formatCurrency(v.price)}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add-ons — optional, per-unit quantity */}
+            {addOns.length > 0 && (
+              <div className="mt-6">
+                <p className="font-display font-semibold text-ink">Add-ons</p>
+                <div className="mt-2.5 space-y-2">
+                  {addOns.map((a, i) => {
+                    const q = addonQty[i] ?? 0;
+                    return (
+                      <div
+                        key={`${a.name}-${i}`}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-ink">{a.name}</p>
+                          <p className="text-xs text-muted-foreground">+{formatCurrency(a.price)}</p>
+                        </div>
+                        <div className="flex items-center gap-1 rounded-full border border-border p-1">
+                          <button
+                            type="button"
+                            aria-label={`Remove one ${a.name}`}
+                            disabled={q <= 0}
+                            onClick={() =>
+                              setAddonQty((p) => ({ ...p, [i]: Math.max(0, (p[i] ?? 0) - 1) }))
+                            }
+                            className="flex size-7 items-center justify-center rounded-full text-ink transition-colors hover:bg-secondary disabled:opacity-40"
+                          >
+                            <Minus className="size-3.5" />
+                          </button>
+                          <span className="min-w-[2ch] text-center text-sm font-semibold">{q}</span>
+                          <button
+                            type="button"
+                            aria-label={`Add one ${a.name}`}
+                            onClick={() => setAddonQty((p) => ({ ...p, [i]: (p[i] ?? 0) + 1 }))}
+                            className="flex size-7 items-center justify-center rounded-full text-ink transition-colors hover:bg-secondary"
+                          >
+                            <Plus className="size-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             {/* Modifiers */}

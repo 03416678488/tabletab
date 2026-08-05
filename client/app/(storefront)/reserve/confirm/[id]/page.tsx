@@ -64,7 +64,7 @@ export default function ReservationConfirmPage({
           title="Reservation not found"
           action={
             <Button asChild>
-              <Link href="/order">Book a table</Link>
+              <Link href="/">Book a table</Link>
             </Button>
           }
         />
@@ -182,7 +182,7 @@ export default function ReservationConfirmPage({
 
       <div className="mt-8 flex flex-col gap-3">
         <Button asChild variant="outline">
-          <Link href="/order">Back to home</Link>
+          <Link href="/">Back to home</Link>
         </Button>
         {!confirmed && (
           <p className="text-center text-xs text-muted-foreground">

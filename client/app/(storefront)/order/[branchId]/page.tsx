@@ -111,7 +111,7 @@ export default function BranchMenuPage({
           title={error ?? "Branch not found"}
           action={
             <Button asChild>
-              <Link href="/order">Back to branches</Link>
+              <Link href="/">Back to branches</Link>
             </Button>
           }
         />
@@ -128,7 +128,7 @@ export default function BranchMenuPage({
           description="Please choose another branch or check back during service hours."
           action={
             <Button asChild>
-              <Link href="/order">Choose another branch</Link>
+              <Link href="/">Choose another branch</Link>
             </Button>
           }
         />
@@ -140,7 +140,7 @@ export default function BranchMenuPage({
     <>
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-          <Link href="/order">
+          <Link href="/">
             <ArrowLeft className="size-4" />
             All branches
           </Link>

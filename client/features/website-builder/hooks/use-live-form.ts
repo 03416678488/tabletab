@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   type DefaultValues,
   type FieldValues,
@@ -22,9 +22,21 @@ export function useLiveForm<T extends FieldValues>(
   config: unknown,
   onChange: (c: FieldValues) => void,
 ): UseFormReturn<T> {
+  // Parse the incoming config once, on mount, to fill defaults. A lazy state
+  // initializer keeps this from re-running every render — re-parsing mid-edit
+  // would throw on transient invalid state (e.g. a freshly added slide whose
+  // required image URL is still blank). `safeParse` never throws; on the rare
+  // invalid mount we fall back to the raw config so the user's values persist.
+  // Switching blocks remounts the form (keyed by block id in ConfigPanel), so a
+  // different block's config is still picked up. The resolver keeps validating
+  // on change, so field errors like "Image URL is required" still surface.
+  const [defaultValues] = useState<DefaultValues<T>>(() => {
+    const parsed = schema.safeParse(config ?? {});
+    return (parsed.success ? parsed.data : (config ?? {})) as DefaultValues<T>;
+  });
   const form = useForm<T>({
     resolver: zodResolver(schema as never),
-    defaultValues: schema.parse(config ?? {}) as DefaultValues<T>,
+    defaultValues,
     mode: "onChange",
   });
   useEffect(() => {

@@ -3,4 +3,4 @@ export const BRANCH_ENDPOINTS = {
   byId: (id: string) => `/branches/${id}`,
 } as const;
 
-export const BRANCH_DEFAULT_CITY = "Portland";
+export const BRANCH_DEFAULT_CITY = "";

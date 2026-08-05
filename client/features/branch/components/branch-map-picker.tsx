@@ -58,7 +58,7 @@ export default function BranchMapPicker({ lat, lng, onChange }: BranchMapPickerP
   const center: [number, number] = hasPoint ? [lat!, lng!] : DEFAULT_CENTER;
 
   return (
-    <div className="relative h-56 w-full overflow-hidden rounded-xl border border-border">
+    <div className="relative isolate h-56 w-full overflow-hidden rounded-xl border border-border">
       <MapContainer
         center={center}
         zoom={hasPoint ? 14 : 11}

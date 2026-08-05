@@ -6,39 +6,24 @@ import { Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/features/storefront/components/product-card";
-import { useCart } from "@/hooks/use-cart";
-import { useLocationStore } from "@/hooks/use-location-store";
-import { toast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
-import type { MenuItem } from "@/lib/types";
+import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
 
 interface SearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/** Full-menu search popup — self-contained (loads the menu + adds to cart). */
+/** Full-menu search popup — searches the live catalog; cards open the details
+ *  dialog to customise & add (same as the menu pages). */
 export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<MenuItem[]>([]);
+  // Real, cached storefront catalog (same source as the menu pages) — the mock
+  // `api.getMenuItems()` used before didn't match the live menu.
+  const { products: items } = useStorefrontProducts();
 
-  const branchId = useLocationStore((s) => s.branchId);
-  const fulfillment = useLocationStore((s) => s.fulfillment);
-  const addItem = useCart((s) => s.addItem);
-  const setCartBranch = useCart((s) => s.setBranch);
-  const setFulfillmentType = useCart((s) => s.setFulfillmentType);
-
-  // Load the menu (and reset the query) each time the popup opens.
+  // Reset the query each time the popup opens.
   useEffect(() => {
-    if (!open) return;
-    setQuery("");
-    let off = false;
-    api.getMenuItems().then((list) => {
-      if (!off) setItems(list);
-    });
-    return () => {
-      off = true;
-    };
+    if (open) setQuery("");
   }, [open]);
 
   const q = query.trim().toLowerCase();
@@ -49,23 +34,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       .slice(0, 24);
   }, [items, q]);
 
-  const handleAdd = (item: MenuItem) => {
-    if (branchId) setCartBranch(branchId);
-    if (fulfillment !== "reserve") setFulfillmentType(fulfillment);
-    addItem({
-      menuItemId: item.id,
-      name: item.name,
-      imageUrl: item.imageUrl,
-      unitPrice: item.price,
-      quantity: 1,
-      modifiers: [],
-    });
-    toast(`${item.name} added to cart`, { tone: "success" });
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      {/* Anchored near the top (translate-y-0 overrides the base vertical
+          centering) so the search bar sits up top, like a command palette. */}
+      <DialogContent className="top-[8vh] max-w-3xl translate-y-0">
         <DialogTitle className="sr-only">Search the menu</DialogTitle>
 
         <div className="relative">
@@ -109,7 +82,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
               {results.map((item) => (
-                <ProductCard key={item.id} item={item} onAdd={handleAdd} />
+                <ProductCard key={item.id} item={item} />
               ))}
             </div>
           </div>

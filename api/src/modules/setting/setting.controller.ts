@@ -22,6 +22,14 @@ export class SettingController {
     return this._service.getGrouped();
   }
 
+  /** Public — enabled payment methods for the storefront checkout (no secrets).
+      Declared before `:group` so the static segment isn't captured as a group. */
+  @Public()
+  @Get('payment-methods')
+  getPaymentMethods() {
+    return this._service.getPaymentMethods();
+  }
+
   @Get(':group')
   getGroup(@Param('group') group: string) {
     return this._service.getGroup(group);

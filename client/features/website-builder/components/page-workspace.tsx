@@ -95,36 +95,35 @@ export function PageWorkspace({ slug }: { slug: string }) {
         </StatusPill>
       </div>
 
-      {/* Side tabs + content */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-[200px_1fr]">
-        <nav className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={cn(
-                  "flex shrink-0 items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-sm font-medium transition-colors lg:w-full",
-                  active
-                    ? "border-brand bg-brand-tint/40 text-brand-deep"
-                    : "border-border text-ink hover:border-brand/40 hover:bg-secondary",
-                )}
-              >
-                <Icon className="size-4 shrink-0" />
-                {t.label}
-              </button>
-            );
-          })}
-        </nav>
+      {/* Top tab bar */}
+      <nav className="mt-5 flex gap-1 overflow-x-auto border-b border-border">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+                active
+                  ? "border-brand text-brand-deep"
+                  : "border-transparent text-muted-foreground hover:text-ink",
+              )}
+            >
+              <Icon className="size-4 shrink-0" />
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
 
-        <div className="min-w-0">
-          {tab === "general" && <GeneralTab page={page} onChange={load} />}
-          {tab === "builder" && <BuilderShell slug={page.slug} embedded />}
-          {tab === "seo" && <SeoTab page={page} onChange={load} />}
-        </div>
+      {/* Tab content */}
+      <div className="mt-5 min-w-0">
+        {tab === "general" && <GeneralTab page={page} onChange={load} />}
+        {tab === "builder" && <BuilderShell slug={page.slug} embedded />}
+        {tab === "seo" && <SeoTab page={page} onChange={load} />}
       </div>
     </div>
   );

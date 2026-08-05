@@ -11,6 +11,7 @@ import {
 import { usePathname } from "next/navigation";
 
 import { setCurrencyConfig } from "@/lib/currency";
+import { brandingCssVars, resolveBranding } from "@/lib/theme";
 import { settingsService } from "@/features/app-settings/services/settings.service";
 import type {
   CurrencyRow,
@@ -44,11 +45,11 @@ function applyCurrency(settings: SettingsGroups, currencies: CurrencyRow[]) {
 function applyTheme(settings: SettingsGroups) {
   const color = settings.theme?.primary_color;
   if (!color || typeof document === "undefined") return;
+  // Apply the full brand token set (shades + readable foreground) from the
+  // admin's configured colour — the single source of truth for the whole app.
+  const vars = brandingCssVars(resolveBranding({ primaryColor: color }));
   const root = document.documentElement.style;
-  root.setProperty("--brand", color);
-  root.setProperty("--brand-hover", color);
-  root.setProperty("--brand-deep", `color-mix(in srgb, ${color} 82%, black)`);
-  root.setProperty("--brand-tint", `color-mix(in srgb, ${color} 12%, white)`);
+  for (const [key, value] of Object.entries(vars)) root.setProperty(key, value);
 }
 
 /**

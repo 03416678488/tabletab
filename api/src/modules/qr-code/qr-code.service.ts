@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -35,6 +35,21 @@ export class QrCodeService extends AbstractService<QrCode> {
 
   getById(id: string): Promise<QrCode> {
     return this._validator.ensureExists(id);
+  }
+
+  /**
+   * Public scan resolution: map a QR `slug` to its active table + branch so the
+   * customer storefront can start a dine-in session. Slugs are globally unique.
+   */
+  async resolveBySlug(slug: string): Promise<QrCode> {
+    const qr = await this.repository.findOne({
+      where: { slug, isActive: true },
+      relations: ['table', 'table.area', 'table.branch'],
+    });
+    if (!qr) {
+      throw new NotFoundException('This QR code is not active or no longer exists.');
+    }
+    return qr;
   }
 
   async createQrCode(dto: CreateQrCodeDto): Promise<QrCode> {

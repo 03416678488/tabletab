@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
 import { toast } from "@/hooks/use-toast";
 import { useMenuStream } from "@/hooks/use-menu-stream";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { ApiError } from "@/lib/httpClient";
 
 import { Dropdown } from "@/components/ui/dropdown";
@@ -31,6 +32,7 @@ import {
 } from "@/features/menu/hooks/use-all-menu-items";
 import { useCategories } from "@/features/category/hooks/use-categories";
 import { useTables } from "@/features/table/hooks/use-tables";
+import { useTableStats } from "@/features/order/hooks/use-table-stats";
 import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useTaxGroups } from "@/features/tax/hooks/use-tax-groups";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
@@ -48,6 +50,7 @@ import {
   PaymentDialog,
   type PaymentResult,
 } from "@/features/order/components/payment-dialog";
+import { paymentMethodLabel } from "@/features/order/lib/payment-label";
 import { printReceipt } from "@/features/order/lib/print-receipt";
 import type { MenuItem } from "@/features/menu/types/menu.types";
 import type {
@@ -83,10 +86,15 @@ export function PosTerminal() {
   const businessName = useSettings().get("company", "name");
   const { categories, loading: categoriesLoading } = useCategories();
   const { tables } = useTables();
+  // Per-table live order status — used to surface only served tables (ready to
+  // pay) in the "load open order" picker.
+  const { byTable: tableStats } = useTableStats();
+  const servedTables = tables.filter((t) => tableStats.get(t.id)?.orderStatus === "served");
   const { taxes } = useTaxes();
   const { groups: taxGroups } = useTaxGroups();
   const { defaultTax } = useDefaultTax();
 
+  const catDrag = useDragScroll<HTMLDivElement>();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string>("all");
   const [customizing, setCustomizing] = useState<MenuItem | null>(null);
@@ -316,6 +324,10 @@ export function PosTerminal() {
           discount,
           tax,
           notes: paymentNote,
+          // Collecting payment on a loaded order (e.g. a served table) closes it out.
+          ...(payment
+            ? { status: "completed", paymentStatus: "paid", paymentMethod: paymentMethodLabel(payment) }
+            : {}),
           ...(orderType === "table" && tableId ? { tableId } : {}),
         });
         orderNumber = order.orderNumber;
@@ -326,6 +338,8 @@ export function PosTerminal() {
           orderType,
           items,
           notes: paymentNote,
+          paymentStatus: payment ? "paid" : "unpaid",
+          ...(payment ? { paymentMethod: paymentMethodLabel(payment) } : {}),
           ...(discount > 0 ? { discount } : {}),
           ...(tax > 0 ? { tax } : {}),
           ...(orderType === "table" && tableId ? { tableId } : {}),
@@ -382,6 +396,9 @@ export function PosTerminal() {
     <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
       {/* Menu */}
       <div className="min-w-0">
+        {/* Search + categories float just below the sticky Topbar (h-16) while the
+            item grid scrolls under them; bg-subtle matches the page so nothing peeks. */}
+        <div className="sticky top-16 z-20 -mx-1 bg-subtle px-1 pb-2 pt-1">
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -393,34 +410,41 @@ export function PosTerminal() {
           />
         </div>
 
-        {/* Category cards — skeleton until every category has loaded */}
-        <div className="mt-4 flex gap-2.5 overflow-x-auto pb-1">
-          {categoriesLoading ? (
-            Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="size-[68px] shrink-0 rounded-2xl" />
-            ))
-          ) : (
-            <>
-              <CategoryCard
-                label="All Items"
-                active={categoryId === "all"}
-                onClick={() => setCategoryId("all")}
-              />
-              {categories.map((c) => (
-                <CategoryCard
-                  key={c.id}
-                  label={c.name}
-                  imageUrl={c.imageUrl}
-                  active={categoryId === c.id}
-                  onClick={() => setCategoryId(c.id)}
-                />
-              ))}
-            </>
-          )}
+        {/* Category cards — "All Items" stays pinned on the left; the rest
+            drag-to-scroll (mouse) with no visible scrollbar. */}
+        <div className="mt-4 flex items-start gap-2.5">
+          <CategoryCard
+            label="All Items"
+            active={categoryId === "all"}
+            onClick={() => setCategoryId("all")}
+          />
+          <div
+            ref={catDrag.ref}
+            {...catDrag.handlers}
+            className={cn(
+              "no-scrollbar flex min-w-0 flex-1 gap-2.5 overflow-x-auto",
+              catDrag.className,
+            )}
+          >
+            {categoriesLoading
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="size-[68px] shrink-0 rounded-2xl" />
+                ))
+              : categories.map((c) => (
+                  <CategoryCard
+                    key={c.id}
+                    label={c.name}
+                    imageUrl={c.imageUrl}
+                    active={categoryId === c.id}
+                    onClick={() => setCategoryId(c.id)}
+                  />
+                ))}
+          </div>
+        </div>
         </div>
 
         {/* Items — lazy loaded page by page */}
-        <div className="mt-5">
+        <div className="mt-4">
           {loading ? (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -446,8 +470,10 @@ export function PosTerminal() {
         </div>
       </div>
 
-      {/* Cart */}
-      <Card className="flex h-fit flex-col p-4 lg:sticky lg:top-4">
+      {/* Cart — sticks below the 64px sticky Topbar (h-16), with a 16px gap.
+          On lg it's capped to the viewport so only the item list scrolls (below),
+          keeping the order-type controls, totals and Pay buttons always visible. */}
+      <Card className="flex h-fit flex-col p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
         <div className="flex items-center gap-2">
           <ShoppingCart className="size-4 text-brand" />
           <h2 className="font-semibold text-ink">Current Order</h2>
@@ -462,8 +488,11 @@ export function PosTerminal() {
           )}
         </div>
 
-        {/* Load an existing open order by table to edit it */}
-        <div className="mt-3 space-y-2">
+        {/* Scrollable order body — setup controls + line items scroll together,
+            so the discount/tax/totals and Pay buttons below stay pinned in view. */}
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+          {/* Load an existing open order by table to edit it */}
+          <div className="mt-3 space-y-2">
           <div className="flex items-center gap-2">
             <Dropdown
               className="flex-1"
@@ -471,13 +500,22 @@ export function PosTerminal() {
               onChange={(v) => void loadTableOrder(v)}
               disabled={loadingOrder}
               searchable
-              placeholder="Load open order by table…"
+              placeholder={
+                servedTables.length
+                  ? "Load a served table to collect payment…"
+                  : "No served tables yet"
+              }
               aria-label="Load open order by table"
-              options={tables.map((t) => ({
-                value: t.id,
-                label: t.name,
-                sublabel: t.area?.name ?? undefined,
-              }))}
+              options={servedTables.map((t) => {
+                const stat = tableStats.get(t.id);
+                return {
+                  value: t.id,
+                  label: t.name,
+                  sublabel: [t.area?.name, stat ? formatMoney(stat.total) : undefined]
+                    .filter(Boolean)
+                    .join(" · ") || undefined,
+                };
+              })}
             />
             {loadingOrder && <Loader2 className="size-4 shrink-0 animate-spin text-brand" />}
           </div>
@@ -501,9 +539,8 @@ export function PosTerminal() {
           <CustomerSelect value={customer} onChange={setCustomer} />
         </div>
 
-        <div className="mt-3 rounded-xl border border-border p-3">
-          <p className="mb-2 text-sm font-medium text-ink">Select Order Type</p>
-          <div className="grid grid-cols-3 gap-2">
+        <div className="mt-3">
+          <div className="grid grid-cols-3 gap-1 rounded-xl border border-border p-1">
             {ORDER_TYPES.map((t) => {
               const active = orderType === t.value;
               return (
@@ -512,20 +549,12 @@ export function PosTerminal() {
                   type="button"
                   onClick={() => setOrderType(t.value)}
                   className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors",
+                    "rounded-lg py-1.5 text-sm font-medium transition-colors",
                     active
-                      ? "border-brand bg-brand-tint/40 text-brand-deep"
-                      : "border-border bg-card text-muted-foreground hover:border-brand/40",
+                      ? "bg-brand text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary hover:text-ink",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "flex size-3.5 items-center justify-center rounded-full border",
-                      active ? "border-brand" : "border-muted-foreground/40",
-                    )}
-                  >
-                    {active && <span className="size-1.5 rounded-full bg-brand" />}
-                  </span>
                   {t.label}
                 </button>
               );
@@ -534,7 +563,7 @@ export function PosTerminal() {
 
           {orderType === "table" && (
             <select
-              className={cn(SELECT_CLASS, "mt-3")}
+              className={cn(SELECT_CLASS, "mt-2")}
               value={tableId}
               onChange={(e) => setTableId(e.target.value)}
             >
@@ -621,7 +650,9 @@ export function PosTerminal() {
               ))}
             </ul>
           )}
+          </div>
         </div>
+        {/* end scrollable order body */}
 
         {/* Discount */}
         <div className="mt-3 flex items-stretch gap-2">

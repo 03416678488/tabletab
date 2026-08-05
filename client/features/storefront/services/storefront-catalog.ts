@@ -1,5 +1,27 @@
 import { httpClient } from "@/lib/httpClient";
-import type { MenuCategory, MenuItem } from "@/lib/types";
+import type { MenuCategory, MenuItem, MenuModifierGroup } from "@/lib/types";
+
+interface ApiOption {
+  name: string;
+  price: number;
+}
+
+/** Loose shape for API modifier groups — field names are normalised on read. */
+interface ApiModifierOption {
+  id?: string;
+  label?: string;
+  name?: string;
+  priceDelta?: number;
+  price?: number;
+}
+interface ApiModifierGroup {
+  id?: string;
+  label?: string;
+  name?: string;
+  required?: boolean;
+  multiple?: boolean;
+  options?: ApiModifierOption[];
+}
 
 interface ApiMenuItem {
   id: string;
@@ -7,9 +29,33 @@ interface ApiMenuItem {
   description: string | null;
   price: number;
   imageUrl: string | null;
+  images?: string[] | null;
   categoryId: string | null;
   isAvailable: boolean;
   foodTypes?: { name: string }[];
+  sizes?: ApiOption[] | null;
+  variants?: ApiOption[] | null;
+  addOns?: ApiOption[] | null;
+  // The backend doesn't model modifier groups yet (customisation is
+  // sizes/variants/add-ons). We accept either key so they flow through the day
+  // the API adds them — no further client change needed.
+  modifiers?: ApiModifierGroup[] | null;
+  modifierGroups?: ApiModifierGroup[] | null;
+}
+
+/** Normalise API modifier groups to the frontend `MenuModifierGroup` shape. */
+function toModifiers(raw?: ApiModifierGroup[] | null): MenuModifierGroup[] {
+  return (raw ?? []).map((g, gi) => ({
+    id: g.id ?? `mg-${gi}`,
+    label: g.label ?? g.name ?? "Options",
+    required: Boolean(g.required),
+    multiple: Boolean(g.multiple),
+    options: (g.options ?? []).map((o, oi) => ({
+      id: o.id ?? `mo-${gi}-${oi}`,
+      label: o.label ?? o.name ?? "",
+      priceDelta: o.priceDelta ?? o.price ?? 0,
+    })),
+  }));
 }
 
 interface ApiCategory {
@@ -31,9 +77,13 @@ function toMenuItem(i: ApiMenuItem): MenuItem {
     description: i.description ?? "",
     price: i.price,
     imageUrl: i.imageUrl ?? "",
+    images: (i.images ?? []).filter(Boolean),
     // Diet tags come from the item's food types (used by the menu filters).
     tags: (i.foodTypes ?? []).map((f) => f.name.toLowerCase()) as MenuItem["tags"],
-    modifiers: [],
+    modifiers: toModifiers(i.modifiers ?? i.modifierGroups),
+    sizes: i.sizes ?? [],
+    variants: i.variants ?? [],
+    addOns: i.addOns ?? [],
     isAvailable: i.isAvailable,
   };
 }

@@ -19,14 +19,14 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-  { id: "best-seller", title: "Best seller", image: unsplash("1568901346375-23c9450c58cd"), href: "/order" },
-  { id: "limited", title: "Limited time offer", image: unsplash("1517248135467-4c7edcad34c4"), href: "/order" },
-  { id: "chicken-burger", title: "Grilled Chicken Burger", image: unsplash("1598103442097-8b74394b95c6"), href: "/order", badge: "20% OFF" },
-  { id: "margherita", title: "Wood-fired Margherita", image: unsplash("1574071318508-1cdbab80d002"), href: "/order", badge: "15% OFF" },
-  { id: "chef", title: "Chef's special", image: unsplash("1600891964092-4316c288032e"), href: "/order" },
-  { id: "sweets", title: "Sweet endings", image: unsplash("1551024601-bec78aea704b"), href: "/order" },
-  { id: "family", title: "Family feast", image: unsplash("1504674900247-0877df9cc836"), href: "/order", badge: "Bundle" },
-  { id: "free-delivery", title: "Free delivery", image: unsplash("1526367790999-0150786686a2"), href: "/order" },
+  { id: "best-seller", title: "Best seller", image: unsplash("1568901346375-23c9450c58cd"), href: "/" },
+  { id: "limited", title: "Limited time offer", image: unsplash("1517248135467-4c7edcad34c4"), href: "/" },
+  { id: "chicken-burger", title: "Grilled Chicken Burger", image: unsplash("1598103442097-8b74394b95c6"), href: "/", badge: "20% OFF" },
+  { id: "margherita", title: "Wood-fired Margherita", image: unsplash("1574071318508-1cdbab80d002"), href: "/", badge: "15% OFF" },
+  { id: "chef", title: "Chef's special", image: unsplash("1600891964092-4316c288032e"), href: "/" },
+  { id: "sweets", title: "Sweet endings", image: unsplash("1551024601-bec78aea704b"), href: "/" },
+  { id: "family", title: "Family feast", image: unsplash("1504674900247-0877df9cc836"), href: "/", badge: "Bundle" },
+  { id: "free-delivery", title: "Free delivery", image: unsplash("1526367790999-0150786686a2"), href: "/" },
 ];
 
 /** Featured highlights — portrait cards, swipeable, with arrows + dot pagination. */

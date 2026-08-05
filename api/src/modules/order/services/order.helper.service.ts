@@ -42,12 +42,20 @@ export class OrderHelperService {
       customerName: dto.customerName ? trimSpaces(dto.customerName) : null,
       customerPhone: dto.customerPhone ?? null,
       customerAddress: dto.customerAddress ? trimSpaces(dto.customerAddress) : null,
+      customerLat: dto.customerLat ?? null,
+      customerLng: dto.customerLng ?? null,
+      paymentMethod: dto.paymentMethod ? trimSpaces(dto.paymentMethod) : null,
+      // Online is paid at checkout; POS/dine-in default unpaid unless the client
+      // says otherwise (e.g. POS "pay now").
+      paymentStatus: dto.paymentStatus ?? (dto.orderType === 'online' ? 'paid' : 'unpaid'),
       notes: dto.notes ? trimSpaces(dto.notes) : null,
       subtotal,
       tax,
       discount,
       deliveryFee,
       total,
+      promotionId: null,
+      promotionCode: null,
       items: items as OrderItem[],
     };
   }
@@ -59,6 +67,7 @@ export class OrderHelperService {
     if (query.status) where.status = query.status as Order['status'];
     if (query.tableId) where.tableId = query.tableId;
     if (query.branchId) where.branchId = query.branchId;
+    if (query.customerId) where.customerId = query.customerId;
     return where;
   }
 }

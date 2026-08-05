@@ -66,7 +66,7 @@ export default function ReserveBranchPage({
           title={error ?? "Unavailable"}
           action={
             <Button asChild>
-              <Link href="/order">Back to order options</Link>
+              <Link href="/">Back to order options</Link>
             </Button>
           }
         />

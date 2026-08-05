@@ -10,12 +10,25 @@ import {
   Query,
 } from '@nestjs/common';
 
+import { Public } from '@modules/auth/guards/public/public.decorator';
+
 import { QrCodeService } from './qr-code.service';
 import { CreateQrCodeDto, UpdateQrCodeDto, GetQrCodeQueryDto } from './dto';
 
 @Controller('qr-codes')
 export class QrCodeController {
   constructor(private readonly _qrCodeService: QrCodeService) {}
+
+  /**
+   * Public — a customer scans `/t/{slug}`; the storefront resolves it here to the
+   * table + branch to start a dine-in session. Declared before `:id` so the
+   * static `resolve` segment isn't captured as an id.
+   */
+  @Public()
+  @Get('resolve/:slug')
+  resolve(@Param('slug') slug: string) {
+    return this._qrCodeService.resolveBySlug(slug);
+  }
 
   @Get()
   getAll(@Query() query: GetQrCodeQueryDto) {

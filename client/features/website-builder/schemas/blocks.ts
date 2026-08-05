@@ -15,6 +15,9 @@ export const BLOCK_TYPES = [
   "featured-categories",
   "product-carousel",
   "rich-cta",
+  "rich-text",
+  "reservation",
+  "menu-slider",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -61,6 +64,8 @@ export const imageSliderConfigSchema = z.object({
   autoplaySeconds: z.coerce.number().min(1).max(30).default(4),
   /** How many slides are visible at once. */
   perView: z.coerce.number().int().min(1).max(4).default(1),
+  /** Show the prev/next navigation arrows. */
+  showArrows: z.boolean().default(true),
   images: z.array(sliderImageSchema).min(1, "Add at least one image"),
 });
 
@@ -95,6 +100,8 @@ export const bannerSliderConfigSchema = z.object({
   autoplaySeconds: z.coerce.number().min(1).max(30).default(4),
   /** How many slides are visible at once on the slider side. */
   perView: z.coerce.number().int().min(1).max(4).default(1),
+  /** Show the prev/next navigation arrows on the slider side. */
+  showArrows: z.boolean().default(true),
   images: z.array(sliderImageSchema).min(1, "Add at least one image"),
 });
 
@@ -109,6 +116,20 @@ export const menuGridConfigSchema = z.object({
   /** Max dishes shown per menu. */
   limit: z.coerce.number().int().min(1).max(24).default(8),
   showViewAll: z.boolean().default(true),
+  /** Show the prev/next navigation arrows (slider layout only). */
+  showArrows: z.boolean().default(true),
+});
+
+/**
+ * A slider of menu *cards* (image + name) — one card per menu, not expanded
+ * into dishes. Empty `menuIds` = every active menu, live from the catalog.
+ */
+export const menuSliderConfigSchema = z.object({
+  title: z.string().default("Explore our menus"),
+  /** Which menus to show, in order. Empty = every active menu. */
+  menuIds: z.array(z.string()).default([]),
+  /** Show the prev/next navigation arrows. */
+  showArrows: z.boolean().default(true),
 });
 
 export const featuredCategoriesConfigSchema = z.object({
@@ -118,6 +139,8 @@ export const featuredCategoriesConfigSchema = z.object({
   layout: z.enum(["grid", "slider"]).default("slider"),
   limit: z.coerce.number().int().min(1).max(24).default(8),
   showViewAll: z.boolean().default(true),
+  /** Show the prev/next navigation arrows (slider layout only). */
+  showArrows: z.boolean().default(true),
 });
 
 export const productCarouselConfigSchema = z.object({
@@ -126,6 +149,8 @@ export const productCarouselConfigSchema = z.object({
   itemIds: z.array(z.string()).default([]),
   layout: z.enum(["grid", "slider"]).default("slider"),
   limit: z.coerce.number().int().min(1).max(24).default(8),
+  /** Show the prev/next navigation arrows (slider layout only). */
+  showArrows: z.boolean().default(true),
 });
 
 export const richCtaConfigSchema = z.object({
@@ -134,6 +159,30 @@ export const richCtaConfigSchema = z.object({
   ctaLabel: z.string().default(""),
   ctaHref: z.string().default(""),
   tone: z.enum(["brand", "dark", "light"]).default("brand"),
+});
+
+/**
+ * Free-form rich content authored in the builder's WYSIWYG editor. `html` is a
+ * trusted HTML string produced by that editor (staff-only) and rendered inside
+ * a scoped `.rich-text` prose style.
+ */
+export const richTextConfigSchema = z.object({
+  html: z.string().default(""),
+  /** Readable narrow column vs. full content width. */
+  width: z.enum(["prose", "wide"]).default("prose"),
+  align: z.enum(["left", "center"]).default("left"),
+});
+
+/**
+ * A "reserve a table" widget. The branch list and per-branch availability come
+ * live from settings (branches with reservations enabled), so this block only
+ * stores presentation copy — never a hardcoded branch.
+ */
+export const reservationConfigSchema = z.object({
+  title: z.string().default("Reserve a table"),
+  subtitle: z.string().default("Pick a location and book your table in a few taps."),
+  buttonLabel: z.string().default("Find a table"),
+  tone: z.enum(["brand", "dark", "light"]).default("light"),
 });
 
 /** Map of block type → its config schema. */
@@ -146,6 +195,9 @@ export const BLOCK_CONFIG_SCHEMAS = {
   "featured-categories": featuredCategoriesConfigSchema,
   "product-carousel": productCarouselConfigSchema,
   "rich-cta": richCtaConfigSchema,
+  "rich-text": richTextConfigSchema,
+  reservation: reservationConfigSchema,
+  "menu-slider": menuSliderConfigSchema,
 } satisfies Record<BlockType, z.ZodTypeAny>;
 
 // ── Block instance + page content ─────────────────────────────────────────
@@ -166,7 +218,7 @@ export const headerConfigSchema = z.object({
   showSearch: z.boolean().default(true),
   showLocation: z.boolean().default(true),
   ctaLabel: z.string().default("Order now"),
-  ctaHref: z.string().default("/order"),
+  ctaHref: z.string().default("/"),
   links: z
     .array(z.object({ label: z.string(), href: z.string() }))
     .default([]),
@@ -225,9 +277,12 @@ export type PromoBanner = z.infer<typeof promoBannerSchema>;
 export type PromoConfig = z.infer<typeof promoConfigSchema>;
 export type BannerSliderConfig = z.infer<typeof bannerSliderConfigSchema>;
 export type MenuGridConfig = z.infer<typeof menuGridConfigSchema>;
+export type MenuSliderConfig = z.infer<typeof menuSliderConfigSchema>;
 export type FeaturedCategoriesConfig = z.infer<typeof featuredCategoriesConfigSchema>;
 export type ProductCarouselConfig = z.infer<typeof productCarouselConfigSchema>;
 export type RichCtaConfig = z.infer<typeof richCtaConfigSchema>;
+export type RichTextConfig = z.infer<typeof richTextConfigSchema>;
+export type ReservationConfig = z.infer<typeof reservationConfigSchema>;
 
 export type Block = z.infer<typeof blockSchema>;
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;

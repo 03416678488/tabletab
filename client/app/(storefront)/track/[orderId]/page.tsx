@@ -1,22 +1,25 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   CalendarClock,
   Clock,
+  CreditCard,
   MapPin,
   MessageSquare,
   Package,
   Store,
   Timer,
   User,
+  UtensilsCrossed,
 } from "lucide-react";
 import { OrderTimeline } from "@/features/order/components/order-timeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { OrderStatusPill } from "@/components/ui/status-pill";
+import { OrderStatusPill, StatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   fetchStorefrontOrder,
@@ -25,6 +28,12 @@ import {
 import { useOrderStream } from "@/hooks/use-order-stream";
 import type { Order } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
+
+// Read-only delivery-address map (Leaflet → client-only).
+const AddressMap = dynamic(() => import("@/features/storefront/components/address-map"), {
+  ssr: false,
+  loading: () => <div className="h-40 w-full animate-pulse rounded-xl bg-secondary" />,
+});
 
 // Safety-net reconcile poll — SSE delivers updates instantly; this only catches
 // anything missed during a reconnect (and refreshes items/totals if they change).
@@ -99,7 +108,7 @@ export default function TrackOrderPage({
           title={error ?? "Order not found"}
           action={
             <Button asChild variant="outline">
-              <Link href="/order">Place a new order</Link>
+              <Link href="/">Place a new order</Link>
             </Button>
           }
         />
@@ -110,11 +119,20 @@ export default function TrackOrderPage({
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6">
       <div className="mb-8 text-center">
-        <OrderStatusPill status={order.status} className="mb-3" />
+        <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+          <OrderStatusPill status={order.status} />
+          <StatusPill tone={order.paymentStatus === "paid" ? "green" : "amber"}>
+            {order.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+          </StatusPill>
+        </div>
         <h1 className="font-display text-2xl font-bold text-ink">Order {order.reference}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"} ·{" "}
-          {formatCurrency(order.total)}
+          {order.isDineIn
+            ? `Dine-in${order.tableName ? ` · Table ${order.tableName}` : ""}`
+            : order.fulfillmentType === "delivery"
+              ? "Delivery"
+              : "Pickup"}{" "}
+          · {formatCurrency(order.total)}
         </p>
       </div>
 
@@ -132,7 +150,17 @@ export default function TrackOrderPage({
           )}
 
           <div className={cn("flex items-start gap-3", order.branchName && "border-t border-border pt-3")}>
-            {order.fulfillmentType === "delivery" ? (
+            {order.isDineIn ? (
+              <>
+                <UtensilsCrossed className="mt-0.5 size-5 shrink-0 text-brand" />
+                <div>
+                  <p className="text-sm font-semibold text-ink">Dine-in</p>
+                  <p className="text-sm text-muted-foreground">
+                    {order.tableName ? `Table ${order.tableName} · served to your table` : "Served to your table"}
+                  </p>
+                </div>
+              </>
+            ) : order.fulfillmentType === "delivery" ? (
               <>
                 <MapPin className="mt-0.5 size-5 shrink-0 text-brand" />
                 <div>
@@ -154,6 +182,13 @@ export default function TrackOrderPage({
               </>
             )}
           </div>
+
+          {/* Map of the delivery location, when the address was pinned. */}
+          {order.fulfillmentType === "delivery" &&
+            typeof order.deliveryLat === "number" &&
+            typeof order.deliveryLng === "number" && (
+              <AddressMap lat={order.deliveryLat} lng={order.deliveryLng} />
+            )}
 
           {order.fulfillmentType === "delivery" && (
             <div className="flex items-start gap-3 border-t border-border pt-3">
@@ -183,6 +218,16 @@ export default function TrackOrderPage({
                 <p className="text-sm text-muted-foreground">
                   {[order.customerName, order.customerPhone].filter(Boolean).join(" · ")}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {order.paymentMethod && (
+            <div className="flex items-start gap-3 border-t border-border pt-3">
+              <CreditCard className="mt-0.5 size-5 shrink-0 text-brand" />
+              <div>
+                <p className="text-sm font-semibold text-ink">Payment</p>
+                <p className="text-sm text-muted-foreground">{order.paymentMethod}</p>
               </div>
             </div>
           )}
@@ -257,7 +302,7 @@ export default function TrackOrderPage({
 
       <div className="mt-6 flex justify-center gap-3">
         <Button asChild variant="outline">
-          <Link href="/order">Order again</Link>
+          <Link href="/">Order again</Link>
         </Button>
         <Button asChild>
           <Link href="/account">View history</Link>

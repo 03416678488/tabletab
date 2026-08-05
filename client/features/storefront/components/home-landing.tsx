@@ -499,7 +499,7 @@ export function HomeLanding({
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h2 className="font-display text-lg font-bold text-ink">{category.name}</h2>
                     <Link
-                      href="/order"
+                      href="/"
                       className="inline-flex items-center gap-0.5 text-sm font-medium text-brand hover:underline"
                     >
                       See all <ChevronRight className="size-4" />
