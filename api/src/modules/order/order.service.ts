@@ -16,6 +16,7 @@ import { OrderValidatorService } from './services/order-validator.service';
 import { OrderHelperService } from './services/order.helper.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
 import { RealtimeService } from '@modules/realtime/realtime.service';
+import { NotificationService } from '@modules/notification/notification.service';
 import { PromotionService } from '@modules/promotion/promotion.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -56,6 +57,7 @@ export class OrderService extends AbstractService<Order> {
     private readonly _helper: OrderHelperService,
     private readonly _realtime: RealtimeService,
     private readonly _promotions: PromotionService,
+    private readonly _notifications: NotificationService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -85,6 +87,50 @@ export class OrderService extends AbstractService<Order> {
       this._realtime.publish(tablesChannel(this._req.tenant?.id), 'tables.changed', {
         tableId: order.tableId,
       });
+    }
+  }
+
+  /**
+   * Fan a bell notification out to the relevant staff roles (best-effort — a
+   * notification failure must never break the order flow). Phase 1: new orders
+   * and ready-to-serve; targeting is by role (branch scoping comes later).
+   */
+  private async notify(order: Order, kind: 'placed' | 'ready'): Promise<void> {
+    const where = order.table?.name ?? order.customerName ?? order.orderType;
+    const summary = `${order.items?.length ?? 0} item${order.items?.length === 1 ? '' : 's'} · ${where}`;
+    try {
+      const data = {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        orderType: order.orderType,
+        status: order.status,
+      };
+      if (kind === 'placed') {
+        await this._notifications.notifyRoles(
+          ['Owner', 'Multi Branch Manager', 'Branch Manager', 'Chef', 'Waiter'],
+          {
+            category: 'orders',
+            type: 'order.placed',
+            title: `New order ${order.orderNumber}`,
+            body: summary,
+            data,
+            priority: 'normal',
+            branchId: order.branchId ?? null,
+          },
+        );
+      } else {
+        await this._notifications.notifyRoles(['Waiter', 'Delivery Rider'], {
+          category: 'orders',
+          type: 'order.ready',
+          title: `Order ${order.orderNumber} is ready`,
+          body: summary,
+          data,
+          priority: 'high',
+          branchId: order.branchId ?? null,
+        });
+      }
+    } catch (err) {
+      console.warn('[notify] order notification failed', (err as Error).message);
     }
   }
 
@@ -154,6 +200,7 @@ export class OrderService extends AbstractService<Order> {
     const order = await this.getById(saved.id);
     this.emitOrder(order, 'order.created');
     this.emitBoard(order);
+    await this.notify(order, 'placed');
     return order;
   }
 
@@ -208,6 +255,10 @@ export class OrderService extends AbstractService<Order> {
     if (dto.status !== undefined) {
       this.emitOrder(order, 'order.updated');
       this.emitBoard(order);
+      // Only fire the "ready" nudge when the status actually transitions to ready.
+      if (order.status === 'ready' && existing.status !== 'ready') {
+        await this.notify(order, 'ready');
+      }
     }
     return order;
   }

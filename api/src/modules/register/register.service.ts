@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 
 import { ErrorProvider } from '@modules/common/error/error.provider';
 import { Transaction } from '@modules/transaction/entities/transaction.entity';
+import { NotificationService } from '@modules/notification/notification.service';
 
 import { RegisterSession } from './entities/register-session.entity';
 import { CashMovementDto, CloseRegisterDto, OpenRegisterDto } from './dto/register.dto';
@@ -31,7 +32,25 @@ export class RegisterService {
     @InjectRepository(Transaction)
     private readonly _txnRepo: Repository<Transaction>,
     private readonly _errors: ErrorProvider,
+    private readonly _notifications: NotificationService,
   ) {}
+
+  /** Notify managers of a register open/close (best-effort). */
+  private async notifyRegister(
+    type: 'register.opened' | 'register.closed',
+    title: string,
+    body: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await this._notifications.notifyRoles(
+        ['Owner', 'Multi Branch Manager', 'Branch Manager'],
+        { category: 'register', type, title, body, data, priority: 'normal' },
+      );
+    } catch (err) {
+      console.warn('[notify] register notification failed', (err as Error).message);
+    }
+  }
 
   private getOpenSession(): Promise<RegisterSession | null> {
     return this._repo.findOne({
@@ -101,7 +120,7 @@ export class RegisterService {
       this._errors.add('register', 'A register session is already open');
       this._errors.throwConflictErrorIfExists();
     }
-    return this._repo.save(
+    const opened = await this._repo.save(
       this._repo.create({
         status: 'open',
         openingBalance: round2(dto.openingBalance),
@@ -109,6 +128,13 @@ export class RegisterService {
         openedBy: userId ?? null,
       }),
     );
+    await this.notifyRegister(
+      'register.opened',
+      'Register opened',
+      `Opening balance ${opened.openingBalance}`,
+      { sessionId: opened.id },
+    );
+    return opened;
   }
 
   async close(
@@ -129,6 +155,12 @@ export class RegisterService {
     if (dto.note) session.note = dto.note;
     void userId;
     const saved = await this._repo.save(session);
+    await this.notifyRegister(
+      'register.closed',
+      'Register closed',
+      `Variance ${saved.variance ?? 0}`,
+      { sessionId: saved.id },
+    );
     return { session: saved, summary };
   }
 

@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Area } from '../entities/area.entity';
 import { CreateAreaDto, UpdateAreaDto, GetAreaQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 @Injectable()
 export class AreaHelperService {
@@ -20,7 +21,7 @@ export class AreaHelperService {
 
   resolveListFilters(query: GetAreaQueryDto): FindOptionsWhere<Area> {
     const where: FindOptionsWhere<Area> = {};
-    if (query.search) where.name = ILike(`%${trimSpaces(query.search)}%`);
+    if (query.search) where.name = toILikeContains(trimSpaces(query.search));
     return where;
   }
 }

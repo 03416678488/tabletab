@@ -6,9 +6,10 @@ import { Transaction } from '@modules/transaction/entities/transaction.entity';
 import { RegisterController } from './register.controller';
 import { RegisterService } from './register.service';
 import { ErrorModule } from '@modules/common/error/error.module';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RegisterSession, Transaction]), ErrorModule],
+  imports: [TypeOrmModule.forFeature([RegisterSession, Transaction]), ErrorModule, NotificationModule],
   controllers: [RegisterController],
   providers: [RegisterService],
   exports: [RegisterService, TypeOrmModule],

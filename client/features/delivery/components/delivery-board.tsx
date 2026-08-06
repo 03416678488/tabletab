@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bike, MapPin, Navigation, Package, Phone, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/httpClient";
 import { cn, formatCurrency } from "@/lib/utils";
 import { orderService } from "@/features/order/services/order.service";
 import { useDeliveryQueue } from "@/features/delivery/hooks/use-delivery-queue";
+import { markCategoryReadLive } from "@/features/notifications/lib/notifications-client";
 import type { Order, OrderStatus } from "@/features/order/types/order.types";
 
 /** The rider's active work queue: ready to pick up → out for delivery. */
@@ -20,6 +21,8 @@ export function DeliveryBoard() {
   const { ready, outForDelivery, loading, refetch } = useDeliveryQueue();
   const [busyId, setBusyId] = useState<string | null>(null);
   const inFlight = useRef<Set<string>>(new Set());
+  // Opening the rider queue consumes the order notifications (auto-read).
+  useEffect(() => void markCategoryReadLive("orders"), []);
 
   const move = async (order: Order, next: OrderStatus) => {
     if (inFlight.current.has(order.id)) return;

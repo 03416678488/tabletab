@@ -1,11 +1,12 @@
 import { randomBytes } from 'crypto';
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { QrCode } from '../entities/qr-code.entity';
 import { CreateQrCodeDto, UpdateQrCodeDto, GetQrCodeQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /** Pure resolver helpers — token generation, defaults and query building. */
 @Injectable()
@@ -32,7 +33,7 @@ export class QrCodeHelperService {
 
   resolveListFilters(query: GetQrCodeQueryDto): FindOptionsWhere<QrCode> {
     const where: FindOptionsWhere<QrCode> = {};
-    if (query.search) where.slug = ILike(`%${trimSpaces(query.search)}%`);
+    if (query.search) where.slug = toILikeContains(trimSpaces(query.search));
     if (query.tableId) where.tableId = query.tableId;
     if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
 

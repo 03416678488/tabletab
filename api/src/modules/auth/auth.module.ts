@@ -13,6 +13,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '@modules/mail/mail.module';
 import { RateLimitService } from './services/rate-limit.service';
+import { RefreshTokenStoreService } from './services/refresh-token-store.service';
 import { User } from '@modules/user/entities/users.entity';
 import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
 import { RolePermission } from '@modules/role-permission/entities/role-permission.entity';
@@ -39,7 +40,14 @@ import jwtConfig from './config/jwt.config';
     MailModule,
   ],
   controllers: [AuthController],
-  providers: [RateLimitService, AuthService, LocalStrategy, JwtStrategy, RefreshStrategy],
+  providers: [
+    RateLimitService,
+    RefreshTokenStoreService,
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    RefreshStrategy,
+  ],
   // RateLimitService is exported so other modules (e.g. customer auth) can use
   // the @RateLimit decorator, whose interceptor injects it.
   exports: [PassportModule, AuthService, JwtStrategy, RateLimitService],

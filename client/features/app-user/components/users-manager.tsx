@@ -5,6 +5,7 @@ import { Search, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dropdown } from "@/components/ui/dropdown";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -18,9 +19,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/hooks/use-toast";
 
 import { useUsers } from "@/features/app-user/hooks/use-users";
+import { appUserService } from "@/features/app-user/services/app-user.service";
+import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useClientPagination } from "@/hooks/use-client-pagination";
+
+/** Roles that span all branches — branch assignment doesn't apply to them. */
+const CROSS_BRANCH_ROLES = new Set(["Owner", "Multi Branch Manager"]);
 
 interface UsersManagerProps {
   /** Role name as stored in the DB (e.g. "Waiters"). Omit for all users. */
@@ -31,7 +38,28 @@ interface UsersManagerProps {
 
 export function UsersManager({ roleName, title, description }: UsersManagerProps) {
   const { users, loading, error, refetch } = useUsers(roleName);
+  const { branches } = useBranches();
   const [search, setSearch] = useState("");
+
+  // Branch assignment only makes sense for branch-scoped roles.
+  const showBranch = !roleName || !CROSS_BRANCH_ROLES.has(roleName);
+  // Optimistic branch selections keyed by userId (before the refetch settles).
+  const [branchEdits, setBranchEdits] = useState<Record<string, string | null>>({});
+
+  const assignBranch = async (userId: string, value: string) => {
+    const branchId = value || null;
+    setBranchEdits((prev) => ({ ...prev, [userId]: branchId }));
+    try {
+      await appUserService.setBranch(userId, branchId);
+    } catch {
+      setBranchEdits((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+      toast("Couldn't update branch", { tone: "error" });
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -107,6 +135,7 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Role</TableHead>
+                {showBranch && <TableHead>Branch</TableHead>}
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -128,6 +157,21 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
                   <TableCell>
                     <StatusPill tone="blue">{u.roleName ?? "—"}</StatusPill>
                   </TableCell>
+                  {showBranch && (
+                    <TableCell>
+                      <Dropdown
+                        className="w-44"
+                        aria-label={`Branch for ${u.firstName} ${u.lastName}`}
+                        value={(u.id in branchEdits ? branchEdits[u.id] : u.branchId) ?? ""}
+                        onChange={(v) => void assignBranch(u.id, v)}
+                        searchable={branches.length > 8}
+                        options={[
+                          { value: "", label: "All branches" },
+                          ...branches.map((b) => ({ value: b.id, label: b.name })),
+                        ]}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <StatusPill tone={u.isActive ? "green" : "neutral"}>
                       {u.isActive ? "Active" : "Inactive"}

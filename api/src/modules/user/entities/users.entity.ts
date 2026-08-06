@@ -43,6 +43,10 @@ export class User extends AbstractEntity {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  /** Home branch. NULL = not scoped to a branch (sees all branches' events). */
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
+
   @Column({ type: 'boolean', default: false })
   isDeleted: boolean;
 

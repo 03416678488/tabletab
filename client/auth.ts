@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import {
   AuthRequestError,
   login,
+  logout,
   refresh,
 } from "@/features/auth/services/auth.service";
 import { AUTH_ROUTES } from "@/features/auth/constants/auth.constants";
@@ -51,6 +52,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+  events: {
+    /** Revoke the refresh session server-side so the tokens die with the cookie. */
+    async signOut(message) {
+      const token = "token" in message ? message.token : undefined;
+      if (token?.refreshToken) {
+        try {
+          await logout(token.refreshToken);
+        } catch {
+          // Best-effort: the session cookie is cleared regardless, and the
+          // server-side family expires on its own TTL.
+        }
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       // 1) Initial sign-in: seed the token from the authorize() result.

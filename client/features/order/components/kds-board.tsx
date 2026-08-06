@@ -13,6 +13,7 @@ import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { useNewArrivals } from "@/features/order/hooks/use-new-arrivals";
 import { SoundToggle } from "@/features/order/components/sound-toggle";
 import { playNewOrderChime, primeChime } from "@/features/order/lib/chime";
+import { markCategoryReadLive } from "@/features/notifications/lib/notifications-client";
 import { orderService } from "@/features/order/services/order.service";
 import {
   ORDER_STATUS_META,
@@ -87,6 +88,8 @@ export function KdsBoard() {
   const now = useNow();
   const orderIds = useMemo(() => orders.map((o) => o.id), [orders]);
   useEffect(() => primeChime(), []);
+  // Viewing the kitchen board consumes the order notifications (auto-read).
+  useEffect(() => void markCategoryReadLive("orders"), []);
   const newIds = useNewArrivals(orderIds, {
     ready: !loading,
     onArrive: () => playNewOrderChime(),

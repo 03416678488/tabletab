@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcryptjs';
-import { randomInt } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigType } from '@nestjs/config';
 import {
@@ -23,7 +23,8 @@ import {
   RegistrationResponse,
 } from './types/types';
 
-import { AuthJwtPayload } from './types/auth-jwtPayload';
+import { AuthJwtPayload, RefreshSessionClaims, TenantClaim } from './types/auth-jwtPayload';
+import { RefreshTokenStoreService } from './services/refresh-token-store.service';
 import refreshJwtConfig from './config/refresh-jwt.config';
 import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
 import { User } from '@modules/user/entities/users.entity';
@@ -60,6 +61,7 @@ export class AuthService {
     private readonly _configService: ConfigService,
     private readonly _registry: TenantRegistryService,
     private readonly _connections: TenantConnectionService,
+    private readonly _refreshSessions: RefreshTokenStoreService,
   ) {}
 
   /**
@@ -145,7 +147,18 @@ export class AuthService {
     // Bind the token to the tenant the login request resolved to (from Host /
     // headers, set by the tenant middleware). Tenant-less logins stay global.
     const payload = this.buildJwtPayload(user, tenant ?? null);
-    const tokens = this.generateTokens(payload);
+
+    // Each login opens a new refresh-session family, tracked server-side so
+    // rotation can detect replayed (stolen) refresh tokens.
+    const session: RefreshSessionClaims = { sid: randomUUID(), jti: randomUUID() };
+    const tokens = this.generateTokens(payload, session);
+    await this._refreshSessions.create(
+      tenant ?? null,
+      user.id,
+      session.sid,
+      session.jti,
+      this.refreshTtlSeconds(),
+    );
 
     return {
       ...user,
@@ -187,9 +200,16 @@ export class AuthService {
 
   async refreshToken(
     userId: string,
-    tenant?: { id: string; slug: string } | null,
-    dataSource?: DataSource,
+    tenant: TenantClaim | null | undefined,
+    dataSource: DataSource | undefined,
+    session: { sid?: string; jti?: string; iat?: number },
   ): Promise<RefreshTokenResponse> {
+    // Tokens minted before rotation support (no sid/jti) can't be validated
+    // against the session store — their holders must log in again.
+    if (!session.sid || !session.jti) {
+      throw new UnauthorizedException('Session expired — please sign in again');
+    }
+
     // Look the user up in the same tenant DB the refresh token is bound to.
     const user = await this._userService.findOneWithRoles(
       userId,
@@ -208,6 +228,31 @@ export class AuthService {
       throw new UnauthorizedException(AUTH_MESSAGES.USER_DELETED);
     }
 
+    // Refresh tokens issued before the last password change are dead too.
+    if (
+      user.passwordChangedAt &&
+      session.iat &&
+      session.iat * 1000 < user.passwordChangedAt.getTime() - 1000
+    ) {
+      await this._refreshSessions.revoke(tenant ?? null, userId, session.sid);
+      throw new UnauthorizedException('Session expired — please sign in again');
+    }
+
+    // Rotate: the presented jti must be the family's current one. A stale jti
+    // means the token was already spent — replay/theft — and kills the family.
+    const nextJti = randomUUID();
+    const { result, currentJti } = await this._refreshSessions.rotate(
+      tenant ?? null,
+      userId,
+      session.sid,
+      session.jti,
+      nextJti,
+      this.refreshTtlSeconds(),
+    );
+    if (result === 'missing' || result === 'reused') {
+      throw new UnauthorizedException('Session expired — please sign in again');
+    }
+
     // Carry the tenant binding forward so refreshed tokens stay bound.
     const payload = this.buildJwtPayload(
       {
@@ -221,9 +266,21 @@ export class AuthService {
 
     return {
       tokens: {
-        ...this.generateTokens(payload),
+        ...this.generateTokens(payload, { sid: session.sid, jti: currentJti ?? nextJti }),
       },
     };
+  }
+
+  /** Revoke the refresh-session family carried by the presented refresh token. */
+  async logout(
+    userId: string,
+    tenant: TenantClaim | null | undefined,
+    sid?: string,
+  ): Promise<{ message: string }> {
+    if (sid) {
+      await this._refreshSessions.revoke(tenant ?? null, userId, sid);
+    }
+    return { message: 'Logged out' };
   }
 
   async requestPasswordResetCode(
@@ -516,7 +573,7 @@ export class AuthService {
     };
   }
 
-  private generateTokens(payload: AuthJwtPayload) {
+  private generateTokens(payload: AuthJwtPayload, session: RefreshSessionClaims) {
     const now = new Date();
     const jwtExpiresIn = this._configService.get<string>('JWT_EXPIRES_IN', '15m');
     // Report the same expiry the refresh token is actually signed with.
@@ -528,10 +585,19 @@ export class AuthService {
     );
     return {
       token: this._jwtService.sign(payload),
-      refreshToken: this._jwtService.sign(payload, this._refreshTokenConfig),
+      // Only the refresh token carries the session claims — the access token
+      // must not be usable to rotate the session.
+      refreshToken: this._jwtService.sign(
+        { ...payload, sid: session.sid, jti: session.jti },
+        this._refreshTokenConfig,
+      ),
       tokenExpiresAt: tokenExpiresAt,
       refreshTokenExpiresAt: refreshTokenExpiresAt,
     };
+  }
+
+  private refreshTtlSeconds(): number {
+    return Math.floor(this.parseDurationToMs(this._refreshTokenConfig.expiresIn) / 1000);
   }
 
   private parseDurationToMs(duration: string): number {

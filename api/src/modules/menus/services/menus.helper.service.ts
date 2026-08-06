@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Menu } from '../entities/menu.entity';
 import { CreateMenuDto, UpdateMenuDto, GetMenuQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /** Pure resolver helpers — normalization, defaults and query building. */
 @Injectable()
@@ -29,7 +30,7 @@ export class MenusHelperService {
 
   resolveListFilters(query: GetMenuQueryDto): FindOptionsWhere<Menu> {
     const where: FindOptionsWhere<Menu> = {};
-    if (query.search) where.name = ILike(`%${trimSpaces(query.search)}%`);
+    if (query.search) where.name = toILikeContains(trimSpaces(query.search));
     if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
     return where;
   }

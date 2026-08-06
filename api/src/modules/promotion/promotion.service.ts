@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, ILike, Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
@@ -10,6 +10,7 @@ import { Promotion } from './entities/promotion.entity';
 import { PromotionRedemption } from './entities/promotion-redemption.entity';
 import { PromotionHelperService } from './services/promotion.helper.service';
 import { PromotionValidatorService } from './services/promotion.validator.service';
+import { toILikeContains } from '@cor/helpers/query.helper';
 import {
   CreatePromotionDto,
   GetPromotionQueryDto,
@@ -43,7 +44,7 @@ export class PromotionService extends AbstractService<Promotion> {
   getAll(query: GetPromotionQueryDto): Promise<Paginated<Promotion>> {
     const where: FindOptionsWhere<Promotion> = {};
     if (query.active !== undefined) where.active = query.active === 'true';
-    if (query.search) where.title = ILike(`%${query.search}%`);
+    if (query.search) where.title = toILikeContains(query.search);
     return this.pagination.paginationQuery(query, this.repository, where, undefined, undefined, {
       createdAt: 'DESC',
     });

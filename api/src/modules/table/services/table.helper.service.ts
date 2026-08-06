@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Table } from '../entities/table.entity';
 import { CreateTableDto, UpdateTableDto, GetTableQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /** Pure resolver helpers — normalization, defaults and query building. */
 @Injectable()
@@ -34,7 +35,7 @@ export class TableHelperService {
 
     const term = trimSpaces(query.search ?? '');
     if (term) {
-      const like = ILike(`%${term}%`);
+      const like = toILikeContains(term);
       return [
         { ...base, name: like },
         { ...base, area: { name: like } },

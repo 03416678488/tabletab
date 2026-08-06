@@ -33,7 +33,7 @@ import { analyticsService } from "@/features/admin/services/analytics.service";
 import { formatSlotLabel } from "@/lib/reservation-utils";
 import type { AnalyticsPeriod, OwnerAnalytics, Reservation, ReservationTask } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
-import { TENANT } from "@/lib/mock";
+import { useSettings } from "@/features/app-settings/components/settings-provider";
 
 const PERIODS: { id: AnalyticsPeriod; label: string }[] = [
   { id: "day", label: "Day" },
@@ -42,6 +42,8 @@ const PERIODS: { id: AnalyticsPeriod; label: string }[] = [
 ];
 
 export function AdminDashboard() {
+  const { get } = useSettings();
+  const brandName = get("company", "name") || "Your restaurant";
   const [period, setPeriod] = useState<AnalyticsPeriod>("day");
   const [data, setData] = useState<OwnerAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,7 +113,7 @@ export function AdminDashboard() {
           <div>
             <StatusPill tone="neutral" className="mb-3 border-white/20 bg-white/10 text-white">
               <Sparkles className="size-3" />
-              {TENANT.name} analytics
+              {brandName} analytics
             </StatusPill>
             <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
               Performance at a glance

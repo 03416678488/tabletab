@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Branch } from '../entities/branch.entity';
 import { CreateBranchDto, UpdateBranchDto, GetBranchQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /**
  * Pure "resolver" helpers for the branch module — normalization, defaults and
@@ -42,12 +43,12 @@ export class BranchHelperService {
   ): FindOptionsWhere<Branch> | FindOptionsWhere<Branch>[] {
     const base: FindOptionsWhere<Branch> = {};
 
-    if (query.city) base.city = ILike(`%${trimSpaces(query.city)}%`);
+    if (query.city) base.city = toILikeContains(trimSpaces(query.city));
     if (query.isOpen !== undefined) base.isOpen = query.isOpen === 'true';
 
     const term = trimSpaces(query.search ?? query.name ?? '');
     if (term) {
-      const like = ILike(`%${term}%`);
+      const like = toILikeContains(term);
       return [
         { ...base, name: like },
         { ...base, address: like },

@@ -11,4 +11,10 @@ export const appUserService = {
       })
       .then((res) => res.data);
   },
+
+  setBranch(id: string, branchId: string | null) {
+    return httpClient
+      .patch<{ success: true }>(`/user/${id}/branch`, { branchId }, { auth: true })
+      .then((res) => res.data);
+  },
 };

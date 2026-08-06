@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Category } from '../entities/category.entity';
 import { CreateCategoryDto, UpdateCategoryDto, GetCategoryQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /**
  * Pure resolver helpers for the category module — normalization, defaults and
@@ -32,7 +33,7 @@ export class CategoryHelperService {
 
   resolveListFilters(query: GetCategoryQueryDto): FindOptionsWhere<Category> {
     const where: FindOptionsWhere<Category> = {};
-    if (query.search) where.name = ILike(`%${trimSpaces(query.search)}%`);
+    if (query.search) where.name = toILikeContains(trimSpaces(query.search));
     if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
     return where;
   }

@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
 import { CreateReservationDto, GetReservationQueryDto, UpdateReservationDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /** Pure resolver helpers — payload shaping + query building. */
 @Injectable()
@@ -49,7 +50,7 @@ export class ReservationHelperService {
     if (query.branchId) where.branchId = query.branchId;
     if (query.date) where.date = query.date;
     if (query.status) where.status = query.status as ReservationStatus;
-    if (query.search) where.guestName = ILike(`%${trimSpaces(query.search)}%`);
+    if (query.search) where.guestName = toILikeContains(trimSpaces(query.search));
     return where;
   }
 }

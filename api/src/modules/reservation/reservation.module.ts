@@ -13,12 +13,14 @@ import { ReservationHelperService } from './services/reservation.helper.service'
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
 import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Reservation, Branch, Table]),
     PaginationModule,
     ErrorModule,
+    NotificationModule,
   ],
   controllers: [ReservationController],
   providers: [

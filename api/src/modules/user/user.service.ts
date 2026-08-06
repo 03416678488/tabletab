@@ -142,6 +142,7 @@ export class UserService extends AbstractService<User> {
       phone: string | null;
       isActive: boolean;
       roleName: string | null;
+      branchId: string | null;
       createdAt: Date;
     }[]
   > {
@@ -157,6 +158,7 @@ export class UserService extends AbstractService<User> {
         'u.email AS email',
         'u.phoneNumber AS phone',
         'u.isActive AS "isActive"',
+        'u.branchId AS "branchId"',
         'u.createdAt AS "createdAt"',
         'r.name AS "roleName"',
       ])
@@ -172,6 +174,12 @@ export class UserService extends AbstractService<User> {
     }
 
     return qb.getRawMany();
+  }
+
+  /** Assign (or clear, with null) a user's home branch for notification scoping. */
+  async setBranch(userId: string, branchId: string | null): Promise<{ success: true }> {
+    await this._userRepo.update({ id: userId }, { branchId: branchId ?? null });
+    return { success: true };
   }
 
   async findById(id: string, select?: string[], repo?: Repository<User>): Promise<User | null> {

@@ -86,3 +86,8 @@ export function login(credentials: LoginCredentials): Promise<LoginResponse> {
 export function refresh(refreshToken: string): Promise<RefreshResponse> {
   return postJson<RefreshResponse>(AUTH_ENDPOINTS.refresh, {}, refreshToken);
 }
+
+/** POST /auth/logout — revokes the refresh-session family server-side. */
+export function logout(refreshToken: string): Promise<{ message: string }> {
+  return postJson<{ message: string }>(AUTH_ENDPOINTS.logout, {}, refreshToken);
+}

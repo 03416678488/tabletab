@@ -8,6 +8,7 @@ import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { useNewArrivals } from "@/features/order/hooks/use-new-arrivals";
 import { SoundToggle } from "@/features/order/components/sound-toggle";
 import { playNewOrderChime, primeChime } from "@/features/order/lib/chime";
+import { markCategoryReadLive } from "@/features/notifications/lib/notifications-client";
 import type { Order } from "@/features/order/types/order.types";
 
 function useClock() {
@@ -28,6 +29,7 @@ export function OssBoard() {
   const clock = useClock();
   const orderIds = useMemo(() => orders.map((o) => o.id), [orders]);
   useEffect(() => primeChime(), []);
+  useEffect(() => void markCategoryReadLive("orders"), []);
   const newIds = useNewArrivals(orderIds, {
     ready: !loading,
     onArrive: () => playNewOrderChime(),

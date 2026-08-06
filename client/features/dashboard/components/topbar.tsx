@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Menu, PanelLeft, PanelLeftClose, ReceiptText, Table2 } from "lucide-react";
+import { Menu, PanelLeft, PanelLeftClose, ReceiptText, Table2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { SidebarNav } from "@/features/dashboard/components/sidebar-nav";
 import { BranchSwitcher } from "@/features/branch/components/branch-switcher";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { ProfileMenu } from "@/features/dashboard/components/profile-menu";
 import { hrefFor, roleHomePath } from "@/lib/nav";
 import { useSession } from "@/hooks/use-session";
@@ -66,14 +67,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
       {canSwitchBranch && <BranchSwitcher />}
 
       <div className="ml-auto flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Notifications"
-          className={cn(ICON_BTN, "relative bg-amber-50 text-amber-600 hover:bg-amber-100")}
-        >
-          <Bell className="size-5" />
-          <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-accent ring-2 ring-surface" />
-        </button>
+        <NotificationBell />
 
         <ProfileMenu />
       </div>

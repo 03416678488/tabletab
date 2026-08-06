@@ -9,6 +9,7 @@ import { Paginated } from '@modules/common/pagination/interface/pagination.inter
 import { TenantRequest } from '@modules/tenancy/tenancy.types';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { reservationChannel, reservationsChannel } from '@modules/realtime/channels';
+import { NotificationService } from '@modules/notification/notification.service';
 
 import { Reservation } from './entities/reservation.entity';
 import { ReservationValidatorService } from './services/reservation-validator.service';
@@ -25,9 +26,30 @@ export class ReservationService extends AbstractService<Reservation> {
     private readonly _validator: ReservationValidatorService,
     private readonly _helper: ReservationHelperService,
     private readonly _realtime: RealtimeService,
+    private readonly _notifications: NotificationService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
+  }
+
+  /** Notify managers/waiters of a new booking (best-effort). */
+  private async notifyNew(r: Reservation): Promise<void> {
+    try {
+      await this._notifications.notifyRoles(
+        ['Owner', 'Multi Branch Manager', 'Branch Manager', 'Waiter'],
+        {
+          category: 'reservations',
+          type: 'reservation.created',
+          title: `New reservation — ${r.guestName}`,
+          body: `Party of ${r.partySize} · ${r.date} ${r.time}`,
+          data: { reservationId: r.id },
+          priority: 'normal',
+          branchId: r.branchId ?? null,
+        },
+      );
+    } catch (err) {
+      console.warn('[notify] reservation notification failed', (err as Error).message);
+    }
   }
 
   /**
@@ -63,6 +85,7 @@ export class ReservationService extends AbstractService<Reservation> {
     const saved = await this.create(this._helper.resolveCreatePayload(dto));
     const reservation = await this.getById(saved.id);
     this.emit(reservation, 'reservation.created');
+    await this.notifyNew(reservation);
     return reservation;
   }
 

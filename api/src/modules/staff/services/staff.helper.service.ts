@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { toLowerCase, trimSpaces } from '@cor/helpers';
 
 import { Staff } from '../entities/staff.entity';
 import { StaffRoleEnum } from '../enums/staff-role.enum';
 import { CreateStaffDto, UpdateStaffDto, GetStaffQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /**
  * Pure "resolver" helpers for the staff module — normalization, defaults and
@@ -53,7 +54,7 @@ export class StaffHelperService {
     if (!term) return base;
 
     // Search across name / email / phone.
-    const like = ILike(`%${term}%`);
+    const like = toILikeContains(term);
     return [
       { ...base, firstName: like },
       { ...base, lastName: like },

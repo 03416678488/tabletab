@@ -6,6 +6,7 @@ export interface AppUser {
   phone: string | null;
   isActive: boolean;
   roleName: string | null;
+  branchId: string | null;
   createdAt: string;
 }
 

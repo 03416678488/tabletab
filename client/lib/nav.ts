@@ -1,6 +1,7 @@
 import {
   Armchair,
   ArrowDownCircle,
+  Bell,
   Bike,
   ArrowLeftRight,
   ArrowUpCircle,
@@ -80,6 +81,7 @@ const OWNER_ONLY: StaffRole[] = ["owner"];
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", slug: "dashboard", icon: LayoutDashboard, roles: ALL, section: "Operations", module: "dashboard" },
+  { label: "Notifications", slug: "notifications", icon: Bell, roles: ALL, section: "Operations" },
   { label: "Deliveries", slug: "deliveries", icon: Bike, roles: [...MANAGERS, "delivery"], section: "Operations", module: "orders" },
   { label: "Kitchen", slug: "kitchen", icon: ChefHat, roles: [...MANAGERS, "chef"], section: "Operations", module: "kds" },
   { label: "Waiter", slug: "waiter", icon: ConciergeBell, roles: [...MANAGERS, "waiter"], section: "Operations" },

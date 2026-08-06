@@ -57,7 +57,20 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Req() req: any) {
-    return this._authService.refreshToken(req.user.id, req.user.tenant, req.tenantDataSource);
+    return this._authService.refreshToken(req.user.id, req.user.tenant, req.tenantDataSource, {
+      sid: req.user.sid,
+      jti: req.user.jti,
+      iat: req.user.iat,
+    });
+  }
+
+  /** Revokes the presented refresh token's session family (server-side sign-out). */
+  @Public()
+  @UseGuards(RefreshAuthGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Req() req: any) {
+    return this._authService.logout(req.user.id, req.user.tenant, req.user.sid);
   }
 
   @Public()

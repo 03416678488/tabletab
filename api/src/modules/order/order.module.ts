@@ -15,6 +15,7 @@ import { OrderHelperService } from './services/order.helper.service';
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
 import { PromotionModule } from '@modules/promotion/promotion.module';
+import { NotificationModule } from '@modules/notification/notification.module';
 import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 @Module({
@@ -23,6 +24,7 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
     PaginationModule,
     ErrorModule,
     PromotionModule,
+    NotificationModule,
   ],
   controllers: [OrderController],
   providers: [

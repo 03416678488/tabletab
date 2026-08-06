@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import {
   Between,
   FindOptionsWhere,
-  ILike,
   In,
   LessThanOrEqual,
   MoreThanOrEqual,
@@ -12,6 +11,7 @@ import { trimSpaces } from '@cor/helpers';
 
 import { MenuItem, MenuOptionRow } from '../entities/menu-item.entity';
 import { CreateMenuItemDto, UpdateMenuItemDto, GetMenuItemQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /**
  * Pure resolver helpers for the menu module — normalization, defaults and
@@ -63,7 +63,7 @@ export class MenuHelperService {
 
   resolveListFilters(query: GetMenuItemQueryDto): FindOptionsWhere<MenuItem> {
     const where: FindOptionsWhere<MenuItem> = {};
-    if (query.search) where.name = ILike(`%${trimSpaces(query.search)}%`);
+    if (query.search) where.name = toILikeContains(trimSpaces(query.search));
 
     // Multi-category (categoryIds) takes precedence over the single categoryId.
     const ids = query.categoryIds

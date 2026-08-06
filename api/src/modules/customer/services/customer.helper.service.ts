@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Customer } from '../entities/customer.entity';
 import { CreateCustomerDto, UpdateCustomerDto, GetCustomerQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /** Pure resolver helpers — normalization, defaults and query building. */
 @Injectable()
@@ -31,7 +32,7 @@ export class CustomerHelperService {
 
   resolveListFilters(query: GetCustomerQueryDto): FindOptionsWhere<Customer> {
     const where: FindOptionsWhere<Customer> = {};
-    if (query.search) where.name = ILike(`%${trimSpaces(query.search)}%`);
+    if (query.search) where.name = toILikeContains(trimSpaces(query.search));
     return where;
   }
 }

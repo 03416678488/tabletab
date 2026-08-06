@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { defer, Observable } from 'rxjs';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { escapeLikePattern } from '@cor/helpers/query.helper';
 import { FindOptionsOrder } from 'typeorm/find-options/FindOptionsOrder';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { PaginationQueryDto } from '@modules/common/pagination/dto/pagination-query.dto';
@@ -89,7 +90,9 @@ export abstract class AbstractService<T> {
     currentId?: number,
   ): Promise<boolean> {
     const where: any = {
-      [field]: typeof value === 'string' ? ILike(value) : value,
+      // Escaped so this stays a case-insensitive *equality* check even when
+      // the value contains LIKE wildcards (e.g. a name like "50% off").
+      [field]: typeof value === 'string' ? ILike(escapeLikePattern(value)) : value,
       ...(currentId && { id: Not(currentId) }),
     };
 

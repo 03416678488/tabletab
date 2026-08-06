@@ -12,6 +12,7 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SetUserBranchDto } from './dto/set-user-branch.dto';
 import { AccessControl } from '@cor/decorators/authorization/authorization.decorator';
 
 @Controller('user')
@@ -22,6 +23,12 @@ export class UserController {
   @Get('list')
   list(@Query('role') role?: string, @Query('search') search?: string) {
     return this.userService.listUsers({ role, search });
+  }
+
+  /** Assign a user's home branch (for branch-scoped notifications). */
+  @Patch(':id/branch')
+  setBranch(@Param('id') id: string, @Body() dto: SetUserBranchDto) {
+    return this.userService.setBranch(id, dto.branchId ?? null);
   }
 
   @Post()

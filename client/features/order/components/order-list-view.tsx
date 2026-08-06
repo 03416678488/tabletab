@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronRight, ReceiptText, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,10 @@ interface OrderListViewProps {
 }
 
 export function OrderListView({ orderType, title, subtitle }: OrderListViewProps) {
-  const [search, setSearch] = useState("");
+  // A notification deep-link lands here with ?q=<orderNumber> so the list opens
+  // pre-searched to that specific order.
+  const initialQuery = useSearchParams().get("q") ?? "";
+  const [search, setSearch] = useState(initialQuery);
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid">("all");

@@ -1,4 +1,5 @@
 import { FindOptionsWhere, ILike, LessThan, MoreThan, Not } from 'typeorm';
+import { escapeLikePattern } from '@cor/helpers/query.helper';
 import { ParsedCondition } from './parse-filter-query';
 
 export function conditionsToWhere<T>(
@@ -19,13 +20,13 @@ export function conditionsToWhere<T>(
         where[c.field] = Not(c.value);
         break;
       case 'contains':
-        where[c.field] = ILike(`%${c.value}%`);
+        where[c.field] = ILike(`%${escapeLikePattern(String(c.value))}%`);
         break;
       case 'starts_with':
-        where[c.field] = ILike(`${c.value}%`);
+        where[c.field] = ILike(`${escapeLikePattern(String(c.value))}%`);
         break;
       case 'ends_with':
-        where[c.field] = ILike(`%${c.value}`);
+        where[c.field] = ILike(`%${escapeLikePattern(String(c.value))}`);
         break;
       case 'greater_than':
         where[c.field] = MoreThan(c.value);

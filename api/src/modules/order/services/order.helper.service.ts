@@ -1,12 +1,13 @@
 import { randomBytes } from 'crypto';
 import { Injectable } from '@nestjs/common';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { FindOptionsWhere } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
 
 import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
 import { CreateOrderDto, GetOrderQueryDto } from '../dto';
+import { toILikeContains } from '@cor/helpers/query.helper';
 
 /** Pure resolver helpers — order-number, totals and query building. */
 @Injectable()
@@ -77,7 +78,7 @@ export class OrderHelperService {
 
     // Search across the columns a user might type: order #, customer name/phone,
     // and the table name. Each branch keeps the base filters (OR of ANDs).
-    const like = ILike(`%${term}%`);
+    const like = toILikeContains(term);
     return [
       { ...base, orderNumber: like },
       { ...base, customerName: like },

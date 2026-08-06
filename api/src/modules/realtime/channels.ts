@@ -6,6 +6,9 @@
 /** One customer tracking one order (capability by UUID). */
 export const orderChannel = (orderId: string): string => `order:${orderId}`;
 
+/** One staff user's notification stream (bell inbox). Private to that user. */
+export const notifChannel = (userId: string): string => `notif:${userId}`;
+
 /**
  * Tenant-scoped kitchen/pickup board. `default` covers the dev / tenant-less DB
  * (both storefront orders and staff resolve to the same key there).

@@ -2,10 +2,10 @@ import {
   FindOptionsOrder,
   FindOptionsSelect,
   FindOptionsWhere,
-  ILike,
   ObjectLiteral,
   Repository,
 } from 'typeorm';
+import { toILikeContains } from '@cor/helpers/query.helper';
 import { parseFilterQuery } from '@cor/query/parse-filter-query';
 import { conditionsToWhere } from '@cor/query/conditions-to-where';
 import { ListQueryOptions, QueryConfig } from '@cor/query/pagination.types';
@@ -71,7 +71,7 @@ export abstract class FilterableService<T extends ObjectLiteral> {
     const [first] = this.queryConfig.searchableFields;
     if (!first) return {} as FindOptionsWhere<T>;
 
-    return { [first]: ILike(`%${search}%`) } as FindOptionsWhere<T>;
+    return { [first]: toILikeContains(search) } as FindOptionsWhere<T>;
   }
 
   protected buildOrder(listOptions: ListQueryOptions): FindOptionsOrder<T> {
@@ -79,7 +79,12 @@ export abstract class FilterableService<T extends ObjectLiteral> {
     const defaultSort = this.queryConfig.defaultSort;
 
     const field = sortBy && this.isFilterable(sortBy) ? (sortBy as keyof T) : defaultSort?.field;
-    const order = sortOrder ?? defaultSort?.order ?? 'DESC';
+    // The direction is interpolated into ORDER BY by TypeORM, so it must be
+    // normalized to a literal — never pass a request string through untouched.
+    const order =
+      sortOrder === 'ASC' || sortOrder === 'DESC'
+        ? sortOrder
+        : (defaultSort?.order ?? 'DESC');
 
     if (!field) return {} as FindOptionsOrder<T>;
     return { [field]: order } as FindOptionsOrder<T>;

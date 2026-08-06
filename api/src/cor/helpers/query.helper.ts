@@ -1,10 +1,23 @@
-import { FindOperator, Like } from 'typeorm';
+import { FindOperator, ILike, Like } from 'typeorm';
+
+/**
+ * Escape LIKE/ILIKE wildcards (`%`, `_`) and the escape char itself so user
+ * input matches literally. Without this, a search for "%" scans every row and
+ * a literal "50%" can never be found. Injection is already prevented by
+ * parameterization — this is about correct, bounded matching.
+ */
+export const escapeLikePattern = (value: string): string =>
+  value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 
 export const toLikeOperator = (value: string): FindOperator<string> => {
-  return Like(`%${value}%`);
+  return Like(`%${escapeLikePattern(value)}%`);
 };
 export const toILikeOperator = (value: string): string => {
-  return `%${value}%`;
+  return `%${escapeLikePattern(value)}%`;
+};
+/** Case-insensitive "contains" with wildcards escaped — use for search boxes. */
+export const toILikeContains = (value: string): FindOperator<string> => {
+  return ILike(`%${escapeLikePattern(value)}%`);
 };
 export const toEqualOperator = (value: string | number): string | number => {
   return value;

@@ -5,6 +5,7 @@ import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
 import { RegisterSession } from '@modules/register/entities/register-session.entity';
+import { NotificationService } from '@modules/notification/notification.service';
 
 import { Transaction } from './entities/transaction.entity';
 import { CreateTransactionDto, GetTransactionQueryDto } from './dto/transaction.dto';
@@ -19,6 +20,7 @@ export class TransactionService {
     @InjectRepository(RegisterSession)
     private readonly _sessionRepo: Repository<RegisterSession>,
     private readonly _pagination: PaginationProvider,
+    private readonly _notifications: NotificationService,
   ) {}
 
   /** Record a transaction, auto-attaching it to the open register session. */
@@ -27,7 +29,7 @@ export class TransactionService {
       where: { status: 'open' },
       order: { openedAt: 'DESC' },
     });
-    return this._repo.save(
+    const saved = await this._repo.save(
       this._repo.create({
         type: dto.type as Transaction['type'],
         method: dto.method as Transaction['method'],
@@ -38,6 +40,27 @@ export class TransactionService {
         createdBy: userId ?? null,
       }),
     );
+
+    // Refunds warrant manager attention (best-effort — never block the flow).
+    if (saved.type === 'refund') {
+      try {
+        await this._notifications.notifyRoles(
+          ['Owner', 'Multi Branch Manager', 'Branch Manager'],
+          {
+            category: 'payments',
+            type: 'payment.refund',
+            title: `Refund issued`,
+            body: `${saved.method} · ${saved.amount}`,
+            data: { transactionId: saved.id, orderId: saved.orderId },
+            priority: 'high',
+          },
+        );
+      } catch (err) {
+        console.warn('[notify] refund notification failed', (err as Error).message);
+      }
+    }
+
+    return saved;
   }
 
   getAll(query: GetTransactionQueryDto): Promise<Paginated<Transaction>> {
