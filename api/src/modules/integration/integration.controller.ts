@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
@@ -35,6 +36,12 @@ export class IntegrationController {
     return this._aggregator.pushMenu(provider);
   }
 
+  /** Recent sync events for a provider (orders in / menu + status out). */
+  @Get(':provider/logs')
+  logs(@Param('provider') provider: string) {
+    return this._service.getLogs(provider);
+  }
+
   /** Marketplace catalog + this tenant's connection state. */
   @Get()
   list() {
@@ -44,6 +51,35 @@ export class IntegrationController {
   @Post(':provider/connect')
   connect(@Param('provider') provider: string, @Body() dto: ConnectIntegrationDto) {
     return this._service.connect(provider, dto.config);
+  }
+
+  /** Begin the OAuth flow — returns the provider authorize URL to redirect to. */
+  @Get(':provider/oauth/start')
+  oauthStart(@Param('provider') provider: string) {
+    return this._service.startOAuth(provider);
+  }
+
+  /**
+   * OAuth callback (provider redirects here). Public + tenant-routed by the
+   * `state` slug in the middleware; exchanges the code, then bounces back to the
+   * marketplace.
+   */
+  @Public()
+  @Get(':provider/oauth/callback')
+  async oauthCallback(
+    @Param('provider') provider: string,
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Res() res: Response,
+  ) {
+    const base = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    try {
+      await this._service.completeOAuth(provider, code, state);
+      res.redirect(`${base}/owner/marketplace?connected=${provider}`);
+    } catch (err) {
+      const msg = encodeURIComponent((err as Error).message || 'OAuth failed');
+      res.redirect(`${base}/owner/marketplace?error=${msg}`);
+    }
   }
 
   @Post(':provider/disconnect')

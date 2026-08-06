@@ -45,11 +45,12 @@ export class MenuService extends AbstractService<MenuItem> {
    */
   private emitMenuChanged(itemId: string): void {
     this._realtime.publish(menuChannel(this._req.tenant?.id), 'menu.changed', { id: itemId });
-    // Debounced per-tenant push to connected aggregators (best-effort, no-op
-    // unless a live endpoint is configured).
+    // Debounced per-tenant DELTA push to connected aggregators (best-effort,
+    // no-op unless a live endpoint is configured).
     this._menuSync.schedule(
       this._req.tenant?.id ?? 'default',
       this._req.tenantDataSource ?? this._defaultDataSource,
+      itemId,
     );
   }
 

@@ -8,6 +8,7 @@ import { SessionSync } from "@/features/dashboard/components/session-sync";
 import { SettingsProvider } from "@/features/app-settings/components/settings-provider";
 import { I18nProvider } from "@/features/i18n/i18n-provider";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
+import { ServiceWorkerRegister } from "@/features/offline/components/service-worker-register";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // One QueryClient per app instance. Cached data stays fresh for 5 min so
@@ -24,6 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
+        <ServiceWorkerRegister />
         <SessionSync />
         <SettingsProvider>
           <I18nProvider>

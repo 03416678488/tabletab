@@ -32,3 +32,13 @@ export interface CatalogItem {
   /** Per-tenant webhook token (present once connected). */
   webhookToken: string | null;
 }
+
+export interface SyncLog {
+  id: string;
+  provider: string;
+  direction: "order_in" | "menu_out" | "status_out";
+  status: "success" | "error";
+  message: string | null;
+  meta: Record<string, unknown> | null;
+  createdAt: string;
+}

@@ -35,6 +35,15 @@ const nextConfig: NextConfig = {
       ...apiImagePatterns(),
     ],
   },
+  async headers() {
+    return [
+      {
+        // Always revalidate the service worker so updates roll out promptly.
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

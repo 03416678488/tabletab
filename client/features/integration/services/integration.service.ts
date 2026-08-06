@@ -1,5 +1,5 @@
 import { httpClient } from "@/lib/httpClient";
-import type { CatalogItem } from "@/features/integration/types/integration.types";
+import type { CatalogItem, SyncLog } from "@/features/integration/types/integration.types";
 
 export const integrationService = {
   list() {
@@ -27,6 +27,18 @@ export const integrationService = {
         undefined,
         { auth: true },
       )
+      .then((r) => r.data);
+  },
+
+  logs(provider: string) {
+    return httpClient
+      .get<SyncLog[]>(`/integrations/${provider}/logs`, { auth: true })
+      .then((r) => r.data);
+  },
+
+  startOAuth(provider: string) {
+    return httpClient
+      .get<{ url: string }>(`/integrations/${provider}/oauth/start`, { auth: true })
       .then((r) => r.data);
   },
 };

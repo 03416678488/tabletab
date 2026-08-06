@@ -3,6 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Integration } from '@modules/integration/entities/integration.entity';
+import { IntegrationSyncLog } from '@modules/integration/entities/integration-sync-log.entity';
+import { writeSyncLog } from '@modules/integration/integration-sync-log.util';
+import { resolveOutboundTarget, targetHeaders } from '@modules/integration/aggregator-target';
+import { ensureFreshToken } from '@modules/integration/oauth-refresh';
 import { openConfig } from '@cor/crypto/secret-cipher';
 
 import { Order } from '../entities/order.entity';
@@ -34,6 +38,8 @@ export class OrderStatusSyncService {
   constructor(
     @InjectRepository(Integration)
     private readonly _integrations: Repository<Integration>,
+    @InjectRepository(IntegrationSyncLog)
+    private readonly _logs: Repository<IntegrationSyncLog>,
   ) {}
 
   async syncOutbound(order: Order): Promise<void> {
@@ -41,30 +47,54 @@ export class OrderStatusSyncService {
     const mapped = AGGREGATOR_STATUS[order.status];
     if (!mapped) return;
 
+    const meta = { externalRef: order.externalRef, orderStatus: order.status, sent: mapped };
     try {
       const row = await this._integrations.findOne({
         where: { provider: order.source, status: 'connected' },
       });
-      const config = openConfig(row?.config as Record<string, unknown> | null);
-      const base =
-        typeof config.apiBaseUrl === 'string' ? config.apiBaseUrl.trim().replace(/\/$/, '') : '';
-      if (!base) return; // no live endpoint configured — dry run
+      if (!row) return;
+      const config = await ensureFreshToken(
+        this._integrations,
+        order.source,
+        openConfig(row.config as Record<string, unknown> | null),
+      );
+      const target = resolveOutboundTarget(order.source, config);
+      if (!target) return; // not configured for a live call — dry run
 
-      const res = await fetch(`${base}/orders/${encodeURIComponent(order.externalRef)}/status`, {
+      const res = await fetch(`${target.base}/orders/${encodeURIComponent(order.externalRef)}/status`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-        },
+        headers: targetHeaders(target),
         body: JSON.stringify({ status: mapped }),
       });
-      if (!res.ok) {
+      if (res.ok) {
+        await writeSyncLog(this._logs, {
+          provider: order.source,
+          direction: 'status_out',
+          status: 'success',
+          message: `Status → ${mapped}`,
+          meta,
+        });
+      } else {
         this.logger.warn(
           `[${order.source}] status ${order.externalRef} → ${mapped} returned ${res.status}`,
         );
+        await writeSyncLog(this._logs, {
+          provider: order.source,
+          direction: 'status_out',
+          status: 'error',
+          message: `Returned ${res.status}`,
+          meta,
+        });
       }
     } catch (err) {
       this.logger.warn(`[${order.source}] status sync failed: ${(err as Error).message}`);
+      await writeSyncLog(this._logs, {
+        provider: order.source,
+        direction: 'status_out',
+        status: 'error',
+        message: (err as Error).message,
+        meta,
+      });
     }
   }
 }

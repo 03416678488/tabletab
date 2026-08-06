@@ -14,6 +14,7 @@ import { constantTimeEqual } from '@cor/crypto/secret-cipher';
 import { IntegrationService } from '../integration.service';
 import { findConnector } from '../integration.catalog';
 import { normalizeOrder } from '../aggregator-normalizers';
+import { resolveOutboundTarget, targetHeaders } from '../aggregator-target';
 
 export interface MenuPushResult {
   items: number;
@@ -85,6 +86,14 @@ export class AggregatorService {
       })),
     });
 
+    await this._integrations.log({
+      provider,
+      direction: 'order_in',
+      status: 'success',
+      message: `Order ${order.orderNumber} received`,
+      meta: { orderNumber: order.orderNumber, externalRef: norm.externalId, items: norm.items.length },
+    });
+
     return { orderId: order.id, orderNumber: order.orderNumber };
   }
 
@@ -94,28 +103,31 @@ export class AggregatorService {
     if (!connector?.canPushMenu) {
       throw new BadRequestException('This integration does not support menu push');
     }
-    const config = await this._integrations.getConnectedConfig(provider);
+    const config = await this._integrations.getLiveConfig(provider);
     if (!config) throw new BadRequestException(`${connector.name} is not connected`);
 
     const snapshot = await this._menuIo.snapshot();
-    const base =
-      typeof config.apiBaseUrl === 'string' ? config.apiBaseUrl.trim().replace(/\/$/, '') : '';
+    const target = resolveOutboundTarget(provider, config);
 
     let status: MenuPushResult['status'] = 'prepared';
-    if (base) {
+    if (target) {
       try {
-        const res = await fetch(`${base}/menu`, {
+        const res = await fetch(`${target.base}/menu`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-          },
+          headers: targetHeaders(target),
           body: JSON.stringify(snapshot),
         });
         if (!res.ok) throw new BadRequestException(`${connector.name} returned ${res.status}`);
         status = 'sent';
       } catch (err) {
         this.logger.warn(`[${provider}] menu push failed: ${(err as Error).message}`);
+        await this._integrations.log({
+          provider,
+          direction: 'menu_out',
+          status: 'error',
+          message: (err as Error).message,
+          meta: { items: snapshot.items.length },
+        });
         throw err instanceof BadRequestException
           ? err
           : new BadRequestException('Could not reach the menu API');
@@ -123,6 +135,13 @@ export class AggregatorService {
     }
 
     await this._integrations.markSynced(provider);
+    await this._integrations.log({
+      provider,
+      direction: 'menu_out',
+      status: 'success',
+      message: status === 'sent' ? 'Menu pushed' : 'Menu prepared (no live endpoint)',
+      meta: { items: snapshot.items.length, categories: snapshot.categories.length },
+    });
     return { items: snapshot.items.length, categories: snapshot.categories.length, status };
   }
 }

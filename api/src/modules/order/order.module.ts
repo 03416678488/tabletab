@@ -7,6 +7,7 @@ import { Table } from '@modules/table/entities/table.entity';
 import { Branch } from '@modules/branch/entities/branch.entity';
 import { Customer } from '@modules/customer/entities/customer.entity';
 import { Integration } from '@modules/integration/entities/integration.entity';
+import { IntegrationSyncLog } from '@modules/integration/entities/integration-sync-log.entity';
 
 import { OrderController } from './order.controller';
 import { OrderService } from './order.service';
@@ -22,7 +23,15 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Table, Branch, Customer, Integration]),
+    TypeOrmModule.forFeature([
+      Order,
+      OrderItem,
+      Table,
+      Branch,
+      Customer,
+      Integration,
+      IntegrationSyncLog,
+    ]),
     PaginationModule,
     ErrorModule,
     PromotionModule,
@@ -35,6 +44,7 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
     OrderHelperService,
     OrderStatusSyncService,
     tenantRepositoryProvider(Integration),
+    tenantRepositoryProvider(IntegrationSyncLog),
     // Tenant-aware: order reads/writes (and the tables/branches they validate
     // against) resolve to the current request's tenant database. Relations
     // (items, customer) load through the Order connection automatically.

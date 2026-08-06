@@ -11,6 +11,7 @@ import {
   Megaphone,
   MessageCircle,
   Plug,
+  ScrollText,
   UploadCloud,
   type LucideIcon,
 } from "lucide-react";
@@ -36,7 +37,17 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useSession } from "@/hooks/use-session";
 
 import { integrationService } from "@/features/integration/services/integration.service";
-import type { CatalogItem, IntegrationCategory } from "@/features/integration/types/integration.types";
+import type {
+  CatalogItem,
+  IntegrationCategory,
+  SyncLog,
+} from "@/features/integration/types/integration.types";
+
+const DIRECTION_LABEL: Record<SyncLog["direction"], string> = {
+  order_in: "Order in",
+  menu_out: "Menu out",
+  status_out: "Status out",
+};
 
 const apiBase = () => process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -65,6 +76,7 @@ export function MarketplaceManager() {
   const [tab, setTab] = useState("all");
   const [connecting, setConnecting] = useState<CatalogItem | null>(null);
   const [pushingKey, setPushingKey] = useState<string | null>(null);
+  const [logsFor, setLogsFor] = useState<CatalogItem | null>(null);
 
   const load = async () => {
     try {
@@ -77,6 +89,18 @@ export function MarketplaceManager() {
   };
   useEffect(() => {
     void load();
+  }, []);
+
+  // Toast the result of an OAuth callback redirect (?connected= / ?error=).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const error = params.get("error");
+    if (connected) toast(`${connected} connected`, { tone: "success" });
+    else if (error) toast(error, { tone: "error" });
+    if (connected || error) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   const shown = useMemo(
@@ -93,6 +117,15 @@ export function MarketplaceManager() {
       void load();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Failed to disconnect", { tone: "error" });
+    }
+  };
+
+  const startOAuth = async (item: CatalogItem) => {
+    try {
+      const { url } = await integrationService.startOAuth(item.key);
+      window.location.href = url; // hand off to the provider's consent screen
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Couldn't start OAuth", { tone: "error" });
     }
   };
 
@@ -143,13 +176,10 @@ export function MarketplaceManager() {
       ) : (
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((item) => {
-            const Icon = CATEGORY_ICON[item.category] ?? Plug;
             return (
               <Card key={item.key} className="flex flex-col gap-3 p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-brand-tint text-brand-deep">
-                    <Icon className="size-5" />
-                  </span>
+                  <ProviderIcon item={item} />
                   {item.connected ? (
                     <StatusPill tone="green">
                       <CheckCircle2 className="size-3" /> Connected
@@ -200,6 +230,8 @@ export function MarketplaceManager() {
           void load();
         }}
       />
+
+      <LogsDialog item={logsFor} onClose={() => setLogsFor(null)} />
     </div>
   );
 
@@ -221,6 +253,9 @@ export function MarketplaceManager() {
               Push menu
             </Button>
           )}
+          <Button variant="outline" size="sm" onClick={() => setLogsFor(item)}>
+            <ScrollText className="size-4" /> Logs
+          </Button>
           <Button variant="outline" size="sm" onClick={() => void disconnect(item)}>
             Disconnect
           </Button>
@@ -238,6 +273,13 @@ export function MarketplaceManager() {
       return (
         <Button asChild size="sm">
           <Link href={`/${role}/${item.manageSlug}`}>Manage</Link>
+        </Button>
+      );
+    }
+    if (item.authType === "oauth") {
+      return (
+        <Button size="sm" onClick={() => void startOAuth(item)}>
+          Connect
         </Button>
       );
     }
@@ -315,6 +357,83 @@ function ConnectDialog({
             {saving && <Loader2 className="size-4 animate-spin" />} Connect
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProviderIcon({ item }: { item: CatalogItem }) {
+  const [failed, setFailed] = useState(false);
+  const Icon = CATEGORY_ICON[item.category] ?? Plug;
+  if (failed) {
+    return (
+      <span className="flex size-11 items-center justify-center rounded-xl bg-brand-tint text-brand-deep">
+        <Icon className="size-5" />
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/integration-icons/${item.key}.svg`}
+      alt={`${item.name} logo`}
+      className="size-11 rounded-xl"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function timeLabel(iso: string): string {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function LogsDialog({ item, onClose }: { item: CatalogItem | null; onClose: () => void }) {
+  const [logs, setLogs] = useState<SyncLog[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!item) return;
+    setLoading(true);
+    integrationService
+      .logs(item.key)
+      .then(setLogs)
+      .catch(() => setLogs([]))
+      .finally(() => setLoading(false));
+  }, [item]);
+
+  return (
+    <Dialog open={!!item} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{item?.name} — recent activity</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[24rem] overflow-y-auto">
+          {loading ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : logs.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">No activity yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {logs.map((log) => (
+                <li key={log.id} className="flex items-start gap-3 py-2.5">
+                  <StatusPill tone={log.status === "success" ? "green" : "red"}>
+                    {DIRECTION_LABEL[log.direction]}
+                  </StatusPill>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-ink">{log.message ?? "—"}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {timeLabel(log.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,103 +1,127 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 
 import { Integration } from '@modules/integration/entities/integration.entity';
+import { IntegrationSyncLog } from '@modules/integration/entities/integration-sync-log.entity';
+import { writeSyncLog } from '@modules/integration/integration-sync-log.util';
+import { resolveOutboundTarget, targetHeaders } from '@modules/integration/aggregator-target';
+import { ensureFreshToken } from '@modules/integration/oauth-refresh';
 import { openConfig } from '@cor/crypto/secret-cipher';
 
 import { MenuItem } from '../entities/menu-item.entity';
 
-/** Coalesce a burst of menu edits into one push after this much quiet. */
+/** Coalesce a burst of menu edits into one delta push after this much quiet. */
 const DEBOUNCE_MS = 8_000;
 
+interface Pending {
+  dataSource: DataSource;
+  ids: Set<string>;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
 /**
- * Auto-pushes the menu to connected aggregators when it changes — debounced per
- * tenant so a flurry of edits produces one push, not one per edit.
+ * Auto-pushes menu changes to connected aggregators as a DELTA (only the items
+ * that changed), debounced per tenant. Deleted items are sent as `removes`.
  *
- * Singleton (holds the debounce timers across requests) so it can't use the
- * request-scoped tenant repos; instead it operates on the tenant's pooled
- * `DataSource`, which the caller passes in and which outlives the request.
- * Best-effort throughout — never affects the edit that triggered it.
+ * Singleton (holds debounce state + the accumulated changed-id set across
+ * requests) so it operates on the tenant's pooled DataSource passed in. Manual
+ * "Push menu" stays a full catalog sync (AggregatorService.pushMenu) — this is
+ * the incremental path. Best-effort throughout.
  */
 @Injectable()
 export class MenuSyncService {
   private readonly logger = new Logger(MenuSyncService.name);
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly pending = new Map<string, Pending>();
 
-  /** Schedule (or reset) a debounced menu push for a tenant. */
-  schedule(tenantKey: string, dataSource: DataSource): void {
-    const existing = this.timers.get(tenantKey);
-    if (existing) clearTimeout(existing);
+  /** Queue a changed item for a debounced delta push (per tenant). */
+  schedule(tenantKey: string, dataSource: DataSource, itemId: string): void {
+    let entry = this.pending.get(tenantKey);
+    if (!entry) {
+      entry = { dataSource, ids: new Set(), timer: null };
+      this.pending.set(tenantKey, entry);
+    }
+    entry.dataSource = dataSource;
+    entry.ids.add(itemId);
 
-    const timer = setTimeout(() => {
-      this.timers.delete(tenantKey);
-      void this.push(dataSource);
+    if (entry.timer) clearTimeout(entry.timer);
+    entry.timer = setTimeout(() => {
+      const e = this.pending.get(tenantKey);
+      this.pending.delete(tenantKey);
+      if (e) void this.pushDelta(e.dataSource, [...e.ids]);
     }, DEBOUNCE_MS);
-    // Don't hold the process open for a pending push.
-    if (typeof timer.unref === 'function') timer.unref();
-
-    this.timers.set(tenantKey, timer);
+    if (typeof entry.timer.unref === 'function') entry.timer.unref();
   }
 
-  private async push(dataSource: DataSource): Promise<void> {
+  private async pushDelta(dataSource: DataSource, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    // Changed ids that still exist → upserts; the rest were deleted → removes.
+    const items = await dataSource.getRepository(MenuItem).find({
+      where: { id: In(ids) },
+      relations: ['category'],
+    });
+    const found = new Set(items.map((i) => i.id));
+    const upserts = items.map((it) => ({
+      id: it.id,
+      name: it.name,
+      description: it.description ?? null,
+      price: it.price,
+      category: it.category?.name ?? null,
+      available: it.isAvailable,
+    }));
+    const removes = ids.filter((id) => !found.has(id));
+    if (upserts.length === 0 && removes.length === 0) return;
+
     const integrations = dataSource.getRepository(Integration);
-
-    // Every connected integration with a live API base gets the menu.
     const rows = await integrations.find({ where: { status: 'connected' } });
-    const targets = rows
-      .map((row) => {
-        const config = openConfig(row.config as Record<string, unknown> | null);
-        const base =
-          typeof config.apiBaseUrl === 'string' ? config.apiBaseUrl.trim().replace(/\/$/, '') : '';
-        return base ? { row, config, base } : null;
-      })
-      .filter((t): t is NonNullable<typeof t> => t !== null);
-    if (targets.length === 0) return;
+    const logs = dataSource.getRepository(IntegrationSyncLog);
+    const meta = { upserts: upserts.length, removes: removes.length, delta: true };
+    const body = JSON.stringify({ upserts, removes });
 
-    const snapshot = await this.snapshot(dataSource);
-    const body = JSON.stringify(snapshot);
+    for (const row of rows) {
+      const config = await ensureFreshToken(
+        integrations,
+        row.provider,
+        openConfig(row.config as Record<string, unknown> | null),
+      );
+      const target = resolveOutboundTarget(row.provider, config);
+      if (!target) continue;
 
-    for (const { row, config, base } of targets) {
       try {
-        const res = await fetch(`${base}/menu`, {
+        const res = await fetch(`${target.base}/menu/items`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-          },
+          headers: targetHeaders(target),
           body,
         });
         if (res.ok) {
           await integrations.update({ id: row.id }, { lastSyncAt: new Date() });
+          await writeSyncLog(logs, {
+            provider: row.provider,
+            direction: 'menu_out',
+            status: 'success',
+            message: `Menu delta — ${upserts.length} changed, ${removes.length} removed`,
+            meta,
+          });
         } else {
-          this.logger.warn(`[${row.provider}] auto menu push returned ${res.status}`);
+          this.logger.warn(`[${row.provider}] menu delta returned ${res.status}`);
+          await writeSyncLog(logs, {
+            provider: row.provider,
+            direction: 'menu_out',
+            status: 'error',
+            message: `Returned ${res.status}`,
+            meta,
+          });
         }
       } catch (err) {
-        this.logger.warn(`[${row.provider}] auto menu push failed: ${(err as Error).message}`);
+        this.logger.warn(`[${row.provider}] menu delta failed: ${(err as Error).message}`);
+        await writeSyncLog(logs, {
+          provider: row.provider,
+          direction: 'menu_out',
+          status: 'error',
+          message: (err as Error).message,
+          meta,
+        });
       }
     }
-  }
-
-  /** Same shape as MenuIoService.snapshot(), but off the passed DataSource. */
-  private async snapshot(dataSource: DataSource) {
-    const items = await dataSource.getRepository(MenuItem).find({
-      relations: ['category'],
-      order: { name: 'ASC' },
-    });
-    const categoryNames = new Set<string>();
-    const mapped = items.map((it) => {
-      const category = it.category?.name ?? null;
-      if (category) categoryNames.add(category);
-      return {
-        name: it.name,
-        description: it.description ?? null,
-        price: it.price,
-        category,
-        available: it.isAvailable,
-      };
-    });
-    return {
-      categories: [...categoryNames].map((name) => ({ name })),
-      items: mapped,
-    };
   }
 }

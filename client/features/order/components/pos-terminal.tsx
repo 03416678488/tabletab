@@ -41,6 +41,10 @@ import { groupRate } from "@/features/tax/services/tax-group.service";
 import { CustomerSelect } from "@/features/customer/components/customer-select";
 import type { Customer } from "@/features/customer/types/customer.types";
 import { orderService } from "@/features/order/services/order.service";
+import { useOfflineQueue } from "@/features/offline/hooks/use-offline-queue";
+import { loadMenuSnapshot, saveMenuSnapshot } from "@/features/offline/lib/offline-store";
+import { OfflineBar } from "@/features/offline/components/offline-bar";
+import { QueuedOrdersDialog } from "@/features/offline/components/queued-orders-dialog";
 import { transactionService } from "@/features/transaction/services/transaction.service";
 import {
   ItemCustomizeDialog,
@@ -110,14 +114,24 @@ export function PosTerminal() {
   // Live menu updates — an 86'd/repriced item reflects on the POS instantly.
   useMenuStream(refresh);
 
+  // Offline fallback: queue orders locally + serve the menu from a cached snapshot.
+  const { online, queue, pending, failed, syncing, syncNow, enqueue, retry, discard } =
+    useOfflineQueue();
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [offlineMenu] = useState(() => loadMenuSnapshot());
+  useEffect(() => {
+    if (online && allItems.length) saveMenuSnapshot(allItems);
+  }, [online, allItems]);
+  const catalog = allItems.length > 0 ? allItems : offlineMenu;
+
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return allItems.filter((it) => {
+    return catalog.filter((it) => {
       if (categoryId !== "all" && it.categoryId !== categoryId) return false;
       if (q && !`${it.name} ${it.description ?? ""}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [allItems, categoryId, search]);
+  }, [catalog, categoryId, search]);
 
   const [orderType, setOrderType] = useState<OrderType>("table");
   const [tableId, setTableId] = useState("");
@@ -314,6 +328,41 @@ export function PosTerminal() {
     const discount = discountAmount > 0 ? round2(discountAmount) : 0;
     const tax = round2(taxAmount);
 
+    // Offline: queue the order on this device (cash / pay-later only) and let it
+    // sync automatically when the connection returns.
+    if (!online) {
+      if (editingOrderId) {
+        toast("Can't update a saved order while offline", { tone: "error" });
+        return;
+      }
+      if (payment && payment.method !== "cash") {
+        toast("Offline mode: use Pay Later or Cash only", { tone: "error" });
+        return;
+      }
+      const payload: CreateOrderInput = {
+        orderType,
+        items,
+        notes: paymentNote,
+        paymentStatus: payment ? "paid" : "unpaid",
+        ...(payment ? { paymentMethod: paymentMethodLabel(payment) } : {}),
+        ...(discount > 0 ? { discount } : {}),
+        ...(tax > 0 ? { tax } : {}),
+        ...(orderType === "table" && tableId ? { tableId } : {}),
+        ...(customer ? { customerId: customer.id, customerName: customer.name } : {}),
+        ...(customerPhone || customer?.phone
+          ? { customerPhone: customerPhone || customer?.phone || undefined }
+          : {}),
+        ...(orderType === "online" && (customerAddress || customer?.address)
+          ? { customerAddress: customerAddress || customer?.address || undefined }
+          : {}),
+      };
+      const queued = enqueue(payload);
+      toast(`Saved offline (${queued.localId}) — syncs when back online`, { tone: "success" });
+      setPaymentOpen(false);
+      clearCart();
+      return;
+    }
+
     setSubmitting(true);
     try {
       let orderNumber: string;
@@ -393,7 +442,27 @@ export function PosTerminal() {
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+    <div className="space-y-3">
+      <OfflineBar
+        online={online}
+        pending={pending}
+        failed={failed}
+        syncing={syncing}
+        onSync={syncNow}
+        onReview={() => setReviewOpen(true)}
+      />
+      <QueuedOrdersDialog
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        queue={queue}
+        online={online}
+        syncing={syncing}
+        onSync={syncNow}
+        onRetry={retry}
+        onDiscard={discard}
+      />
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
       {/* Menu */}
       <div className="min-w-0">
         {/* Search + categories float just below the sticky Topbar (h-16) while the
@@ -765,6 +834,7 @@ export function PosTerminal() {
         onOpenChange={(open) => !open && setCustomizing(null)}
         onAdd={addLine}
       />
+      </div>
     </div>
   );
 }

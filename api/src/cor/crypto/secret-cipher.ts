@@ -26,6 +26,8 @@ const SENSITIVE_KEYS = new Set([
   'secretKey',
   'authToken',
   'menuApiKey',
+  'accessToken',
+  'refreshToken',
 ]);
 
 function key(): Buffer {

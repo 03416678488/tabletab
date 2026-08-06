@@ -38,9 +38,10 @@ export class TenantContextMiddleware implements NestMiddleware {
       if (claim?.id) {
         tenant = await this.registry.resolveById(claim.id);
       } else {
-        // A provider webhook has no JWT and a fixed callback host, so route it
-        // by the tenant slug embedded in its per-tenant token (`<slug>.<secret>`).
-        const webhookSlug = slugFromWebhookUrl(req.originalUrl);
+        // A provider webhook / OAuth callback has no JWT and a fixed host, so
+        // route it by the tenant slug embedded in its token/state (`<slug>.<x>`).
+        const webhookSlug =
+          slugFromWebhookUrl(req.originalUrl) ?? slugFromOAuthState(req.originalUrl);
         const slug = webhookSlug ?? firstHeader(req.headers['x-tenant-slug']);
         const host = firstHeader(req.headers['x-tenant-host']) ?? req.headers.host;
         tenant = slug
@@ -102,4 +103,14 @@ function slugFromWebhookUrl(url: string | undefined): string | undefined {
   const dot = token.indexOf('.');
   const slug = dot > 0 ? token.slice(0, dot) : '';
   return slug || undefined;
+}
+
+/** Extract the tenant slug from an OAuth callback's `state` (`<slug>.<secret>`). */
+function slugFromOAuthState(url: string | undefined): string | undefined {
+  if (!url || !url.includes('/oauth/callback')) return undefined;
+  const match = url.match(/[?&]state=([^&]+)/);
+  if (!match) return undefined;
+  const state = decodeURIComponent(match[1]);
+  const dot = state.indexOf('.');
+  return dot > 0 ? state.slice(0, dot) : undefined;
 }

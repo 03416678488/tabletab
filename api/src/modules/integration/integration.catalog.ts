@@ -39,6 +39,17 @@ export interface Connector {
   webhookPath?: string;
   /** Whether this provider supports pushing our menu out to it. */
   canPushMenu?: boolean;
+  /** OAuth authorization-code config (for `authType: 'oauth'`). */
+  oauth?: {
+    authorizeUrl: string;
+    tokenUrl: string;
+    scopes: string;
+    clientIdEnv: string;
+    clientSecretEnv: string;
+  };
+  /** Fixed outbound API base for OAuth providers (api_key providers set their
+   *  own `apiBaseUrl` in config instead). */
+  apiBase?: string;
 }
 
 /** Shared credential fields for delivery aggregators (foodpanda/uber/deliveroo).
@@ -71,10 +82,19 @@ export const INTEGRATION_CATALOG: Connector[] = [
     category: 'delivery',
     description: 'Receive Uber Eats orders on the KDS and push your menu out.',
     status: 'available',
-    authType: 'api_key',
-    fields: AGGREGATOR_FIELDS,
+    authType: 'oauth',
     webhookPath: '/integrations/ubereats/webhook',
     canPushMenu: true,
+    // Representative Uber Eats API base — confirm against the live partner spec.
+    apiBase: 'https://api.uber.com/v2/eats',
+    oauth: {
+      // Representative Uber OAuth endpoints — confirm against the live partner spec.
+      authorizeUrl: 'https://login.uber.com/oauth/v2/authorize',
+      tokenUrl: 'https://login.uber.com/oauth/v2/token',
+      scopes: 'eats.store eats.order',
+      clientIdEnv: 'UBER_CLIENT_ID',
+      clientSecretEnv: 'UBER_CLIENT_SECRET',
+    },
   },
   {
     key: 'deliveroo',
