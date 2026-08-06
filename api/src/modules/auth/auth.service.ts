@@ -27,7 +27,7 @@ import { AuthJwtPayload } from './types/auth-jwtPayload';
 import refreshJwtConfig from './config/refresh-jwt.config';
 import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
 import { User } from '@modules/user/entities/users.entity';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { AUTH_CONSTANTS, AUTH_MESSAGES } from './constants';
 
@@ -200,6 +200,14 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    // A refresh token must not resurrect a deactivated/deleted account.
+    if (!user.isActive) {
+      throw new UnauthorizedException(AUTH_MESSAGES.USER_NOT_ACTIVE);
+    }
+    if (user.isDeleted) {
+      throw new UnauthorizedException(AUTH_MESSAGES.USER_DELETED);
+    }
+
     // Carry the tenant binding forward so refreshed tokens stay bound.
     const payload = this.buildJwtPayload(
       {
@@ -263,6 +271,10 @@ export class AuthService {
       throw new BadRequestException('Invalid reset code');
     }
 
+    if (user.resetCodeLockedUntil && new Date() < user.resetCodeLockedUntil) {
+      throw new ForbiddenException(AUTH_MESSAGES.RESET_CODE_LOCKED);
+    }
+
     if (!user.resetToken || !user.resetTokenExpiry) {
       throw new BadRequestException('Invalid reset code');
     }
@@ -274,14 +286,34 @@ export class AuthService {
 
     const isCodeValid = await bcrypt.compare(dto.code, user.resetToken);
     if (!isCodeValid) {
-      const newAttemptCount = (user.resetCodeAttempts || 0) + 1;
-      await this._userService.updateResetCodeAttempts(user.id, newAttemptCount, repo);
+      await this.registerFailedResetAttempt(user, repo);
       throw new BadRequestException('Invalid reset code');
     }
 
     await this._userService.updateResetCodeAttempts(user.id, 0, repo);
 
     return { message: 'Reset code is valid' };
+  }
+
+  /**
+   * Count a failed reset-code attempt and lock the account for 15 minutes
+   * after the 5th failure — a 6-digit code must not be brute-forceable.
+   */
+  private async registerFailedResetAttempt(
+    user: User,
+    repo?: Repository<User>,
+  ): Promise<void> {
+    const newAttemptCount = (user.resetCodeAttempts || 0) + 1;
+    await this._userService.updateResetCodeAttempts(user.id, newAttemptCount, repo);
+
+    if (newAttemptCount >= AUTH_CONSTANTS.MAX_CODE_ATTEMPTS) {
+      const lockedUntil = new Date();
+      lockedUntil.setMinutes(
+        lockedUntil.getMinutes() + AUTH_CONSTANTS.CODE_LOCKOUT_MINUTES,
+      );
+      await this._userService.updateResetCodeLockedUntil(user.id, lockedUntil, repo);
+      throw new ForbiddenException(AUTH_MESSAGES.RESET_CODE_LOCKED);
+    }
   }
 
   async verifyPasswordResetCodeAndReset(
@@ -295,11 +327,9 @@ export class AuthService {
       throw new BadRequestException('Invalid reset code');
     }
 
-    // if (user.resetCodeLockedUntil && new Date() < user.resetCodeLockedUntil) {
-    //   throw new ForbiddenException(
-    //     'Too many failed attempts. Account locked for 15 minutes.',
-    //   );
-    // }
+    if (user.resetCodeLockedUntil && new Date() < user.resetCodeLockedUntil) {
+      throw new ForbiddenException(AUTH_MESSAGES.RESET_CODE_LOCKED);
+    }
 
     if (!user.resetToken || !user.resetTokenExpiry) {
       throw new BadRequestException('Invalid reset code');
@@ -312,19 +342,7 @@ export class AuthService {
 
     const isCodeValid = await bcrypt.compare(dto.code, user.resetToken);
     if (!isCodeValid) {
-      const newAttemptCount = (user.resetCodeAttempts || 0) + 1;
-      await this._userService.updateResetCodeAttempts(user.id, newAttemptCount, repo);
-
-      // if (newAttemptCount >= 5) {
-      //   const lockedUntil = new Date();
-      //   lockedUntil.setMinutes(lockedUntil.getMinutes() + 15);
-      //   await this._userService.updateResetCodeLockedUntil(user.id, lockedUntil);
-
-      //   throw new ForbiddenException(
-      //     'Too many failed attempts. Account locked for 15 minutes.',
-      //   );
-      // }
-
+      await this.registerFailedResetAttempt(user, repo);
       throw new BadRequestException('Invalid reset code');
     }
 
@@ -458,9 +476,13 @@ export class AuthService {
       throw new BadRequestException('New password must be different from current password');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(dto.newPassword, AUTH_CONSTANTS.SALT_ROUNDS);
 
-    await this._userService.updatePassword(userId, hashedPassword, repo);
+    await Promise.all([
+      this._userService.updatePassword(userId, hashedPassword, repo),
+      // Invalidates every token issued before this moment (see JwtStrategy).
+      this._userService.updatePasswordChangedAt(userId, repo),
+    ]);
 
     return 'Password changed successfully';
   }
@@ -496,8 +518,9 @@ export class AuthService {
 
   private generateTokens(payload: AuthJwtPayload) {
     const now = new Date();
-    const jwtExpiresIn = this._configService.get<string>('JWT_EXPIRES_IN');
-    const refreshExpiresIn = this._configService.get<string>('REFRESH_JWT_EXPIRE_IN');
+    const jwtExpiresIn = this._configService.get<string>('JWT_EXPIRES_IN', '15m');
+    // Report the same expiry the refresh token is actually signed with.
+    const refreshExpiresIn = this._refreshTokenConfig.expiresIn;
 
     const tokenExpiresAt = new Date(now.getTime() + this.parseDurationToMs(jwtExpiresIn));
     const refreshTokenExpiresAt = new Date(

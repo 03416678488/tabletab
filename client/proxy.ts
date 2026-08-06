@@ -85,14 +85,18 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Dashboard/login/print routes (auth) + single-segment, dot-free paths that
-  // may be custom page slugs. `/` and asset requests are intentionally excluded.
+  // Dashboard/login routes (auth) + single-segment, dot-free paths that may be
+  // custom page slugs. `/` and asset requests are intentionally excluded.
+  // NOTE: this list must cover every segment in PROTECTED_SEGMENTS above, or
+  // those dashboards render without the middleware session check.
   matcher: [
     "/login",
-    "/admin/:path*",
-    "/manager/:path*",
+    "/owner/:path*",
+    "/multi_branch_manager/:path*",
+    "/branch_manager/:path*",
     "/chef/:path*",
     "/waiter/:path*",
+    "/delivery/:path*",
     "/branches/:path*",
     "/:slug([^/.]+)",
   ],

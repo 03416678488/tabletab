@@ -17,12 +17,14 @@ import {
 } from "lucide-react";
 
 import { Dropdown } from "@/components/ui/dropdown";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { settingsService } from "@/features/app-settings/services/settings.service";
 import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-group";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { branchService } from "@/features/branch/services/branch.service";
 import type { Branch } from "@/features/branch/types/branch.types";
 import { toast } from "@/hooks/use-toast";
+import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
 const ON = "enable";
@@ -58,6 +60,11 @@ export function QuickSettingsFab() {
 }
 
 function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
+  const role = useSession((s) => s.user?.role);
+  // A single-branch manager has nothing to switch — drop the Branch tab.
+  const visibleTabs =
+    role === "branch_manager" ? TABS.filter((t) => t.key !== "branch") : TABS;
+
   const [tab, setTab] = useState<TabKey>("order");
   const [pos, setPos] = useState(() => ({
     x: typeof window !== "undefined" ? window.innerWidth - PANEL_W - 24 : 24,
@@ -110,27 +117,14 @@ function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Tabs on top */}
-      <div className="flex gap-1 border-b border-border p-2">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const on = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                on
-                  ? "bg-brand-tint text-brand-deep"
-                  : "text-muted-foreground hover:bg-secondary hover:text-ink",
-              )}
-            >
-              <Icon className="size-4" />
-              {t.label}
-            </button>
-          );
-        })}
+      <div className="border-b border-border p-2">
+        <SegmentedTabs
+          grow
+          aria-label="Quick settings section"
+          value={tab}
+          onChange={(k) => setTab(k as TabKey)}
+          tabs={visibleTabs.map((t) => ({ key: t.key, label: t.label, icon: t.icon }))}
+        />
       </div>
 
       {/* Tab content */}

@@ -15,12 +15,15 @@ import { CustomerHelperService } from './services/customer.helper.service';
 
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
+import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Customer]),
     PaginationModule,
     ErrorModule,
+    // Provides RateLimitService for the @RateLimit decorators on customer auth.
+    AuthModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

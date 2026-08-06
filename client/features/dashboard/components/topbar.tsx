@@ -66,19 +66,6 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
       {canSwitchBranch && <BranchSwitcher />}
 
       <div className="ml-auto flex items-center gap-2">
-        <IconLink
-          href={hrefFor(user.role, "pos-orders")}
-          label="Order list"
-          icon={ReceiptText}
-          className="bg-sky-50 text-sky-600 hover:bg-sky-100"
-        />
-        <IconLink
-          href={hrefFor(user.role, "tables")}
-          label="All tables"
-          icon={Table2}
-          className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-        />
-
         <button
           type="button"
           aria-label="Notifications"
@@ -96,21 +83,3 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
 
 const ICON_BTN =
   "inline-flex size-9 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-function IconLink({
-  href,
-  label,
-  icon: Icon,
-  className,
-}: {
-  href: string;
-  label: string;
-  icon: typeof ReceiptText;
-  className?: string;
-}) {
-  return (
-    <Link href={href} aria-label={label} title={label} className={cn(ICON_BTN, className)}>
-      <Icon className="size-5" />
-    </Link>
-  );
-}

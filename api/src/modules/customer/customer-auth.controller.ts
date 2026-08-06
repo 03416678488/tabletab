@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Post, Put } from '@nestjs/common';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { RateLimit } from '@modules/auth/decorators/rate-limit.decorator';
 
 import { CustomerAuthService } from './customer-auth.service';
 import {
@@ -18,12 +19,14 @@ export class CustomerAuthController {
   constructor(private readonly _auth: CustomerAuthService) {}
 
   @Public()
+  @RateLimit({ type: 'ip', limit: 10 })
   @Post('register')
   register(@Body() dto: CustomerRegisterDto) {
     return this._auth.register(dto);
   }
 
   @Public()
+  @RateLimit({ type: 'login', limit: 10 })
   @Post('login')
   login(@Body() dto: CustomerLoginDto) {
     return this._auth.login(dto);

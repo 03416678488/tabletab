@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { cn } from "@/lib/utils";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import {
   SettingsForm,
   type SettingsField,
@@ -23,23 +23,12 @@ export function ProviderTabs({ tabs }: { tabs: ProviderTab[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setActive(t.key)}
-            className={cn(
-              "rounded-xl border px-4 py-2 text-sm font-semibold transition-colors",
-              active === t.key
-                ? "border-brand bg-brand text-white"
-                : "border-border bg-white text-muted-foreground hover:text-ink",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        aria-label="Provider"
+        value={active ?? ""}
+        onChange={setActive}
+        tabs={tabs.map((t) => ({ key: t.key, label: t.label }))}
+      />
 
       {current && (
         <SettingsForm

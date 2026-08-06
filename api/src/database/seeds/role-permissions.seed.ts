@@ -77,7 +77,6 @@ export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
     ANCHOR,
     { resource: 'dashboard', actions: R },
     { resource: 'orders', actions: CRUD },
-    { resource: 'oss', actions: R },
   ],
 
   // Customers are guests — no dashboard modules, just the link anchor.

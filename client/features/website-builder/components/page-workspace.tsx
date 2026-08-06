@@ -7,9 +7,9 @@ import { ArrowLeft, LayoutTemplate, Search, Settings, type LucideIcon } from "lu
 
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
-import { cn } from "@/lib/utils";
 import { BuilderShell } from "@/features/website-builder/components/builder-shell";
 import { GeneralTab } from "@/features/website-builder/components/general-tab";
 import { SeoTab } from "@/features/website-builder/components/seo-tab";
@@ -96,28 +96,13 @@ export function PageWorkspace({ slug }: { slug: string }) {
       </div>
 
       {/* Top tab bar */}
-      <nav className="mt-5 flex gap-1 overflow-x-auto border-b border-border">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
-                active
-                  ? "border-brand text-brand-deep"
-                  : "border-transparent text-muted-foreground hover:text-ink",
-              )}
-            >
-              <Icon className="size-4 shrink-0" />
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
+      <SegmentedTabs
+        className="mt-5"
+        aria-label="Page section"
+        value={tab}
+        onChange={(k) => setTab(k as TabKey)}
+        tabs={TABS.map((t) => ({ key: t.key, label: t.label, icon: t.icon }))}
+      />
 
       {/* Tab content */}
       <div className="mt-5 min-w-0">

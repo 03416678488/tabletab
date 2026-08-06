@@ -18,6 +18,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/lib/utils";
@@ -280,29 +281,20 @@ export function TableManager() {
         </div>
       )}
 
-      {/* Area tabs */}
-      <div className="mt-4 flex flex-wrap items-center gap-5 border-b border-border">
-        <AreaTab
-          label="All Areas"
-          active={area === ALL}
-          onClick={() => setArea(ALL)}
-        />
-        {areas.map((a) => (
-          <AreaTab
-            key={a.id}
-            label={`${a.name} - ${countFor(a.id)}`}
-            active={area === a.id}
-            onClick={() => setArea(a.id)}
-          />
-        ))}
-        {hasUnassigned && (
-          <AreaTab
-            label={`No area - ${countFor(NO_AREA)}`}
-            active={area === NO_AREA}
-            onClick={() => setArea(NO_AREA)}
-          />
-        )}
-      </div>
+      {/* Area tabs — segmented control */}
+      <SegmentedTabs
+        className="mt-4"
+        aria-label="Filter tables by area"
+        value={area}
+        onChange={setArea}
+        tabs={[
+          { key: ALL, label: "All Areas", count: tables.length },
+          ...areas.map((a) => ({ key: a.id, label: a.name, count: countFor(a.id) })),
+          ...(hasUnassigned
+            ? [{ key: NO_AREA, label: "No area", count: countFor(NO_AREA) }]
+            : []),
+        ]}
+      />
 
       {/* Cards */}
       <div className="mt-5">
@@ -371,30 +363,6 @@ export function TableManager() {
   );
 }
 
-function AreaTab({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors",
-        active
-          ? "border-brand text-brand"
-          : "border-transparent text-muted-foreground hover:text-ink",
-      )}
-    >
-      {label}
-    </button>
-  );
-}
 
 function TableGlyph({ name, status }: { name: string; status: TableStatus }) {
   const s = STATUS_STYLES[status];

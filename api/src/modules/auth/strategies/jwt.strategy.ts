@@ -47,7 +47,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(req: TenantRequest, payload: AuthJwtPayload): Promise<AuthenticatedUser> {
+  async validate(
+    req: TenantRequest,
+    payload: AuthJwtPayload & { iat?: number },
+  ): Promise<AuthenticatedUser> {
     // Tenant-bound token → validate the user and load grants from the tenant's
     // DB (the middleware set req.tenantDataSource from the verified claim).
     const ds = req.tenantDataSource;
@@ -57,12 +60,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const user = await userRepo
       .createQueryBuilder('user')
-      .select(['user.id', 'user.isActive', 'user.isDeleted'])
+      .select(['user.id', 'user.isActive', 'user.isDeleted', 'user.passwordChangedAt'])
       .where('user.id = :userId', { userId: payload.id })
       .getOne();
 
     if (!user || !user.isActive || user.isDeleted) {
       throw new UnauthorizedException();
+    }
+
+    // Tokens minted before the last password change are dead — a stolen
+    // session must not survive a password reset. (1s slack: iat has second
+    // precision while passwordChangedAt has millisecond precision.)
+    if (
+      user.passwordChangedAt &&
+      payload.iat &&
+      payload.iat * 1000 < user.passwordChangedAt.getTime() - 1000
+    ) {
+      throw new UnauthorizedException('Session expired — please sign in again');
     }
 
     // Attach role-scoped grants freshly each request so permission edits apply

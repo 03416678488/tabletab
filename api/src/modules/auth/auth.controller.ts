@@ -19,6 +19,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UserRegisterDto } from './dto/user-register.dto';
 
+import { RateLimit } from './decorators/rate-limit.decorator';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -27,7 +28,7 @@ export class AuthController {
 
   @Public()
   @UseGuards(LocalAuthGuard)
-  // @RateLimit(RateLimitConstants.LOGIN)
+  @RateLimit({ type: 'login', limit: 10 })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Req() req: any) {
@@ -44,7 +45,7 @@ export class AuthController {
   }
 
   @Public()
-  // @RateLimit(RateLimitConstants.IP_LIMIT)
+  @RateLimit({ type: 'ip', limit: 10 })
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Req() req: any, @Body() dto: UserRegisterDto) {
@@ -60,7 +61,7 @@ export class AuthController {
   }
 
   @Public()
-  // @RateLimit(RateLimitConstants.EMAIL_COOLDOWN)
+  @RateLimit({ type: 'email-cooldown' })
   @Post('password-reset/request-code')
   @HttpCode(HttpStatus.OK)
   async requestPasswordResetCode(@Req() req: any, @Body() dto: RequestPasswordResetDto) {
@@ -68,7 +69,7 @@ export class AuthController {
   }
 
   @Public()
-  // @RateLimit(RateLimitConstants.EMAIL_DAILY)
+  @RateLimit({ type: 'ip', limit: 30 })
   @Post('password-reset/verify-code')
   @HttpCode(HttpStatus.OK)
   async verifyPasswordResetCode(@Req() req: any, @Body() dto: ResetPasswordVerifyCodeDto) {
@@ -76,7 +77,7 @@ export class AuthController {
   }
 
   @Public()
-  // @RateLimit(RateLimitConstants.EMAIL_DAILY)
+  @RateLimit({ type: 'ip', limit: 30 })
   @Post('password-reset/verify-code-and-reset-password')
   @HttpCode(HttpStatus.OK)
   async verifyCodeAndResetPassword(@Req() req: any, @Body() dto: ResetPasswordDto) {
@@ -84,7 +85,7 @@ export class AuthController {
   }
 
   @Public()
-  // @RateLimit(RateLimitConstants.EMAIL_COOLDOWN)
+  @RateLimit({ type: 'email-cooldown' })
   @Post('email-verification/request-code')
   @HttpCode(HttpStatus.OK)
   async requestEmailVerificationCode(@Req() req: any, @Body() dto: RequestEmailVerificationDto) {
@@ -99,7 +100,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  // @RateLimit(RateLimitConstants.EMAIL_COOLDOWN)
+  @RateLimit({ type: 'email-cooldown' })
   @Post('email-verification/resend-code')
   @HttpCode(HttpStatus.OK)
   async resendVerificationCode(@Req() req: any, @CurrentUser() user: User) {

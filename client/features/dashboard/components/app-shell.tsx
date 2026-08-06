@@ -16,6 +16,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const role = useSession((s) => s.user?.role);
   const home = role ? roleHomePath(role) : "/";
 
+  // The quick-settings control is a management tool — owner + both managers only.
+  const showQuickSettings =
+    role === "owner" ||
+    role === "multi_branch_manager" ||
+    role === "branch_manager";
+
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -52,8 +58,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">{children}</main>
       </div>
 
-      {/* Floating quick-settings control — visible on every dashboard page. */}
-      <QuickSettingsFab />
+      {/* Floating quick-settings control — management roles only. */}
+      {showQuickSettings && <QuickSettingsFab />}
     </div>
   );
 }

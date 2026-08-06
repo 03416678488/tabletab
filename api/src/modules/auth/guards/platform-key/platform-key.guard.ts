@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 
 /**
  * Authorizes control-plane → tenant service calls (e.g. impersonation) via a
@@ -19,9 +20,17 @@ export class PlatformKeyGuard implements CanActivate {
       throw new ForbiddenException('Impersonation is not configured');
     }
     const provided = req.headers['x-platform-key'];
-    if (provided !== expected) {
+    if (typeof provided !== 'string' || !constantTimeEquals(provided, expected)) {
       throw new ForbiddenException('Invalid platform key');
     }
     return true;
   }
+}
+
+/** Compare secrets without leaking length/prefix timing information. */
+function constantTimeEquals(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
 }

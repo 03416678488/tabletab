@@ -40,6 +40,8 @@ import jwtConfig from './config/jwt.config';
   ],
   controllers: [AuthController],
   providers: [RateLimitService, AuthService, LocalStrategy, JwtStrategy, RefreshStrategy],
-  exports: [PassportModule, AuthService, JwtStrategy],
+  // RateLimitService is exported so other modules (e.g. customer auth) can use
+  // the @RateLimit decorator, whose interceptor injects it.
+  exports: [PassportModule, AuthService, JwtStrategy, RateLimitService],
 })
 export class AuthModule {}
