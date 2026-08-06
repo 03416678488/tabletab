@@ -41,4 +41,22 @@ export const menuService = {
       .delete<{ message: string }>(MENU_ENDPOINTS.byId(id), { auth: true })
       .then((res) => res.data);
   },
+
+  exportCsv() {
+    return httpClient
+      .get<{ csv: string; count: number }>(`${MENU_ENDPOINTS.base}/export`, { auth: true })
+      .then((res) => res.data);
+  },
+
+  importCsv(csv: string) {
+    return httpClient
+      .post<MenuImportResult>(`${MENU_ENDPOINTS.base}/import`, { csv }, { auth: true })
+      .then((res) => res.data);
+  },
 };
+
+export interface MenuImportResult {
+  created: number;
+  updated: number;
+  errors: { row: number; message: string }[];
+}

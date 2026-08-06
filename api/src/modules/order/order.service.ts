@@ -17,6 +17,7 @@ import { OrderHelperService } from './services/order.helper.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { NotificationService } from '@modules/notification/notification.service';
+import { OrderStatusSyncService } from './services/order-status-sync.service';
 import { PromotionService } from '@modules/promotion/promotion.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -58,6 +59,7 @@ export class OrderService extends AbstractService<Order> {
     private readonly _realtime: RealtimeService,
     private readonly _promotions: PromotionService,
     private readonly _notifications: NotificationService,
+    private readonly _statusSync: OrderStatusSyncService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -258,6 +260,10 @@ export class OrderService extends AbstractService<Order> {
       // Only fire the "ready" nudge when the status actually transitions to ready.
       if (order.status === 'ready' && existing.status !== 'ready') {
         await this.notify(order, 'ready');
+      }
+      // Relay the new status back to the source aggregator (foodpanda, …).
+      if (order.status !== existing.status) {
+        await this._statusSync.syncOutbound(order);
       }
     }
     return order;

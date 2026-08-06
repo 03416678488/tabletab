@@ -12,6 +12,11 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix(AppConstants.ApiPrefix);
 
+  // Raise the request body limit (default ~100kb) so bulk CSV imports — which
+  // post the whole file as JSON text — aren't rejected as "payload too large".
+  app.useBodyParser('json', { limit: '15mb' });
+  app.useBodyParser('urlencoded', { limit: '15mb', extended: true });
+
   // Serve uploaded files: public/uploads/... is reachable at /uploads/...
   app.useStaticAssets(join(process.cwd(), 'public'));
 

@@ -38,7 +38,10 @@ export class TenantContextMiddleware implements NestMiddleware {
       if (claim?.id) {
         tenant = await this.registry.resolveById(claim.id);
       } else {
-        const slug = firstHeader(req.headers['x-tenant-slug']);
+        // A provider webhook has no JWT and a fixed callback host, so route it
+        // by the tenant slug embedded in its per-tenant token (`<slug>.<secret>`).
+        const webhookSlug = slugFromWebhookUrl(req.originalUrl);
+        const slug = webhookSlug ?? firstHeader(req.headers['x-tenant-slug']);
         const host = firstHeader(req.headers['x-tenant-host']) ?? req.headers.host;
         tenant = slug
           ? await this.registry.resolveBySlug(slug)
@@ -87,4 +90,16 @@ export class TenantContextMiddleware implements NestMiddleware {
 function firstHeader(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return value[0];
   return value;
+}
+
+/** Extract the tenant slug from an aggregator webhook URL's token
+ *  (`/integrations/<provider>/webhook/<slug>.<secret>`). */
+function slugFromWebhookUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const match = url.match(/\/integrations\/[^/]+\/webhook\/([^/?#]+)/);
+  if (!match) return undefined;
+  const token = decodeURIComponent(match[1]);
+  const dot = token.indexOf('.');
+  const slug = dot > 0 ? token.slice(0, dot) : '';
+  return slug || undefined;
 }

@@ -16,6 +16,7 @@ import {
   MonitorCheck,
   MonitorPlay,
   Percent,
+  Plug,
   ReceiptText,
   ScanLine,
   Settings,
@@ -127,6 +128,7 @@ export const navItems: NavItem[] = [
     children: [
       { label: "Menu", slug: "menus", roles: MANAGERS, module: "menu" },
       { label: "Item", slug: "menu", roles: MANAGERS, module: "menu" },
+      { label: "Import / Export", slug: "menu-io", roles: MANAGERS, module: "menu" },
       { label: "Category", slug: "categories", roles: MANAGERS, module: "categories" },
       { label: "Food Types", slug: "food-types", roles: MANAGERS, module: "menu" },
     ],
@@ -153,6 +155,7 @@ export const navItems: NavItem[] = [
     ],
   },
   { label: "Branches", slug: "branches", icon: MapPin, roles: MANAGERS, section: "Management", module: "branches" },
+  { label: "Marketplace", slug: "marketplace", icon: Plug, roles: OWNER_ONLY, section: "Management", module: "settings" },
   { label: "Settings", slug: "settings", icon: Settings, roles: OWNER_ONLY, section: "Management", module: "settings" },
   { label: "Website Setting", slug: "website-settings", icon: Globe, roles: OWNER_ONLY, section: "Management", module: "settings" },
   { label: "Promotions", slug: "promotions", icon: Percent, roles: MANAGERS, section: "Management", module: "settings" },

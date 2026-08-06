@@ -59,6 +59,7 @@ async function handleUnauthorized(): Promise<never> {
     }
 
     isRedirectingToLogin = true;
+    clearSessionTokenCache();
 
     try {
         // Clear the Next-Auth session so middleware won't restore it
@@ -79,10 +80,41 @@ async function handleUnauthorized(): Promise<never> {
     });
 }
 
+// Cache the session token briefly so a burst of authed requests (e.g. a
+// dashboard load firing ~10 calls at once) shares ONE `/session` fetch instead
+// of one each. The TTL is far shorter than the access token's own lifetime, so
+// the cached value is always still valid; a rotated token is picked up on the
+// next window. Cleared on 401 for good measure.
+let sessionTokenCache: { token?: string; at: number } | null = null;
+let sessionTokenInflight: Promise<string | undefined> | null = null;
+const SESSION_TOKEN_TTL = 10_000;
+
+function clearSessionTokenCache() {
+    sessionTokenCache = null;
+    sessionTokenInflight = null;
+}
+
 async function getAuthToken(manualToken?: string) {
     if (manualToken) return manualToken;
-    const session = await getSession();
-    return session?.accessToken;
+
+    const now = Date.now();
+    if (sessionTokenCache && now - sessionTokenCache.at < SESSION_TOKEN_TTL) {
+        return sessionTokenCache.token;
+    }
+    // Coalesce concurrent callers onto a single in-flight getSession().
+    if (sessionTokenInflight) return sessionTokenInflight;
+
+    sessionTokenInflight = getSession()
+        .then((session) => {
+            sessionTokenCache = { token: session?.accessToken, at: Date.now() };
+            sessionTokenInflight = null;
+            return session?.accessToken;
+        })
+        .catch(() => {
+            sessionTokenInflight = null;
+            return undefined;
+        });
+    return sessionTokenInflight;
 }
 
 function buildQueryString(params: RequestOptions["params"]): string {

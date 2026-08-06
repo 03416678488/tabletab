@@ -10,6 +10,8 @@ import { MenuController } from './menu.controller';
 import { MenuService } from './menu.service';
 import { MenuValidatorService } from './services/menu-validator.service';
 import { MenuHelperService } from './services/menu.helper.service';
+import { MenuIoService } from './services/menu-io.service';
+import { MenuSyncService } from './services/menu-sync.service';
 
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
@@ -26,6 +28,9 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
     MenuService,
     MenuValidatorService,
     MenuHelperService,
+    MenuIoService,
+    // Singleton (holds debounce timers); operates on the tenant DataSource.
+    MenuSyncService,
     // Tenant-aware: every @InjectRepository in this module now resolves to the
     // current request's tenant database (falls back to the default connection).
     tenantRepositoryProvider(MenuItem),
@@ -33,6 +38,6 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
     tenantRepositoryProvider(FoodType),
     tenantRepositoryProvider(Menu),
   ],
-  exports: [MenuService, TypeOrmModule],
+  exports: [MenuService, MenuIoService, TypeOrmModule],
 })
 export class MenuModule {}

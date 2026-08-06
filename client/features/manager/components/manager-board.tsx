@@ -112,7 +112,7 @@ export function ManagerBoard() {
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">Floor overview</h1>
           <p className="text-sm text-muted-foreground">
-            {activeBranch.name.replace("Olive & Ash — ", "")} · {activeOrders.length} active
+            {activeBranch.name} · {activeOrders.length} active
             orders
           </p>
         </div>

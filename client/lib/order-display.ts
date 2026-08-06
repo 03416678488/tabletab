@@ -5,7 +5,7 @@ export function orderTableLabel(order: Order, branch: Branch): string {
     const table = branch.tables.find((t) => t.id === order.tableId);
     if (table) return `Table ${table.label}`;
   }
-  const short = branch.name.replace("Olive & Ash — ", "");
+  const short = branch.name;
   return `${short} · ${order.fulfillmentType}`;
 }
 

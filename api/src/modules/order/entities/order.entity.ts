@@ -36,6 +36,14 @@ export class Order extends AbstractEntity {
   @Column({ type: 'varchar', default: 'placed' })
   status: OrderStatus;
 
+  /** Origin channel, e.g. "foodpanda" — null for in-house orders. */
+  @Column({ type: 'varchar', nullable: true })
+  source: string | null;
+
+  /** The provider's own order id (for syncing status back out). */
+  @Column({ type: 'varchar', nullable: true })
+  externalRef: string | null;
+
   @Column({ type: 'uuid', nullable: true })
   tableId: string | null;
 

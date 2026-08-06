@@ -47,7 +47,7 @@ export function BranchSwitcher() {
         aria-label="Active branch"
         options={branches.map((b) => ({
           value: b.id,
-          label: b.name.replace("Olive & Ash — ", ""),
+          label: b.name,
           sublabel: b.city || undefined,
         }))}
       />

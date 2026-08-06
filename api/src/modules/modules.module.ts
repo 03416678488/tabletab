@@ -36,6 +36,7 @@ import { WebsiteModule } from '@modules/website/website.module';
 import { PromotionModule } from '@modules/promotion/promotion.module';
 import { CampaignModule } from '@modules/campaign/campaign.module';
 import { NotificationModule } from '@modules/notification/notification.module';
+import { IntegrationModule } from '@modules/integration/integration.module';
 import { TenancyModule } from '@modules/tenancy/tenancy.module';
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { FileManagerModule } from '@modules/file-manager/file-manager.module';
@@ -81,6 +82,7 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     PromotionModule,
     CampaignModule,
     NotificationModule,
+    IntegrationModule,
     TenancyModule,
     PaginationModule,
     FileManagerModule,

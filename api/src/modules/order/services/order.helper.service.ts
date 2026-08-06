@@ -36,6 +36,8 @@ export class OrderHelperService {
     return {
       orderNumber: this.generateOrderNumber(),
       orderType: dto.orderType,
+      source: dto.source ?? null,
+      externalRef: dto.externalRef ?? null,
       status: 'placed',
       tableId: dto.tableId ?? null,
       branchId: dto.branchId ?? null,

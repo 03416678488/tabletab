@@ -21,14 +21,29 @@ import { menuChannel } from '@modules/realtime/channels';
 import { sseFromChannel } from '@modules/realtime/sse.util';
 
 import { MenuService } from './menu.service';
+import { MenuIoService } from './services/menu-io.service';
 import { CreateMenuItemDto, UpdateMenuItemDto, GetMenuItemQueryDto } from './dto';
+import { ImportMenuItemsDto } from './dto/import-menu-items.dto';
 
 @Controller('menu-items')
 export class MenuController {
   constructor(
     private readonly _menuService: MenuService,
+    private readonly _ioService: MenuIoService,
     private readonly _realtime: RealtimeService,
   ) {}
+
+  /** Export all items as CSV (staff only). Declared before `:id`. */
+  @Get('export')
+  exportCsv() {
+    return this._ioService.exportCsv();
+  }
+
+  /** Bulk import items from CSV — upsert by id (staff only). */
+  @Post('import')
+  importCsv(@Body() dto: ImportMenuItemsDto) {
+    return this._ioService.importCsv(dto.csv);
+  }
 
   /**
    * Live menu-changed stream (availability / price / add / remove). Public — the

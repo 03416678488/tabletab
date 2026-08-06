@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
@@ -15,6 +15,7 @@ import { menuChannel } from '@modules/realtime/channels';
 import { MenuItem } from './entities/menu-item.entity';
 import { MenuValidatorService } from './services/menu-validator.service';
 import { MenuHelperService } from './services/menu.helper.service';
+import { MenuSyncService } from './services/menu-sync.service';
 import { CreateMenuItemDto, UpdateMenuItemDto, GetMenuItemQueryDto } from './dto';
 
 const RELATIONS = ['category', 'foodTypes', 'menus'];
@@ -29,6 +30,8 @@ export class MenuService extends AbstractService<MenuItem> {
     private readonly _validator: MenuValidatorService,
     private readonly _helper: MenuHelperService,
     private readonly _realtime: RealtimeService,
+    private readonly _menuSync: MenuSyncService,
+    @InjectDataSource() private readonly _defaultDataSource: DataSource,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -36,10 +39,18 @@ export class MenuService extends AbstractService<MenuItem> {
 
   /**
    * Nudge the tenant's storefront/POS to reconcile the menu (availability, price,
-   * add/remove). Public per-tenant channel — the menu isn't sensitive.
+   * add/remove). Public per-tenant channel — the menu isn't sensitive. Also
+   * auto-pushes the menu out to connected aggregators (best-effort, no-op unless
+   * a live endpoint is configured).
    */
   private emitMenuChanged(itemId: string): void {
     this._realtime.publish(menuChannel(this._req.tenant?.id), 'menu.changed', { id: itemId });
+    // Debounced per-tenant push to connected aggregators (best-effort, no-op
+    // unless a live endpoint is configured).
+    this._menuSync.schedule(
+      this._req.tenant?.id ?? 'default',
+      this._req.tenantDataSource ?? this._defaultDataSource,
+    );
   }
 
   getAll(query: GetMenuItemQueryDto): Promise<Paginated<MenuItem>> {

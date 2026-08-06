@@ -40,6 +40,16 @@ export class CreateOrderDto {
   @IsIn(['pos', 'online', 'table'])
   orderType: OrderType;
 
+  /** Origin channel, e.g. "foodpanda". */
+  @IsString()
+  @IsOptional()
+  source?: string;
+
+  /** The provider's own order id. */
+  @IsString()
+  @IsOptional()
+  externalRef?: string;
+
   @IsUUID()
   @IsOptional()
   tableId?: string;

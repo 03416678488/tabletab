@@ -101,7 +101,7 @@ export function KitchenBoard() {
         <div>
           <h1 className="font-display text-2xl font-bold text-white">Kitchen display</h1>
           <p className="text-sm text-slate-400">
-            {activeBranch.name.replace("Olive & Ash — ", "")} · Live board
+            {activeBranch.name} · Live board
           </p>
         </div>
         <Button

@@ -98,7 +98,7 @@ export function WaiterBoard() {
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">Waiter station</h1>
           <p className="text-sm text-muted-foreground">
-            {activeBranch.name.replace("Olive & Ash — ", "")} · Your tables &amp; requests
+            {activeBranch.name} · Your tables &amp; requests
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
