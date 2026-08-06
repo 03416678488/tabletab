@@ -6,8 +6,6 @@ import { ApiError } from "@/lib/httpClient";
 import { categoryService } from "@/features/category/services/category.service";
 import type { Category } from "@/features/category/types/category.types";
 
-const PER_PAGE = 10;
-
 interface Params {
   search?: string;
   isActive?: boolean;
@@ -17,12 +15,13 @@ interface Params {
 export function usePaginatedCategories({ search, isActive }: Params = {}) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${isActive ?? ""}`;
+  const key = `${search ?? ""}|${isActive ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -34,7 +33,7 @@ export function usePaginatedCategories({ search, isActive }: Params = {}) {
       try {
         const data = await categoryService.list({
           page: p,
-          perPage: PER_PAGE,
+          perPage,
           search: search || undefined,
           isActive,
         });
@@ -62,5 +61,5 @@ export function usePaginatedCategories({ search, isActive }: Params = {}) {
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
   const refetch = useCallback(() => void fetchPage(page), [fetchPage, page]);
 
-  return { categories, loading, error, page, totalPages, totalItems, goToPage, refetch };
+  return { categories, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch };
 }

@@ -6,8 +6,6 @@ import { ApiError } from "@/lib/httpClient";
 import { menusService } from "@/features/menu-list/services/menu.service";
 import type { Menu } from "@/features/menu-list/types/menu.types";
 
-const PER_PAGE = 10;
-
 interface Params {
   search?: string;
   isActive?: boolean;
@@ -17,13 +15,14 @@ interface Params {
 export function usePaginatedMenus({ search, isActive }: Params = {}) {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Ignore out-of-order responses when filters change mid-flight.
-  const key = `${search ?? ""}|${isActive ?? ""}`;
+  const key = `${search ?? ""}|${isActive ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -35,7 +34,7 @@ export function usePaginatedMenus({ search, isActive }: Params = {}) {
       try {
         const data = await menusService.list({
           page: p,
-          perPage: PER_PAGE,
+          perPage,
           search: search || undefined,
           isActive,
         });
@@ -64,5 +63,5 @@ export function usePaginatedMenus({ search, isActive }: Params = {}) {
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
   const refetch = useCallback(() => void fetchPage(page), [fetchPage, page]);
 
-  return { menus, loading, error, page, totalPages, totalItems, goToPage, refetch };
+  return { menus, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch };
 }

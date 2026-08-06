@@ -37,13 +37,25 @@ export class BranchHelperService {
   }
 
   /** Build the TypeORM `where` filter from the list query params. */
-  resolveListFilters(query: GetBranchQueryDto): FindOptionsWhere<Branch> {
-    const where: FindOptionsWhere<Branch> = {};
+  resolveListFilters(
+    query: GetBranchQueryDto,
+  ): FindOptionsWhere<Branch> | FindOptionsWhere<Branch>[] {
+    const base: FindOptionsWhere<Branch> = {};
 
-    if (query.name) where.name = ILike(`%${trimSpaces(query.name)}%`);
-    if (query.city) where.city = ILike(`%${trimSpaces(query.city)}%`);
-    if (query.isOpen !== undefined) where.isOpen = query.isOpen === 'true';
+    if (query.city) base.city = ILike(`%${trimSpaces(query.city)}%`);
+    if (query.isOpen !== undefined) base.isOpen = query.isOpen === 'true';
 
-    return where;
+    const term = trimSpaces(query.search ?? query.name ?? '');
+    if (term) {
+      const like = ILike(`%${term}%`);
+      return [
+        { ...base, name: like },
+        { ...base, address: like },
+        { ...base, city: like },
+        { ...base, phone: like },
+      ];
+    }
+
+    return base;
   }
 }

@@ -20,6 +20,7 @@ export const branchService = {
         params: {
           page: params?.page,
           perPage: params?.perPage,
+          search: params?.search,
           name: params?.name,
           city: params?.city,
           isOpen: params?.isOpen,

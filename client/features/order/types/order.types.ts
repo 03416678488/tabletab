@@ -117,6 +117,7 @@ export interface ListOrdersParams {
   search?: string;
   orderType?: OrderType;
   status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
   tableId?: string;
   branchId?: string;
 }

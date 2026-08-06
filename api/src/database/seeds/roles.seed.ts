@@ -1,16 +1,13 @@
 /**
- * Super Admin + Admin stay for the existing owner logins; the rest are the
- * fixed, business-facing roles managed from the Roles & Permissions screen.
- * `User` is the default role assigned to self-registered accounts.
+ * The fixed, business-facing role set. `Owner` is the top admin (full access);
+ * `Customer` is the default role for self-registered storefront accounts.
  */
 export const ROLES_SEED = [
-  { name: 'Super Admin' },
-  { name: 'Admin' },
-  { name: 'Administrators' },
-  { name: 'Delivery Boys' },
-  { name: 'Customers' },
-  { name: 'Employees' },
-  { name: 'Waiters' },
-  { name: 'Chefs' },
-  { name: 'User' },
+  { name: 'Owner' },
+  { name: 'Multi Branch Manager' },
+  { name: 'Branch Manager' },
+  { name: 'Chef' },
+  { name: 'Waiter' },
+  { name: 'Delivery Rider' },
+  { name: 'Customer' },
 ];

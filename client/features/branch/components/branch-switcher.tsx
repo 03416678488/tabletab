@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
-import { ChevronDown, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
+import { Dropdown } from "@/components/ui/dropdown";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useActiveBranch } from "@/features/branch/hooks/use-active-branch";
 
 /**
- * Admin topbar branch selector, backed by the real /branches API.
+ * Topbar branch selector (owner / multi-branch manager only), backed by the
+ * real /branches API. Uses the shared `Dropdown` for a consistent look with POS.
  */
 export function BranchSwitcher() {
   const { branches, loading } = useBranches();
@@ -21,12 +23,9 @@ export function BranchSwitcher() {
     if (!valid) setActiveBranchId(branches[0].id);
   }, [branches, activeBranchId, setActiveBranchId]);
 
-  const baseClass =
-    "h-10 appearance-none rounded-xl border border-border bg-white pl-9 pr-9 text-sm font-medium text-ink shadow-sm outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
-
   if (loading && !branches.length) {
     return (
-      <div className="hidden h-10 w-40 animate-pulse rounded-xl border border-border bg-secondary sm:block" />
+      <div className="hidden h-10 w-52 animate-pulse rounded-xl border border-border bg-secondary sm:block" />
     );
   }
 
@@ -39,21 +38,19 @@ export function BranchSwitcher() {
   }
 
   return (
-    <label className="relative hidden items-center sm:flex">
-      <MapPin className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-      <select
+    <div className="hidden sm:block">
+      <Dropdown
+        className="w-52"
         value={activeBranchId ?? branches[0].id}
-        onChange={(e) => setActiveBranchId(e.target.value)}
+        onChange={setActiveBranchId}
+        searchable={branches.length > 8}
         aria-label="Active branch"
-        className={baseClass}
-      >
-        {branches.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.name.replace("Olive & Ash — ", "")}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 size-4 text-muted-foreground" />
-    </label>
+        options={branches.map((b) => ({
+          value: b.id,
+          label: b.name.replace("Olive & Ash — ", ""),
+          sublabel: b.city || undefined,
+        }))}
+      />
+    </div>
   );
 }

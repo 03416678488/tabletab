@@ -19,7 +19,8 @@ export class PaginationProvider {
   public async paginationQuery<T extends ObjectLiteral>(
     paginationQueryDto: PaginationQueryDto,
     repository: Repository<T>,
-    where?: FindOptionsWhere<T>,
+    // Accept an array to express OR conditions (e.g. multi-column search).
+    where?: FindOptionsWhere<T> | FindOptionsWhere<T>[],
     relations?: string[],
     select?: FindOptionsSelect<T>,
     order?: FindOptionsOrder<T>,

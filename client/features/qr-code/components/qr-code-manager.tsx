@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Check,
@@ -18,6 +18,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,17 @@ export function QrCodeManager() {
       return true;
     });
   }, [qrCodes, search, area]);
+
+  // Client-side pagination (the full list is required for the area tabs and the
+  // "already-used table" guard, so we page over the filtered result locally).
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(12);
+  useEffect(() => setPage(1), [search, area, perPage]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const pageItems = useMemo(
+    () => filtered.slice((page - 1) * perPage, page * perPage),
+    [filtered, page, perPage],
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -187,16 +199,28 @@ export function QrCodeManager() {
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
-            {filtered.map((qr) => (
-              <QrCard
-                key={qr.id}
-                qr={qr}
-                onEdit={() => openEdit(qr)}
-                onDelete={() => remove(qr)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
+              {pageItems.map((qr) => (
+                <QrCard
+                  key={qr.id}
+                  qr={qr}
+                  onEdit={() => openEdit(qr)}
+                  onDelete={() => remove(qr)}
+                />
+              ))}
+            </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              onPageChange={setPage}
+              perPage={perPage}
+              onPerPageChange={setPerPage}
+              perPageOptions={[12, 24, 48, 96]}
+              className="mt-4"
+            />
+          </>
         )}
       </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Coins, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Coins, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Dialog,
@@ -38,6 +39,7 @@ import {
 import { ExchangeRateSettings } from "@/features/currency/components/exchange-rate-settings";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
 import { settingsService } from "@/features/app-settings/services/settings.service";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 import type { Currency } from "@/features/currency/types/currency.types";
 
 const SELECT_CLASS =
@@ -45,6 +47,16 @@ const SELECT_CLASS =
 
 export function CurrencyManager() {
   const { currencies, loading, error, refetch } = useCurrencies();
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return currencies;
+    return currencies.filter((c) =>
+      `${c.name} ${c.code} ${c.symbol}`.toLowerCase().includes(q),
+    );
+  }, [currencies, search]);
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
   const { get, refresh } = useSettings();
   const defaultCode = (get("site", "default_currency") || "").toUpperCase();
   const [open, setOpen] = useState(false);
@@ -162,21 +174,35 @@ export function CurrencyManager() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-semibold text-ink">Currencies</h2>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="size-4" /> Add Currency
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative sm:w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search currencies…"
+              className="h-9 pl-9"
+              aria-label="Search currencies"
+            />
+          </div>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="size-4" /> Add Currency
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState className="py-10" icon={Coins} title="Couldn't load" description={error} />
-        ) : currencies.length === 0 ? (
-          <EmptyState className="py-10" icon={Coins} title="No currencies" description="Add one to get started." />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            className="py-10"
+            icon={Coins}
+            title={search.trim() ? "No matches" : "No currencies"}
+            description={search.trim() ? "Try a different search." : "Add one to get started."}
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -192,7 +218,7 @@ export function CurrencyManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currencies.map((c) => {
+              {pageItems.map((c) => {
                 const supported = FRANKFURTER_CODES.has(c.code.toUpperCase());
                 return (
                   <TableRow key={c.id}>
@@ -257,6 +283,17 @@ export function CurrencyManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">

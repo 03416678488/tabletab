@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { Dropdown } from "@/components/ui/dropdown";
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/currency";
 
-import { useTransactions } from "@/features/transaction/hooks/use-transactions";
+import { usePaginatedTransactions } from "@/features/transaction/hooks/use-paginated-transactions";
 import type {
   PaymentMethod,
   TransactionType,
@@ -40,19 +41,21 @@ const METHOD_LABEL: Record<PaymentMethod, string> = {
 export function TransactionManager() {
   const [type, setType] = useState("");
   const [method, setMethod] = useState("");
-  const { transactions, loading, error, refetch } = useTransactions({
+  const {
+    transactions,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedTransactions({
     ...(type ? { type: type as TransactionType } : {}),
     ...(method ? { method: method as PaymentMethod } : {}),
   });
-
-  const total = useMemo(
-    () =>
-      transactions.reduce(
-        (sum, t) => sum + (t.type === "sale" || t.type === "cash_in" ? t.amount : -t.amount),
-        0,
-      ),
-    [transactions],
-  );
 
   return (
     <div className="w-full">
@@ -62,7 +65,7 @@ export function TransactionManager() {
             <ArrowLeftRight className="size-5 text-brand" /> Transactions
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {transactions.length} transaction{transactions.length === 1 ? "" : "s"} · net {formatMoney(total)}
+            {totalItems} transaction{totalItems === 1 ? "" : "s"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -149,6 +152,18 @@ export function TransactionManager() {
           </div>
         )}
       </Card>
+
+      {!loading && !error && transactions.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
     </div>
   );
 }

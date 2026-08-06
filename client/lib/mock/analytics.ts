@@ -155,7 +155,7 @@ const STAFF_PERFORMANCE: StaffPerformanceRow[] = [
   {
     staffId: "su-manager",
     name: "Marcus Lee",
-    role: "manager",
+    role: "branch_manager",
     avatarUrl: "https://i.pravatar.cc/120?u=tabletap-manager",
     avgAcknowledgeMins: 1.8,
     avgServeMins: 0,
@@ -165,7 +165,7 @@ const STAFF_PERFORMANCE: StaffPerformanceRow[] = [
   {
     staffId: "su-owner",
     name: "Dana Whitfield",
-    role: "admin",
+    role: "owner",
     avatarUrl: "https://i.pravatar.cc/120?u=tabletap-owner",
     avgAcknowledgeMins: 0,
     avgServeMins: 0,

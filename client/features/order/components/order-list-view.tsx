@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { ChevronRight, ReceiptText, Search, Trash2, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronRight, ReceiptText, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Table,
@@ -22,7 +22,8 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 import { formatMoney } from "@/lib/currency";
 
-import { useOrders } from "@/features/order/hooks/use-orders";
+import { Pagination } from "@/components/ui/pagination";
+import { usePaginatedOrders } from "@/features/order/hooks/use-paginated-orders";
 import { orderService } from "@/features/order/services/order.service";
 import {
   ORDER_STATUS_META,
@@ -31,7 +32,10 @@ import {
 } from "@/features/order/constants/order.constants";
 import { PaymentDialog, type PaymentResult } from "@/features/order/components/payment-dialog";
 import { paymentMethodLabel } from "@/features/order/lib/payment-label";
-import type { Order, OrderType } from "@/features/order/types/order.types";
+import type { Order, OrderStatus, OrderType } from "@/features/order/types/order.types";
+
+const FILTER_SELECT_CLASS =
+  "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
@@ -56,24 +60,33 @@ interface OrderListViewProps {
 }
 
 export function OrderListView({ orderType, title, subtitle }: OrderListViewProps) {
-  const { orders, loading, error, refetch } = useOrders(
-    orderType ? { orderType } : undefined,
-  );
   const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const activeFilters = (statusFilter !== "all" ? 1 : 0) + (paymentFilter !== "all" ? 1 : 0);
+
+  const {
+    orders,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedOrders({
+    orderType,
+    search,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    paymentStatus: paymentFilter === "all" ? undefined : paymentFilter,
+  });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Order | null>(null);
   // Synchronous guard so a click can't fire again before the refetch lands.
   const inFlight = useRef<Set<string>>(new Set());
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter((o) =>
-      `${o.orderNumber} ${o.table?.name ?? ""} ${o.customerName ?? ""}`
-        .toLowerCase()
-        .includes(q),
-    );
-  }, [orders, search]);
 
   const patch = async (order: Order, body: Parameters<typeof orderService.update>[1]) => {
     if (inFlight.current.has(order.id)) return; // block re-entrant clicks
@@ -142,28 +155,82 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
             {title}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {orders.length} order{orders.length === 1 ? "" : "s"} · {subtitle}
+            {totalItems} order{totalItems === 1 ? "" : "s"} · {subtitle}
           </p>
         </div>
-        <div className="relative sm:w-64">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search orders…"
-            className="h-9 pl-9"
-            aria-label="Search orders"
-          />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search order #, customer, phone, table…"
+              className="h-9 pl-9"
+              aria-label="Search orders"
+            />
+          </div>
+          <Button
+            variant={showFilters || activeFilters ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            <SlidersHorizontal className="size-4" /> Filters
+            {activeFilters > 0 && (
+              <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-white">
+                {activeFilters}
+              </span>
+            )}
+          </Button>
         </div>
       </div>
 
+      {showFilters && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Status
+            <select
+              className={FILTER_SELECT_CLASS}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as OrderStatus | "all")}
+            >
+              <option value="all">All</option>
+              {(Object.keys(ORDER_STATUS_META) as OrderStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {ORDER_STATUS_META[s].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            Payment
+            <select
+              className={FILTER_SELECT_CLASS}
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value as "all" | "paid" | "unpaid")}
+            >
+              <option value="all">All</option>
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid</option>
+            </select>
+          </label>
+          {activeFilters > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setStatusFilter("all");
+                setPaymentFilter("all");
+              }}
+            >
+              <X className="size-4" /> Clear
+            </Button>
+          )}
+        </div>
+      )}
+
       <Card className="mt-5 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-11 w-full" />
-            ))}
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState
             className="py-12"
@@ -176,15 +243,15 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : orders.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={ReceiptText}
-            title={orders.length === 0 ? "No orders yet" : "No matches"}
+            title={search.trim() ? "No matches" : "No orders yet"}
             description={
-              orders.length === 0
-                ? "New orders will appear here as they come in."
-                : "Try a different search."
+              search.trim()
+                ? "Try a different search."
+                : "New orders will appear here as they come in."
             }
           />
         ) : (
@@ -204,7 +271,7 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((order) => {
+                {orders.map((order) => {
                   const meta = ORDER_STATUS_META[order.status];
                   const next = nextStatus(order.status, order.orderType);
                   const done =
@@ -287,6 +354,18 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
           </div>
         )}
       </Card>
+
+      {!loading && !error && orders.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <PaymentDialog
         open={!!payFor}

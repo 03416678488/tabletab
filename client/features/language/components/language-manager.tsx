@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Globe, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Globe, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Dialog,
@@ -31,11 +32,20 @@ import { ApiError } from "@/lib/httpClient";
 
 import { useLanguages } from "@/features/language/hooks/use-languages";
 import { languageService, type Language } from "@/features/language/services/language.service";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 
 const empty = { name: "", code: "", isActive: true, isDefault: false };
 
 export function LanguageManager() {
   const { languages, loading, error, refetch } = useLanguages();
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return languages;
+    return languages.filter((l) => `${l.name} ${l.code}`.toLowerCase().includes(q));
+  }, [languages, search]);
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Language | null>(null);
   const [form, setForm] = useState(empty);
@@ -86,27 +96,41 @@ export function LanguageManager() {
     <div>
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg font-semibold text-ink">Languages</h2>
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus className="size-4" /> Add Language
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative sm:w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search languages…"
+              className="h-9 pl-9"
+              aria-label="Search languages"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
+            <Plus className="size-4" /> Add Language
+          </Button>
+        </div>
       </div>
 
       <Card className="mt-4 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState className="py-10" icon={Globe} title="Couldn't load" description={error} />
-        ) : languages.length === 0 ? (
-          <EmptyState className="py-10" icon={Globe} title="No languages" description="Add one to get started." />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            className="py-10"
+            icon={Globe}
+            title={search.trim() ? "No matches" : "No languages"}
+            description={search.trim() ? "Try a different search." : "Add one to get started."}
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -119,7 +143,7 @@ export function LanguageManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {languages.map((l) => (
+              {pageItems.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell className="font-medium">{l.name}</TableCell>
                   <TableCell className="text-muted-foreground">{l.code}</TableCell>
@@ -155,6 +179,18 @@ export function LanguageManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">

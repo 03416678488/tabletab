@@ -18,11 +18,13 @@ import { mapApiRolesToStaffRole } from "@/lib/roles";
  * else that is a single segment (e.g. /about-us) is a custom page slug.
  */
 const RESERVED_SEGMENTS = new Set([
-  // Dashboard + print (auth-protected)
-  "admin",
-  "manager",
+  // Dashboard roles (auth-protected)
+  "owner",
+  "multi_branch_manager",
+  "branch_manager",
   "chef",
   "waiter",
+  "delivery",
   "branches",
   // Auth
   "login",
@@ -38,7 +40,15 @@ const RESERVED_SEGMENTS = new Set([
   "p",
 ]);
 
-const PROTECTED_SEGMENTS = new Set(["admin", "manager", "chef", "waiter", "branches"]);
+const PROTECTED_SEGMENTS = new Set([
+  "owner",
+  "multi_branch_manager",
+  "branch_manager",
+  "chef",
+  "waiter",
+  "delivery",
+  "branches",
+]);
 
 export default auth((req) => {
   const { nextUrl } = req;

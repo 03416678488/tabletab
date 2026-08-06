@@ -12,7 +12,7 @@ import { UserRolePermissions } from '@modules/role/entities/user-role-permission
 import { RolePermission } from '@modules/role-permission/entities/role-permission.entity';
 
 /** Role names that bypass permission checks (they administer the system). */
-const SUPER_ROLES = ['Super Admin', 'Admin', 'Administrators'];
+const SUPER_ROLES = ['Owner'];
 
 /** Shape of `req.user` after authentication (used by RolesGuard + controllers). */
 export interface AuthenticatedUser {

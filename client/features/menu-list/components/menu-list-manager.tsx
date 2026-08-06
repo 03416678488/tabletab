@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { BookOpen, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
+import { AppImage } from "@/components/ui/app-image";
+
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Table,
@@ -42,7 +44,7 @@ export function MenuListManager() {
 
   // Search + status are applied server-side; the list is paginated.
   const isActive = status === "all" ? undefined : status === "active";
-  const { menus, loading, error, page, totalPages, totalItems, goToPage, refetch } =
+  const { menus, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch } =
     usePaginatedMenus({ search, isActive });
 
   const activeFilters = status !== "all" ? 1 : 0;
@@ -142,11 +144,7 @@ export function MenuListManager() {
 
       <Card className="mt-4 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState
             className="py-12"
@@ -181,6 +179,7 @@ export function MenuListManager() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-16">Image</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Order</TableHead>
@@ -191,6 +190,17 @@ export function MenuListManager() {
             <TableBody>
               {menus.map((menu) => (
                 <TableRow key={menu.id}>
+                  <TableCell>
+                    <AppImage
+                      src={menu.imageUrl}
+                      alt={menu.name}
+                      width={40}
+                      height={40}
+                      fallbackIcon={BookOpen}
+                      className="size-10 rounded-lg object-cover"
+                      fallbackClassName="size-10 rounded-lg"
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{menu.name}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {menu.description || "—"}
@@ -233,6 +243,8 @@ export function MenuListManager() {
           page={page}
           totalPages={totalPages}
           onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
           className="mt-4"
         />
       )}

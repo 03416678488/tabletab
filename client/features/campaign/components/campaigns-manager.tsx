@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Table,
@@ -44,7 +44,7 @@ export function CampaignsManager() {
   const [search, setSearch] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
 
-  const { campaigns, loading, error, page, totalPages, totalItems, goToPage, refetch } =
+  const { campaigns, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch } =
     usePaginatedCampaigns({ search });
   const confirm = useConfirm();
 
@@ -122,10 +122,7 @@ export function CampaignsManager() {
 
         <Card className="mt-4 overflow-hidden p-0">
           {loading ? (
-            <div className="space-y-2 p-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
+            <TableRowsSkeleton />
           ) : error ? (
             <EmptyState
               className="py-12"
@@ -216,7 +213,9 @@ export function CampaignsManager() {
         </Card>
 
         {!loading && !error && campaigns.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} className="mt-4" />
+          <Pagination page={page} totalPages={totalPages} onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage} className="mt-4" />
         )}
       </div>
 

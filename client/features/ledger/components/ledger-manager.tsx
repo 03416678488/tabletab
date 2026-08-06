@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dropdown } from "@/components/ui/dropdown";
 import {
@@ -37,6 +38,7 @@ import {
   type LedgerConfig,
   type LedgerRecord,
 } from "@/features/ledger/ledger";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -101,6 +103,8 @@ export function LedgerManager({ config }: { config: LedgerConfig }) {
         .includes(q),
     );
   }, [records, search, config.forField]);
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
 
   const openCreate = () => {
     setEditing(null);
@@ -223,7 +227,7 @@ export function LedgerManager({ config }: { config: LedgerConfig }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((r) => (
+                {pageItems.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-muted-foreground">{r.date ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{r.category?.name ?? "—"}</TableCell>
@@ -250,6 +254,18 @@ export function LedgerManager({ config }: { config: LedgerConfig }) {
           </div>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">

@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Table,
@@ -48,7 +48,7 @@ export function PromotionsManager() {
   const [editing, setEditing] = useState<Promotion | null>(null);
   const [search, setSearch] = useState("");
 
-  const { promotions, loading, error, page, totalPages, totalItems, goToPage, refetch } =
+  const { promotions, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch } =
     usePaginatedPromotions({ search });
 
   const filtersActive = Boolean(search.trim());
@@ -110,11 +110,7 @@ export function PromotionsManager() {
 
       <Card className="mt-4 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState
             className="py-12"
@@ -214,7 +210,9 @@ export function PromotionsManager() {
       </Card>
 
       {!loading && !error && promotions.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} className="mt-4" />
+        <Pagination page={page} totalPages={totalPages} onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage} className="mt-4" />
       )}
 
       <PromotionFormDialog

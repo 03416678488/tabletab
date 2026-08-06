@@ -65,95 +65,105 @@ export interface NavItem {
   children?: NavChild[];
 }
 
-const ALL: StaffRole[] = ["admin", "manager", "chef", "waiter", "delivery"];
-const ADMIN_MANAGER: StaffRole[] = ["admin", "manager"];
+const ALL: StaffRole[] = [
+  "owner",
+  "multi_branch_manager",
+  "branch_manager",
+  "chef",
+  "waiter",
+  "delivery",
+];
+/** Management tier: owner + both manager roles. */
+const MANAGERS: StaffRole[] = ["owner", "multi_branch_manager", "branch_manager"];
+/** Owner-only (top admin) items. */
+const OWNER_ONLY: StaffRole[] = ["owner"];
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", slug: "dashboard", icon: LayoutDashboard, roles: ALL, section: "Operations", module: "dashboard" },
-  { label: "Deliveries", slug: "deliveries", icon: Bike, roles: ["admin", "manager", "delivery"], section: "Operations", module: "orders" },
-  { label: "Kitchen", slug: "kitchen", icon: ChefHat, roles: ["admin", "manager", "chef"], section: "Operations", module: "kds" },
-  { label: "Waiter", slug: "waiter", icon: ConciergeBell, roles: ["admin", "manager", "waiter"], section: "Operations" },
-  { label: "Manager", slug: "manager", icon: ShieldCheck, roles: ["admin", "manager"], section: "Operations" },
-  { label: "Table", slug: "tables", icon: Armchair, roles: ["admin", "manager", "waiter"], section: "Operations", module: "tables" },
+  { label: "Deliveries", slug: "deliveries", icon: Bike, roles: [...MANAGERS, "delivery"], section: "Operations", module: "orders" },
+  { label: "Kitchen", slug: "kitchen", icon: ChefHat, roles: [...MANAGERS, "chef"], section: "Operations", module: "kds" },
+  { label: "Waiter", slug: "waiter", icon: ConciergeBell, roles: [...MANAGERS, "waiter"], section: "Operations" },
+  { label: "Manager", slug: "manager", icon: ShieldCheck, roles: MANAGERS, section: "Operations" },
+  { label: "Table", slug: "tables", icon: Armchair, roles: [...MANAGERS, "waiter"], section: "Operations", module: "tables" },
 
-  { label: "POS", slug: "pos", icon: ScanLine, roles: ["admin", "manager", "waiter"], section: "POS & Orders", module: "pos" },
-  { label: "POS Orders", slug: "pos-orders", icon: ReceiptText, roles: ["admin", "manager", "waiter"], section: "POS & Orders", module: "orders" },
-  { label: "Online Orders", slug: "online-orders", icon: ShoppingBag, roles: ["admin", "manager"], section: "POS & Orders", module: "orders" },
-  { label: "Table Orders", slug: "table-orders", icon: ConciergeBell, roles: ["admin", "manager", "waiter"], section: "POS & Orders", module: "orders" },
-  { label: "K.D.S", slug: "kds", icon: MonitorPlay, roles: ["admin", "manager", "chef"], section: "POS & Orders", module: "kds" },
-  { label: "O.S.S", slug: "oss", icon: MonitorCheck, roles: ["admin", "manager"], section: "POS & Orders", module: "oss" },
+  { label: "POS", slug: "pos", icon: ScanLine, roles: [...MANAGERS, "waiter"], section: "POS & Orders", module: "pos" },
+  { label: "POS Orders", slug: "pos-orders", icon: ReceiptText, roles: [...MANAGERS, "waiter"], section: "POS & Orders", module: "orders" },
+  { label: "Online Orders", slug: "online-orders", icon: ShoppingBag, roles: MANAGERS, section: "POS & Orders", module: "orders" },
+  { label: "Table Orders", slug: "table-orders", icon: ConciergeBell, roles: [...MANAGERS, "waiter"], section: "POS & Orders", module: "orders" },
+  { label: "K.D.S", slug: "kds", icon: MonitorPlay, roles: [...MANAGERS, "chef"], section: "POS & Orders", module: "kds" },
+  { label: "O.S.S", slug: "oss", icon: MonitorCheck, roles: MANAGERS, section: "POS & Orders", module: "oss" },
 
-  { label: "Reports", slug: "reports", icon: BarChart3, roles: ["admin", "manager"], section: "Finance", module: "reports" },
-  { label: "Transactions", slug: "transactions", icon: ArrowLeftRight, roles: ["admin", "manager"], section: "Finance", module: "reports" },
-  { label: "Cash Register", slug: "cash-register", icon: Wallet, roles: ["admin", "manager"], section: "Finance", module: "reports" },
+  { label: "Reports", slug: "reports", icon: BarChart3, roles: MANAGERS, section: "Finance", module: "reports" },
+  { label: "Transactions", slug: "transactions", icon: ArrowLeftRight, roles: MANAGERS, section: "Finance", module: "reports" },
+  { label: "Cash Register", slug: "cash-register", icon: Wallet, roles: MANAGERS, section: "Finance", module: "reports" },
   {
     label: "Income",
     icon: ArrowDownCircle,
-    roles: ["admin", "manager"],
+    roles: MANAGERS,
     section: "Finance",
     children: [
-      { label: "Income List", slug: "income", roles: ["admin", "manager"] },
-      { label: "Income Categories", slug: "income-categories", roles: ["admin", "manager"] },
+      { label: "Income List", slug: "income", roles: MANAGERS },
+      { label: "Income Categories", slug: "income-categories", roles: MANAGERS },
     ],
   },
   {
     label: "Expense",
     icon: ArrowUpCircle,
-    roles: ["admin", "manager"],
+    roles: MANAGERS,
     section: "Finance",
     children: [
-      { label: "Expense List", slug: "expense", roles: ["admin", "manager"] },
-      { label: "Expense Categories", slug: "expense-categories", roles: ["admin", "manager"] },
+      { label: "Expense List", slug: "expense", roles: MANAGERS },
+      { label: "Expense Categories", slug: "expense-categories", roles: MANAGERS },
     ],
   },
 
   {
     label: "Menu",
     icon: UtensilsCrossed,
-    roles: ADMIN_MANAGER,
+    roles: MANAGERS,
     section: "Management",
     children: [
-      { label: "Menu", slug: "menus", roles: ADMIN_MANAGER, module: "menu" },
-      { label: "Item", slug: "menu", roles: ADMIN_MANAGER, module: "menu" },
-      { label: "Category", slug: "categories", roles: ADMIN_MANAGER, module: "categories" },
-      { label: "Food Types", slug: "food-types", roles: ADMIN_MANAGER, module: "menu" },
+      { label: "Menu", slug: "menus", roles: MANAGERS, module: "menu" },
+      { label: "Item", slug: "menu", roles: MANAGERS, module: "menu" },
+      { label: "Category", slug: "categories", roles: MANAGERS, module: "categories" },
+      { label: "Food Types", slug: "food-types", roles: MANAGERS, module: "menu" },
     ],
   },
   {
     label: "Tables",
     icon: Table2,
-    roles: ADMIN_MANAGER,
+    roles: MANAGERS,
     section: "Management",
     children: [
-      { label: "Areas", slug: "areas", roles: ADMIN_MANAGER, module: "areas" },
-      { label: "Tables", slug: "tables-list", roles: ADMIN_MANAGER, module: "tables" },
-      { label: "QR Codes", slug: "qr-codes", roles: ADMIN_MANAGER, module: "qr-codes" },
+      { label: "Areas", slug: "areas", roles: MANAGERS, module: "areas" },
+      { label: "Tables", slug: "tables-list", roles: MANAGERS, module: "tables" },
+      { label: "QR Codes", slug: "qr-codes", roles: MANAGERS, module: "qr-codes" },
     ],
   },
   {
     label: "VAT",
     icon: Percent,
-    roles: ADMIN_MANAGER,
+    roles: MANAGERS,
     section: "Management",
     children: [
-      { label: "VAT Listing", slug: "vat", roles: ADMIN_MANAGER },
-      { label: "VAT Group", slug: "vat-groups", roles: ADMIN_MANAGER },
+      { label: "VAT Listing", slug: "vat", roles: MANAGERS },
+      { label: "VAT Group", slug: "vat-groups", roles: MANAGERS },
     ],
   },
-  { label: "Branches", slug: "branches", icon: MapPin, roles: ADMIN_MANAGER, section: "Management", module: "branches" },
-  { label: "Staff", slug: "staff", icon: UsersRound, roles: ["admin"], section: "Management", module: "users" },
-  { label: "Settings", slug: "settings", icon: Settings, roles: ["admin"], section: "Management", module: "settings" },
-  { label: "Website Setting", slug: "website-settings", icon: Globe, roles: ["admin"], section: "Management", module: "settings" },
-  { label: "Promotions", slug: "promotions", icon: Percent, roles: ADMIN_MANAGER, section: "Management", module: "settings" },
-  { label: "Campaigns", slug: "campaigns", icon: MessageCircle, roles: ADMIN_MANAGER, section: "Management", module: "settings" },
+  { label: "Branches", slug: "branches", icon: MapPin, roles: MANAGERS, section: "Management", module: "branches" },
+  { label: "Settings", slug: "settings", icon: Settings, roles: OWNER_ONLY, section: "Management", module: "settings" },
+  { label: "Website Setting", slug: "website-settings", icon: Globe, roles: OWNER_ONLY, section: "Management", module: "settings" },
+  { label: "Promotions", slug: "promotions", icon: Percent, roles: MANAGERS, section: "Management", module: "settings" },
+  { label: "Campaigns", slug: "campaigns", icon: MessageCircle, roles: MANAGERS, section: "Management", module: "settings" },
 
   // USERS — one listing per fixed role.
-  { label: "Administrators", slug: "administrators", icon: ShieldCheck, roles: ["admin"], section: "Users", module: "users" },
-  { label: "Delivery Boys", slug: "delivery-boys", icon: ShoppingBag, roles: ["admin"], section: "Users", module: "users" },
-  { label: "Customers", slug: "customers", icon: UsersRound, roles: ["admin"], section: "Users", module: "users" },
-  { label: "Employees", slug: "employees", icon: UsersRound, roles: ["admin"], section: "Users", module: "users" },
-  { label: "Waiters", slug: "waiters", icon: ConciergeBell, roles: ["admin"], section: "Users", module: "users" },
-  { label: "Chefs", slug: "chefs", icon: ChefHat, roles: ["admin"], section: "Users", module: "users" },
+  { label: "Owners", slug: "owners", icon: ShieldCheck, roles: OWNER_ONLY, section: "Users", module: "users" },
+  { label: "Multi Branch Managers", slug: "multi-branch-managers", icon: MapPin, roles: OWNER_ONLY, section: "Users", module: "users" },
+  { label: "Branch Managers", slug: "branch-managers", icon: ShieldCheck, roles: OWNER_ONLY, section: "Users", module: "users" },
+  { label: "Chefs", slug: "chefs", icon: ChefHat, roles: OWNER_ONLY, section: "Users", module: "users" },
+  { label: "Waiters", slug: "waiters", icon: ConciergeBell, roles: OWNER_ONLY, section: "Users", module: "users" },
+  { label: "Delivery Riders", slug: "delivery-riders", icon: Bike, roles: OWNER_ONLY, section: "Users", module: "users" },
+  { label: "Customers", slug: "customers", icon: UsersRound, roles: OWNER_ONLY, section: "Users", module: "users" },
 ];
 
 /** Build the role-prefixed href for a feature slug, e.g. ("admin","branches") → "/admin/branches". */
@@ -174,11 +184,12 @@ export function navItemsForRole(role: StaffRole): NavItem[] {
 }
 
 export const ROLE_LABELS: Record<StaffRole, string> = {
-  admin: "Admin",
-  manager: "Manager",
+  owner: "Owner",
+  multi_branch_manager: "Multi Branch Manager",
+  branch_manager: "Branch Manager",
   chef: "Chef",
   waiter: "Waiter",
-  delivery: "Delivery",
+  delivery: "Delivery Rider",
 };
 
 /** Default landing route after login for each role: /{role}/dashboard. */

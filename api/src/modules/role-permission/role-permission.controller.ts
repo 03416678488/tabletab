@@ -36,7 +36,7 @@ export class RolePermissionController {
   /** Replace one role's grants. Only admins (or a role granted roles:update) may edit. */
   @AccessControl({
     roles: [
-      { name: 'Administrators', permissions: { resource: 'roles', actions: 'update' } },
+      { name: 'Owner', permissions: { resource: 'roles', actions: 'update' } },
     ],
   })
   @Put(':roleId')

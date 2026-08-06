@@ -8,7 +8,8 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Table,
@@ -23,6 +24,7 @@ import { ApiError } from "@/lib/httpClient";
 import { cn } from "@/lib/utils";
 
 import { useBranches } from "@/features/branch/hooks/use-branches";
+import { usePaginatedBranches } from "@/features/branch/hooks/use-paginated-branches";
 import { branchService } from "@/features/branch/services/branch.service";
 import { BranchFormDialog } from "@/features/branch/components/branch-form-dialog";
 import type { Branch } from "@/features/branch/types/branch.types";
@@ -33,7 +35,6 @@ const SELECT_CLASS =
 type StatusFilter = "all" | "open" | "closed";
 
 export function BranchManager() {
-  const { branches, loading, error, refetch } = useBranches();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Branch | null>(null);
 
@@ -42,24 +43,29 @@ export function BranchManager() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [city, setCity] = useState<string>("all");
 
-  const cities = useMemo(
-    () => Array.from(new Set(branches.map((b) => b.city).filter(Boolean))).sort(),
-    [branches],
-  );
+  const {
+    branches,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedBranches({
+    search,
+    city,
+    isOpen: status === "all" ? undefined : status === "open",
+  });
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return branches.filter((b) => {
-      if (status === "open" && !b.isOpen) return false;
-      if (status === "closed" && b.isOpen) return false;
-      if (city !== "all" && b.city !== city) return false;
-      if (q) {
-        const hay = `${b.name} ${b.address} ${b.city} ${b.phone}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [branches, search, status, city]);
+  // Full list (small dataset) used only to populate the city filter dropdown.
+  const { branches: allBranches } = useBranches();
+  const cities = useMemo(
+    () => Array.from(new Set(allBranches.map((b) => b.city).filter(Boolean))).sort(),
+    [allBranches],
+  );
 
   const activeFilters = (status !== "all" ? 1 : 0) + (city !== "all" ? 1 : 0);
 
@@ -104,7 +110,7 @@ export function BranchManager() {
             Branches
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {branches.length} location{branches.length === 1 ? "" : "s"} · manage your restaurant network.
+            {totalItems} location{totalItems === 1 ? "" : "s"} · manage your restaurant network.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -137,7 +143,7 @@ export function BranchManager() {
           )}
         </Button>
         <span className="ml-auto text-sm text-muted-foreground">
-          {filtered.length} of {branches.length}
+          {branches.length} of {totalItems}
         </span>
       </div>
 
@@ -181,11 +187,7 @@ export function BranchManager() {
       {/* Table */}
       <Card className={cn("mt-4 overflow-hidden p-0")}>
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState
             className="py-12"
@@ -198,22 +200,22 @@ export function BranchManager() {
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : branches.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={MapPin}
-            title={branches.length === 0 ? "No branches yet" : "No matches"}
+            title={search.trim() || activeFilters ? "No matches" : "No branches yet"}
             description={
-              branches.length === 0
-                ? "Add your first branch to get started."
-                : "Try adjusting your search or filters."
+              search.trim() || activeFilters
+                ? "Try adjusting your search or filters."
+                : "Add your first branch to get started."
             }
             action={
-              branches.length === 0 ? (
+              search.trim() || activeFilters ? undefined : (
                 <Button onClick={openCreate}>
                   <Plus className="size-4" /> Add branch
                 </Button>
-              ) : undefined
+              )
             }
           />
         ) : (
@@ -228,7 +230,7 @@ export function BranchManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((branch) => (
+              {branches.map((branch) => (
                 <TableRow key={branch.id}>
                   <TableCell className="font-medium">{branch.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -266,6 +268,18 @@ export function BranchManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && branches.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <BranchFormDialog
         open={dialogOpen}

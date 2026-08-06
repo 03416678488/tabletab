@@ -41,15 +41,25 @@ export class StaffHelperService {
   }
 
   /** Build the TypeORM `where` filter from the list query params. */
-  resolveListFilters(query: GetStaffQueryDto): FindOptionsWhere<Staff> {
-    const where: FindOptionsWhere<Staff> = {};
+  resolveListFilters(
+    query: GetStaffQueryDto,
+  ): FindOptionsWhere<Staff> | FindOptionsWhere<Staff>[] {
+    const base: FindOptionsWhere<Staff> = {};
+    if (query.role) base.role = query.role;
+    if (query.branchId) base.branchId = query.branchId;
+    if (query.isActive !== undefined) base.isActive = query.isActive === 'true';
 
-    if (query.role) where.role = query.role;
-    if (query.branchId) where.branchId = query.branchId;
-    if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
-    if (query.search) where.firstName = ILike(`%${trimSpaces(query.search)}%`);
+    const term = query.search ? trimSpaces(query.search) : '';
+    if (!term) return base;
 
-    return where;
+    // Search across name / email / phone.
+    const like = ILike(`%${term}%`);
+    return [
+      { ...base, firstName: like },
+      { ...base, lastName: like },
+      { ...base, email: like },
+      { ...base, phone: like },
+    ];
   }
 
   normalizeEmail(email: string): string {

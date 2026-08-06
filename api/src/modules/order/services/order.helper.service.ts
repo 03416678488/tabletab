@@ -60,15 +60,30 @@ export class OrderHelperService {
     };
   }
 
-  resolveListFilters(query: GetOrderQueryDto): FindOptionsWhere<Order> {
-    const where: FindOptionsWhere<Order> = {};
-    if (query.search) where.orderNumber = ILike(`%${trimSpaces(query.search)}%`);
-    if (query.orderType) where.orderType = query.orderType as Order['orderType'];
-    if (query.status) where.status = query.status as Order['status'];
-    if (query.tableId) where.tableId = query.tableId;
-    if (query.branchId) where.branchId = query.branchId;
-    if (query.customerId) where.customerId = query.customerId;
-    return where;
+  resolveListFilters(
+    query: GetOrderQueryDto,
+  ): FindOptionsWhere<Order> | FindOptionsWhere<Order>[] {
+    // Base (AND) filters applied to every search branch.
+    const base: FindOptionsWhere<Order> = {};
+    if (query.orderType) base.orderType = query.orderType as Order['orderType'];
+    if (query.status) base.status = query.status as Order['status'];
+    if (query.paymentStatus) base.paymentStatus = query.paymentStatus as Order['paymentStatus'];
+    if (query.tableId) base.tableId = query.tableId;
+    if (query.branchId) base.branchId = query.branchId;
+    if (query.customerId) base.customerId = query.customerId;
+
+    const term = query.search ? trimSpaces(query.search) : '';
+    if (!term) return base;
+
+    // Search across the columns a user might type: order #, customer name/phone,
+    // and the table name. Each branch keeps the base filters (OR of ANDs).
+    const like = ILike(`%${term}%`);
+    return [
+      { ...base, orderNumber: like },
+      { ...base, customerName: like },
+      { ...base, customerPhone: like },
+      { ...base, table: { name: like } },
+    ];
   }
 }
 

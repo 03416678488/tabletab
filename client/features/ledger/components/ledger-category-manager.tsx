@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Tags, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Dialog,
@@ -30,12 +31,21 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
 import { ledgerService, type LedgerCategory, type LedgerConfig } from "@/features/ledger/ledger";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 
 export function LedgerCategoryManager({ config }: { config: LedgerConfig }) {
   const svc = useMemo(() => ledgerService(config.base), [config.base]);
   const [categories, setCategories] = useState<LedgerCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return categories;
+    return categories.filter((c) => c.name.toLowerCase().includes(q));
+  }, [categories, search]);
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<LedgerCategory | null>(null);
@@ -104,27 +114,41 @@ export function LedgerCategoryManager({ config }: { config: LedgerConfig }) {
             {categories.length} categor{categories.length === 1 ? "y" : "ies"}.
           </p>
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditing(null);
-            setOpen(true);
-          }}
-        >
-          <Plus className="size-4" /> Add category
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative sm:w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search categories…"
+              className="h-9 pl-9"
+              aria-label="Search categories"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+              setOpen(true);
+            }}
+          >
+            <Plus className="size-4" /> Add category
+          </Button>
+        </div>
       </div>
 
       <Card className="mt-5 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState className="py-10" icon={Tags} title="Couldn't load" description={error} />
-        ) : categories.length === 0 ? (
-          <EmptyState className="py-10" icon={Tags} title="No categories" description="Add one to get started." />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            className="py-10"
+            icon={Tags}
+            title={search.trim() ? "No matches" : "No categories"}
+            description={search.trim() ? "Try a different search." : "Add one to get started."}
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -135,7 +159,7 @@ export function LedgerCategoryManager({ config }: { config: LedgerConfig }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {categories.map((c) => (
+              {pageItems.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell>
@@ -167,6 +191,18 @@ export function LedgerCategoryManager({ config }: { config: LedgerConfig }) {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">

@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pencil, Plus, Search, SlidersHorizontal, Trash2, UtensilsCrossed, X } from "lucide-react";
 
+import { AppImage } from "@/components/ui/app-image";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Table,
@@ -22,7 +23,8 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
 
-import { useMenuItems } from "@/features/menu/hooks/use-menu-items";
+import { useMenuItemsTable } from "@/features/menu/hooks/use-menu-items-table";
+import { Pagination } from "@/components/ui/pagination";
 import { menuService } from "@/features/menu/services/menu.service";
 import { MenuFormDialog } from "@/features/menu/components/menu-form-dialog";
 import { useCategories } from "@/features/category/hooks/use-categories";
@@ -34,27 +36,30 @@ const SELECT_CLASS =
 type AvailFilter = "all" | "available" | "unavailable";
 
 export function MenuManager() {
-  const { items, loading, error, refetch } = useMenuItems();
-  const { categories } = useCategories();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<MenuItem | null>(null);
-
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [categoryId, setCategoryId] = useState<string>("all");
   const [avail, setAvail] = useState<AvailFilter>("all");
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return items.filter((m) => {
-      if (categoryId !== "all" && m.categoryId !== categoryId) return false;
-      if (avail === "available" && !m.isAvailable) return false;
-      if (avail === "unavailable" && m.isAvailable) return false;
-      if (q && !`${m.name} ${m.description ?? ""}`.toLowerCase().includes(q))
-        return false;
-      return true;
-    });
-  }, [items, search, categoryId, avail]);
+  const {
+    items,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = useMenuItemsTable({
+    search,
+    categoryId,
+    isAvailable: avail === "all" ? undefined : avail === "available",
+  });
+  const { categories } = useCategories();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<MenuItem | null>(null);
 
   const activeFilters = (categoryId !== "all" ? 1 : 0) + (avail !== "all" ? 1 : 0);
 
@@ -94,7 +99,7 @@ export function MenuManager() {
             Menu
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {items.length} item{items.length === 1 ? "" : "s"} · manage your dishes.
+            {totalItems} item{totalItems === 1 ? "" : "s"} · manage your dishes.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -126,7 +131,7 @@ export function MenuManager() {
           )}
         </Button>
         <span className="ml-auto text-sm text-muted-foreground">
-          {filtered.length} of {items.length}
+          {items.length} of {totalItems}
         </span>
       </div>
 
@@ -169,11 +174,7 @@ export function MenuManager() {
 
       <Card className="mt-4 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState
             className="py-12"
@@ -186,11 +187,11 @@ export function MenuManager() {
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : items.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={UtensilsCrossed}
-            title={items.length === 0 ? "No menu items yet" : "No matches"}
+            title={search.trim() || activeFilters ? "No matches" : "No menu items yet"}
             description={
               items.length === 0
                 ? "Add your first dish to get started."
@@ -208,6 +209,7 @@ export function MenuManager() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-16">Image</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
@@ -216,8 +218,19 @@ export function MenuManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((item) => (
+              {items.map((item) => (
                 <TableRow key={item.id}>
+                  <TableCell>
+                    <AppImage
+                      src={item.imageUrl || item.images?.[0]}
+                      alt={item.name}
+                      width={40}
+                      height={40}
+                      fallbackIcon={UtensilsCrossed}
+                      className="size-10 rounded-lg object-cover"
+                      fallbackClassName="size-10 rounded-lg"
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {item.category?.name ?? "—"}
@@ -256,6 +269,10 @@ export function MenuManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && items.length > 0 && (
+        <Pagination page={page} totalPages={totalPages} totalItems={totalItems} onPageChange={goToPage} perPage={perPage} onPerPageChange={setPerPage} className="mt-4" />
+      )}
 
       <MenuFormDialog
         open={dialogOpen}

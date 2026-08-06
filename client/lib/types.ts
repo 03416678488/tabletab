@@ -9,7 +9,13 @@ export type ID = string;
 export type OrderChannel = "in-venue" | "online";
 export type FulfillmentType = "dine-in" | "delivery" | "pickup";
 
-export type StaffRole = "admin" | "manager" | "chef" | "waiter" | "delivery";
+export type StaffRole =
+  | "owner"
+  | "multi_branch_manager"
+  | "branch_manager"
+  | "chef"
+  | "waiter"
+  | "delivery";
 
 export type TableStatus = "available" | "seated" | "needs-service" | "inactive";
 

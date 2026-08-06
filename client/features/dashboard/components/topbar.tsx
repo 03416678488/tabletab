@@ -26,6 +26,11 @@ interface TopbarProps {
 export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
   const user = useSession((s) => s.user!);
 
+  // Only roles that span multiple branches switch branches. Single-branch roles
+  // (branch manager, waiter, chef, delivery) don't see the switcher.
+  const canSwitchBranch =
+    user.role === "owner" || user.role === "multi_branch_manager";
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur lg:px-6">
       {/* Mobile menu */}
@@ -58,7 +63,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
         {collapsed ? <PanelLeft className="size-5" /> : <PanelLeftClose className="size-5" />}
       </button>
 
-      <BranchSwitcher />
+      {canSwitchBranch && <BranchSwitcher />}
 
       <div className="ml-auto flex items-center gap-2">
         <IconLink

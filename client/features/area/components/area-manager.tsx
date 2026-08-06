@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { LayoutGrid, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import {
   Table,
   TableBody,
@@ -20,21 +20,28 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
-import { useAreas } from "@/features/area/hooks/use-areas";
+import { usePaginatedAreas } from "@/features/area/hooks/use-paginated-areas";
+import { Pagination } from "@/components/ui/pagination";
 import { areaService } from "@/features/area/services/area.service";
 import { AreaFormDialog } from "@/features/area/components/area-form-dialog";
 import type { Area } from "@/features/area/types/area.types";
 
 export function AreaManager() {
-  const { areas, loading, error, refetch } = useAreas();
+  const [search, setSearch] = useState("");
+  const {
+    areas,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedAreas({ search });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Area | null>(null);
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return q ? areas.filter((a) => a.name.toLowerCase().includes(q)) : areas;
-  }, [areas, search]);
 
   const openCreate = () => {
     setEditing(null);
@@ -68,7 +75,7 @@ export function AreaManager() {
             Areas
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {areas.length} area{areas.length === 1 ? "" : "s"} · group tables by area.
+            {totalItems} area{totalItems === 1 ? "" : "s"} · group tables by area.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -91,10 +98,7 @@ export function AreaManager() {
 
       <Card className="mt-4 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState
             className="py-12"
@@ -107,11 +111,11 @@ export function AreaManager() {
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : areas.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={LayoutGrid}
-            title={areas.length === 0 ? "No areas yet" : "No matches"}
+            title={search.trim() ? "No matches" : "No areas yet"}
             description={
               areas.length === 0
                 ? "Add your first area to group tables."
@@ -134,7 +138,7 @@ export function AreaManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((area) => (
+              {areas.map((area) => (
                 <TableRow key={area.id}>
                   <TableCell className="font-medium">{area.name}</TableCell>
                   <TableCell className="text-right">
@@ -163,6 +167,10 @@ export function AreaManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && areas.length > 0 && (
+        <Pagination page={page} totalPages={totalPages} totalItems={totalItems} onPageChange={goToPage} perPage={perPage} onPerPageChange={setPerPage} className="mt-4" />
+      )}
 
       <AreaFormDialog
         open={dialogOpen}

@@ -10,15 +10,15 @@ import { roleHomePath } from "@/lib/nav";
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const role = useSession((s) => s.user?.role);
 
-  if (role !== "admin") {
+  if (role !== "owner") {
     return (
       <EmptyState
         icon={Shield}
-        title="Admin access only"
-        description="This section is restricted to admins."
+        title="Owner access only"
+        description="This section is restricted to the owner."
         action={
           <Button asChild variant="outline">
-            <Link href={roleHomePath(role ?? "admin")}>Back to dashboard</Link>
+            <Link href={roleHomePath(role ?? "owner")}>Back to dashboard</Link>
           </Button>
         }
       />

@@ -24,12 +24,24 @@ export class TableHelperService {
     return payload;
   }
 
-  resolveListFilters(query: GetTableQueryDto): FindOptionsWhere<Table> {
-    const where: FindOptionsWhere<Table> = {};
-    if (query.search) where.name = ILike(`%${trimSpaces(query.search)}%`);
-    if (query.branchId) where.branchId = query.branchId;
-    if (query.areaId) where.areaId = query.areaId;
-    if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
-    return where;
+  resolveListFilters(
+    query: GetTableQueryDto,
+  ): FindOptionsWhere<Table> | FindOptionsWhere<Table>[] {
+    const base: FindOptionsWhere<Table> = {};
+    if (query.branchId) base.branchId = query.branchId;
+    if (query.areaId) base.areaId = query.areaId;
+    if (query.isActive !== undefined) base.isActive = query.isActive === 'true';
+
+    const term = trimSpaces(query.search ?? '');
+    if (term) {
+      const like = ILike(`%${term}%`);
+      return [
+        { ...base, name: like },
+        { ...base, area: { name: like } },
+        { ...base, branch: { name: like } },
+      ];
+    }
+
+    return base;
   }
 }

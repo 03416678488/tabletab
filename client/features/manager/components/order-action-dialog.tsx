@@ -91,7 +91,12 @@ export function OrderActionDialog({
     }
   };
 
-  const waiters = staff.filter((s) => s.role === "waiter" || s.role === "manager");
+  const waiters = staff.filter(
+    (s) =>
+      s.role === "waiter" ||
+      s.role === "branch_manager" ||
+      s.role === "multi_branch_manager",
+  );
 
   return (
     <Sheet

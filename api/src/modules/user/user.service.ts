@@ -38,7 +38,7 @@ export class UserService extends AbstractService<User> {
    */
   async createUser(
     dto: CreateUserDto,
-    roleName: string = 'User',
+    roleName: string = 'Customer',
     dataSource?: DataSource,
   ): Promise<User> {
     const build = async (queryRunner: QueryRunner): Promise<string> => {

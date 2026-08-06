@@ -61,6 +61,7 @@ export type UpdateBranchInput = Partial<CreateBranchInput>;
 export interface ListBranchesParams {
   page?: number;
   perPage?: number;
+  search?: string;
   name?: string;
   city?: string;
   isOpen?: boolean;

@@ -3,7 +3,7 @@
 import { AdminDashboard } from "@/features/admin/components/admin-dashboard";
 import { ChefDashboard } from "@/features/dashboard/components/chef-dashboard";
 import { WaiterDashboard } from "@/features/dashboard/components/waiter-dashboard";
-import { DeliveryBoard } from "@/features/delivery/components/delivery-board";
+import { DeliveryDashboard } from "@/features/delivery/components/delivery-dashboard";
 import { useSession } from "@/hooks/use-session";
 
 /** The dashboard landing, tailored to the signed-in staff role. */
@@ -16,7 +16,7 @@ export function RoleDashboard() {
     case "waiter":
       return <WaiterDashboard />;
     case "delivery":
-      return <DeliveryBoard />;
+      return <DeliveryDashboard />;
     default:
       // admin / manager (and any unmapped role) get the full business dashboard.
       return <AdminDashboard />;

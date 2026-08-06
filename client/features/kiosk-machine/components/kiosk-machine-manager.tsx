@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Monitor, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Monitor, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Dialog,
@@ -32,6 +33,7 @@ import { ApiError } from "@/lib/httpClient";
 import { useKioskMachines } from "@/features/kiosk-machine/hooks/use-kiosk-machines";
 import { kioskMachineService } from "@/features/kiosk-machine/services/kiosk-machine.service";
 import { useBranches } from "@/features/branch/hooks/use-branches";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 import type { KioskMachine } from "@/features/kiosk-machine/types/kiosk-machine.types";
 
 const SELECT_CLASS =
@@ -41,6 +43,18 @@ const empty = { machineId: "", userName: "", username: "", branchId: "", isActiv
 
 export function KioskMachineManager() {
   const { machines, loading, error, refetch } = useKioskMachines();
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return machines;
+    return machines.filter((m) =>
+      `${m.machineId} ${m.userName ?? ""} ${m.username} ${m.branch?.name ?? ""}`
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [machines, search]);
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
   const { branches } = useBranches();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<KioskMachine | null>(null);
@@ -115,25 +129,36 @@ export function KioskMachineManager() {
     <div>
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg font-semibold text-ink">Kiosk Machines</h2>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="size-4" /> Add Kiosk Machine
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative sm:w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search kiosks…"
+              className="h-9 pl-9"
+              aria-label="Search kiosk machines"
+            />
+          </div>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="size-4" /> Add Kiosk Machine
+          </Button>
+        </div>
       </div>
 
       <Card className="mt-4 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState className="py-10" icon={Monitor} title="Couldn't load" description={error} />
-        ) : machines.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyState
             className="py-10"
             icon={Monitor}
-            title="No kiosk machines"
-            description="Register a kiosk to get started."
+            title={search.trim() ? "No matches" : "No kiosk machines"}
+            description={
+              search.trim() ? "Try a different search." : "Register a kiosk to get started."
+            }
           />
         ) : (
           <Table>
@@ -148,7 +173,7 @@ export function KioskMachineManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {machines.map((m) => (
+              {pageItems.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell className="font-medium">{m.machineId}</TableCell>
                   <TableCell className="text-muted-foreground">{m.branch?.name ?? "—"}</TableCell>
@@ -177,6 +202,18 @@ export function KioskMachineManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">

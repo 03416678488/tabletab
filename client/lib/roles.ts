@@ -6,8 +6,9 @@ import type { StaffRole } from "@/lib/types";
  * apart from an arbitrary storefront page slug like `menu` (→ `/p/menu`).
  */
 export const STAFF_ROLES: readonly StaffRole[] = [
-  "admin",
-  "manager",
+  "owner",
+  "multi_branch_manager",
+  "branch_manager",
   "chef",
   "waiter",
   "delivery",
@@ -19,32 +20,25 @@ export function isStaffRole(value: string): value is StaffRole {
 
 /**
  * Maps API role names (from the auth session's `roleNames`) to the frontend
- * StaffRole vocabulary used by the /app dashboard. The seed uses plural role
- * names (`Waiters`, `Chefs`, `Delivery Boys`); singular aliases are kept too.
+ * StaffRole vocabulary used by the /app dashboard.
  */
 const API_TO_STAFF_ROLE: Record<string, StaffRole> = {
-  "Super Admin": "admin",
-  Admin: "admin",
-  Administrators: "manager",
-  Manager: "manager",
-  Chefs: "chef",
+  Owner: "owner",
+  "Multi Branch Manager": "multi_branch_manager",
+  "Branch Manager": "branch_manager",
   Chef: "chef",
-  Waiters: "waiter",
   Waiter: "waiter",
-  "Delivery Boys": "delivery",
+  "Delivery Rider": "delivery",
 };
 
 /** Highest-privilege role wins when a user holds several. */
 const ROLE_PRIORITY = [
-  "Super Admin",
-  "Admin",
-  "Administrators",
-  "Manager",
-  "Chefs",
+  "Owner",
+  "Multi Branch Manager",
+  "Branch Manager",
   "Chef",
-  "Waiters",
   "Waiter",
-  "Delivery Boys",
+  "Delivery Rider",
 ];
 
 export function mapApiRolesToStaffRole(roleNames: string[] = []): StaffRole {
@@ -54,5 +48,5 @@ export function mapApiRolesToStaffRole(roleNames: string[] = []): StaffRole {
     }
   }
   // Fallback for any authenticated staff whose role isn't mapped yet.
-  return "admin";
+  return "owner";
 }

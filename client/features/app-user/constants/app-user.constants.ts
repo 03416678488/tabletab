@@ -4,10 +4,11 @@ export const APP_USER_ENDPOINTS = {
 
 /** Nav slug → role name (as stored in the `roles` table). */
 export const ROLE_BY_SLUG: Record<string, string> = {
-  administrators: "Administrators",
-  "delivery-boys": "Delivery Boys",
-  customers: "Customers",
-  employees: "Employees",
-  waiters: "Waiters",
-  chefs: "Chefs",
+  owners: "Owner",
+  "multi-branch-managers": "Multi Branch Manager",
+  "branch-managers": "Branch Manager",
+  chefs: "Chef",
+  waiters: "Waiter",
+  "delivery-riders": "Delivery Rider",
+  customers: "Customer",
 };

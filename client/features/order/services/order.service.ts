@@ -20,6 +20,7 @@ export const orderService = {
           search: params?.search,
           orderType: params?.orderType,
           status: params?.status,
+          paymentStatus: params?.paymentStatus,
           tableId: params?.tableId,
           branchId: params?.branchId,
         },

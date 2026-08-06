@@ -6,12 +6,11 @@ import { ApiError } from "@/lib/httpClient";
 import { campaignService } from "@/features/campaign/services/campaign.service";
 import type { Campaign } from "@/features/campaign/types/campaign.types";
 
-const PER_PAGE = 10;
-
 /** Server-paginated campaigns for the management table. */
 export function usePaginatedCampaigns({ search }: { search?: string } = {}) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -26,7 +25,7 @@ export function usePaginatedCampaigns({ search }: { search?: string } = {}) {
       setLoading(true);
       setError(null);
       try {
-        const data = await campaignService.list({ page: p, perPage: PER_PAGE, search: search || undefined });
+        const data = await campaignService.list({ page: p, perPage, search: search || undefined });
         if (keyRef.current !== activeKey) return;
         setCampaigns(data.items);
         setTotalPages(data.meta.totalPages);
@@ -51,5 +50,5 @@ export function usePaginatedCampaigns({ search }: { search?: string } = {}) {
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
   const refetch = useCallback(() => void fetchPage(page), [fetchPage, page]);
 
-  return { campaigns, loading, error, page, totalPages, totalItems, goToPage, refetch };
+  return { campaigns, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch };
 }

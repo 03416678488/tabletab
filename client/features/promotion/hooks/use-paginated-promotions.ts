@@ -6,8 +6,6 @@ import { ApiError } from "@/lib/httpClient";
 import { promotionService } from "@/features/promotion/services/promotion.service";
 import type { Promotion } from "@/features/promotion/types/promotion.types";
 
-const PER_PAGE = 10;
-
 interface Params {
   search?: string;
   active?: boolean;
@@ -17,12 +15,13 @@ interface Params {
 export function usePaginatedPromotions({ search, active }: Params = {}) {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${active ?? ""}`;
+  const key = `${search ?? ""}|${active ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -34,7 +33,7 @@ export function usePaginatedPromotions({ search, active }: Params = {}) {
       try {
         const data = await promotionService.list({
           page: p,
-          perPage: PER_PAGE,
+          perPage,
           search: search || undefined,
           active,
         });
@@ -62,5 +61,5 @@ export function usePaginatedPromotions({ search, active }: Params = {}) {
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
   const refetch = useCallback(() => void fetchPage(page), [fetchPage, page]);
 
-  return { promotions, loading, error, page, totalPages, totalItems, goToPage, refetch };
+  return { promotions, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch };
 }

@@ -35,7 +35,7 @@ export function LoginForm() {
           <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-brand-tint text-brand-deep">
             <LayoutDashboard className="size-6" />
           </div>
-          <CardTitle>Owner sign in</CardTitle>
+          <CardTitle>Sign in</CardTitle>
           <CardDescription>
             Sign in to your dashboard.
           </CardDescription>

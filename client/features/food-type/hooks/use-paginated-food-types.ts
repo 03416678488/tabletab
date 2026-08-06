@@ -6,8 +6,6 @@ import { ApiError } from "@/lib/httpClient";
 import { foodTypeService } from "@/features/food-type/services/food-type.service";
 import type { FoodType } from "@/features/food-type/types/food-type.types";
 
-const PER_PAGE = 10;
-
 interface Params {
   search?: string;
   isActive?: boolean;
@@ -17,12 +15,13 @@ interface Params {
 export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
   const [foodTypes, setFoodTypes] = useState<FoodType[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${isActive ?? ""}`;
+  const key = `${search ?? ""}|${isActive ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -34,7 +33,7 @@ export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
       try {
         const data = await foodTypeService.list({
           page: p,
-          perPage: PER_PAGE,
+          perPage,
           search: search || undefined,
           isActive,
         });
@@ -62,5 +61,5 @@ export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
   const refetch = useCallback(() => void fetchPage(page), [fetchPage, page]);
 
-  return { foodTypes, loading, error, page, totalPages, totalItems, goToPage, refetch };
+  return { foodTypes, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch };
 }

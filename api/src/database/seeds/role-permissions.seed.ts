@@ -39,28 +39,23 @@ const ALL_MODULES = [
  * the role-scoped `role_permissions` (admins can retune anytime in the UI).
  */
 export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
-  'Super Admin': [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
-  Admin: [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
+  // Owner — top admin, full access to every module.
+  Owner: [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
 
-  Administrators: [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
-
-  Employees: [
+  // Multi Branch Manager — same access as Branch Manager, scoped across all
+  // branches (branch scoping is enforced elsewhere, not via module grants).
+  'Multi Branch Manager': [
     ANCHOR,
-    { resource: 'dashboard', actions: R },
-    { resource: 'orders', actions: CRUD },
-    { resource: 'pos', actions: CRUD },
-    { resource: 'kds', actions: R },
-    { resource: 'menu', actions: CRUD },
-    { resource: 'categories', actions: CRUD },
-    { resource: 'tables', actions: CRUD },
-    { resource: 'areas', actions: CRUD },
-    { resource: 'qr-codes', actions: CRUD },
-    { resource: 'customers', actions: CRUD },
-    { resource: 'branches', actions: R },
-    { resource: 'reports', actions: R },
+    ...ALL_MODULES.filter((m) => m !== 'settings').map((resource) => ({ resource, actions: CRUD })),
   ],
 
-  Waiters: [
+  // Branch Manager — runs a single branch: everything operational, no settings.
+  'Branch Manager': [
+    ANCHOR,
+    ...ALL_MODULES.filter((m) => m !== 'settings').map((resource) => ({ resource, actions: CRUD })),
+  ],
+
+  Waiter: [
     ANCHOR,
     { resource: 'dashboard', actions: R },
     { resource: 'pos', actions: CRUD },
@@ -70,7 +65,7 @@ export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
     { resource: 'customers', actions: CRUD },
   ],
 
-  Chefs: [
+  Chef: [
     ANCHOR,
     { resource: 'dashboard', actions: R },
     { resource: 'kds', actions: CRUD },
@@ -78,7 +73,7 @@ export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
     { resource: 'menu', actions: R },
   ],
 
-  'Delivery Boys': [
+  'Delivery Rider': [
     ANCHOR,
     { resource: 'dashboard', actions: R },
     { resource: 'orders', actions: CRUD },
@@ -86,8 +81,5 @@ export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
   ],
 
   // Customers are guests — no dashboard modules, just the link anchor.
-  Customers: [ANCHOR],
-
-  // Default role for self-registered accounts — no admin modules.
-  User: [ANCHOR],
+  Customer: [ANCHOR],
 };

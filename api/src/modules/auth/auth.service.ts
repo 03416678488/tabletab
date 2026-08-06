@@ -171,7 +171,7 @@ export class AuthService {
         email: trimSpaces(toLowerCase(dto.email)),
         password: dto.password,
       },
-      'User',
+      'Customer',
       dataSource,
     );
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Layers, Pencil, Plus, Trash2 } from "lucide-react";
+import { Layers, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -34,9 +35,18 @@ import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useTaxGroups } from "@/features/tax/hooks/use-tax-groups";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
 import { taxGroupService, groupRate, type TaxGroup } from "@/features/tax/services/tax-group.service";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 
 export function TaxGroupManager() {
   const { groups, loading, error, refetch } = useTaxGroups();
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) => `${g.name} ${g.code ?? ""}`.toLowerCase().includes(q));
+  }, [groups, search]);
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
   const { taxes } = useTaxes();
   const { defaultTax, setDefault } = useDefaultTax();
   const [open, setOpen] = useState(false);
@@ -102,6 +112,16 @@ export function TaxGroupManager() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative sm:w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search groups…"
+              className="h-9 pl-9"
+              aria-label="Search tax groups"
+            />
+          </div>
           {defaultTax && (
             <Button variant="outline" size="sm" onClick={() => void setDefault("")}>
               Clear default
@@ -128,8 +148,15 @@ export function TaxGroupManager() {
           </div>
         ) : error ? (
           <EmptyState className="py-12" icon={Layers} title="Couldn't load" description={error} />
-        ) : groups.length === 0 ? (
-          <EmptyState className="py-12" icon={Layers} title="No tax groups" description="Create a group to combine taxes." />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            className="py-12"
+            icon={Layers}
+            title={search.trim() ? "No matches" : "No tax groups"}
+            description={
+              search.trim() ? "Try a different search." : "Create a group to combine taxes."
+            }
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -144,7 +171,7 @@ export function TaxGroupManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groups.map((g) => (
+              {pageItems.map((g) => (
                 <TableRow key={g.id}>
                   <TableCell className="font-medium">{g.name}</TableCell>
                   <TableCell className="text-muted-foreground">{g.code ?? "—"}</TableCell>
@@ -197,6 +224,18 @@ export function TaxGroupManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">

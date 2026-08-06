@@ -68,7 +68,10 @@ export function Logo({ href = "/", className, dark = false, showWordmark = true 
     return (
       <Link
         href={href}
-        className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        // `flex min-w-0 max-w-full` makes the link a shrinkable, width-bounded
+        // flex item so the inner `truncate` has something to truncate against
+        // (otherwise a long brand name overflows its container).
+        className="flex min-w-0 max-w-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {content}
       </Link>

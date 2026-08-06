@@ -10,6 +10,9 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
 import { useOrderBoard } from "@/features/order/hooks/use-order-board";
+import { useNewArrivals } from "@/features/order/hooks/use-new-arrivals";
+import { SoundToggle } from "@/features/order/components/sound-toggle";
+import { playNewOrderChime, primeChime } from "@/features/order/lib/chime";
 import { orderService } from "@/features/order/services/order.service";
 import {
   ORDER_STATUS_META,
@@ -82,6 +85,12 @@ function elapsed(iso: string, now: number) {
 export function KdsBoard() {
   const { orders, loading, error, lastUpdated, refetch, connected } = useOrderBoard();
   const now = useNow();
+  const orderIds = useMemo(() => orders.map((o) => o.id), [orders]);
+  useEffect(() => primeChime(), []);
+  const newIds = useNewArrivals(orderIds, {
+    ready: !loading,
+    onArrive: () => playNewOrderChime(),
+  });
   const [busyId, setBusyId] = useState<string | null>(null);
   const inFlight = useRef<Set<string>>(new Set());
   // An order awaiting payment before it can be completed (unpaid dine-in / POS).
@@ -156,16 +165,19 @@ export function KdsBoard() {
             {connected ? "Live" : "Reconnecting…"}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void refetch()}>
-          <RefreshCw className="size-4" /> Refresh
-          <span className="ml-1 text-xs text-muted-foreground">
-            {new Date(lastUpdated).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <SoundToggle />
+          <Button variant="outline" size="sm" onClick={() => void refetch()}>
+            <RefreshCw className="size-4" /> Refresh
+            <span className="ml-1 text-xs text-muted-foreground">
+              {new Date(lastUpdated).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </span>
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -224,6 +236,7 @@ export function KdsBoard() {
                         accent={col.accent}
                         action={action}
                         busy={busyId === order.id}
+                        isNew={newIds.has(order.id)}
                         onBump={() => bump(order)}
                       />
                     );
@@ -251,6 +264,7 @@ function Ticket({
   accent,
   action,
   busy,
+  isNew,
   onBump,
 }: {
   order: Order;
@@ -258,6 +272,7 @@ function Ticket({
   accent: string;
   action: string;
   busy: boolean;
+  isNew: boolean;
   onBump: () => void;
 }) {
   const { label, mins } = elapsed(order.createdAt, now);
@@ -272,6 +287,7 @@ function Ticket({
       className={cn(
         "rounded-2xl border border-l-4 border-border bg-card p-3 shadow-[var(--shadow-card)]",
         accent,
+        isNew && "animate-new-order",
       )}
     >
       <div className="flex items-start justify-between gap-2">

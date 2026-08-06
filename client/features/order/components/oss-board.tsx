@@ -5,6 +5,9 @@ import { UtensilsCrossed } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useOrderBoard } from "@/features/order/hooks/use-order-board";
+import { useNewArrivals } from "@/features/order/hooks/use-new-arrivals";
+import { SoundToggle } from "@/features/order/components/sound-toggle";
+import { playNewOrderChime, primeChime } from "@/features/order/lib/chime";
 import type { Order } from "@/features/order/types/order.types";
 
 function useClock() {
@@ -23,6 +26,12 @@ function label(order: Order): string | null {
 export function OssBoard() {
   const { orders, loading } = useOrderBoard(6000);
   const clock = useClock();
+  const orderIds = useMemo(() => orders.map((o) => o.id), [orders]);
+  useEffect(() => primeChime(), []);
+  const newIds = useNewArrivals(orderIds, {
+    ready: !loading,
+    onArrive: () => playNewOrderChime(),
+  });
 
   const { preparing, ready } = useMemo(() => {
     return {
@@ -46,13 +55,16 @@ export function OssBoard() {
             <p className="text-sm text-white/60">Watch for your number below</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="font-display text-3xl font-bold tabular-nums">
-            {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </p>
-          <p className="text-xs text-white/50">
-            {loading ? "Loading…" : "Live"}
-          </p>
+        <div className="flex items-center gap-4">
+          <SoundToggle variant="dark" />
+          <div className="text-right">
+            <p className="font-display text-3xl font-bold tabular-nums">
+              {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+            <p className="text-xs text-white/50">
+              {loading ? "Loading…" : "Live"}
+            </p>
+          </div>
         </div>
       </header>
 
@@ -64,6 +76,7 @@ export function OssBoard() {
           empty="No orders cooking."
           orders={preparing}
           variant="preparing"
+          newIds={newIds}
         />
         <Column
           title="Ready for Pickup"
@@ -72,6 +85,7 @@ export function OssBoard() {
           empty="Nothing ready yet."
           orders={ready}
           variant="ready"
+          newIds={newIds}
         />
       </div>
     </div>
@@ -85,6 +99,7 @@ function Column({
   empty,
   orders,
   variant,
+  newIds,
 }: {
   title: string;
   accent: string;
@@ -92,6 +107,7 @@ function Column({
   empty: string;
   orders: Order[];
   variant: "preparing" | "ready";
+  newIds: Set<string>;
 }) {
   return (
     <section className="rounded-3xl bg-white/5 p-5 ring-1 ring-white/10">
@@ -119,6 +135,7 @@ function Column({
                   variant === "ready"
                     ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
                     : "bg-white/10 text-white ring-1 ring-white/10",
+                  newIds.has(order.id) && "animate-new-order",
                 )}
               >
                 <span className="font-display text-2xl font-bold tracking-tight">

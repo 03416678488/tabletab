@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/table";
 
 import { useUsers } from "@/features/app-user/hooks/use-users";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 
 interface UsersManagerProps {
   /** Role name as stored in the DB (e.g. "Waiters"). Omit for all users. */
@@ -40,6 +42,9 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
         .includes(q),
     );
   }, [users, search]);
+
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
 
   return (
     <div className="w-full">
@@ -106,7 +111,7 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((u) => (
+              {pageItems.map((u) => (
                 <TableRow key={`${u.id}-${u.roleName}`}>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
@@ -134,6 +139,18 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
           </Table>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
     </div>
   );
 }

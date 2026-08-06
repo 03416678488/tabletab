@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Languages as LanguagesIcon, Pencil, Percent, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Languages as LanguagesIcon, Pencil, Percent, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
   Dialog,
@@ -33,11 +34,20 @@ import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
 import { taxService, type Tax } from "@/features/tax/services/tax.service";
 import { TranslationDialog } from "@/features/i18n/translation-dialog";
+import { useClientPagination } from "@/hooks/use-client-pagination";
 
 const empty = { name: "", code: "", rate: "0", isActive: true };
 
 export function TaxManager() {
   const { taxes, loading, error, refetch } = useTaxes();
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return taxes;
+    return taxes.filter((t) => `${t.name} ${t.code}`.toLowerCase().includes(q));
+  }, [taxes, search]);
+  const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
+    useClientPagination(filtered);
   const { defaultTax, setDefault } = useDefaultTax();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Tax | null>(null);
@@ -93,6 +103,16 @@ export function TaxManager() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-lg font-semibold text-ink">Taxes</h2>
         <div className="flex items-center gap-2">
+          <div className="relative sm:w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search taxes…"
+              className="h-9 pl-9"
+              aria-label="Search taxes"
+            />
+          </div>
           {defaultTax && (
             <Button variant="outline" size="sm" onClick={() => void setDefault("")}>
               Clear default
@@ -112,14 +132,16 @@ export function TaxManager() {
 
       <Card className="mt-4 overflow-hidden p-0">
         {loading ? (
-          <div className="space-y-2 p-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
+          <TableRowsSkeleton />
         ) : error ? (
           <EmptyState className="py-10" icon={Percent} title="Couldn't load" description={error} />
-        ) : taxes.length === 0 ? (
-          <EmptyState className="py-10" icon={Percent} title="No taxes" description="Add one to get started." />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            className="py-10"
+            icon={Percent}
+            title={search.trim() ? "No matches" : "No taxes"}
+            description={search.trim() ? "Try a different search." : "Add one to get started."}
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -133,7 +155,7 @@ export function TaxManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {taxes.map((t) => (
+              {pageItems.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell className="text-muted-foreground">{t.code}</TableCell>
@@ -180,6 +202,18 @@ export function TaxManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={setPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">

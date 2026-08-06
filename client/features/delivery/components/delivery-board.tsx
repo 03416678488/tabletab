@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Bike, MapPin, Navigation, Package, Phone, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,33 +11,15 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useOrders } from "@/features/order/hooks/use-orders";
 import { orderService } from "@/features/order/services/order.service";
+import { useDeliveryQueue } from "@/features/delivery/hooks/use-delivery-queue";
 import type { Order, OrderStatus } from "@/features/order/types/order.types";
 
-/** Delivery orders are online orders with a delivery address. */
-function isDelivery(o: Order): boolean {
-  return o.orderType === "online" && Boolean(o.customerAddress);
-}
-
+/** The rider's active work queue: ready to pick up → out for delivery. */
 export function DeliveryBoard() {
-  const { orders, loading, refetch } = useOrders({ orderType: "online" });
+  const { ready, outForDelivery, loading, refetch } = useDeliveryQueue();
   const [busyId, setBusyId] = useState<string | null>(null);
   const inFlight = useRef<Set<string>>(new Set());
-
-  // Light polling keeps the queue fresh without a dedicated stream.
-  useEffect(() => {
-    const t = setInterval(() => void refetch(), 15000);
-    return () => clearInterval(t);
-  }, [refetch]);
-
-  const { ready, outForDelivery } = useMemo(() => {
-    const deliveries = orders.filter(isDelivery);
-    return {
-      ready: deliveries.filter((o) => o.status === "ready"),
-      outForDelivery: deliveries.filter((o) => o.status === "out-for-delivery"),
-    };
-  }, [orders]);
 
   const move = async (order: Order, next: OrderStatus) => {
     if (inFlight.current.has(order.id)) return;

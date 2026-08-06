@@ -25,6 +25,10 @@ class GetOrderFiltersDto {
   @IsOptional()
   status?: string;
 
+  @IsIn(['unpaid', 'paid'])
+  @IsOptional()
+  paymentStatus?: string;
+
   @IsUUID()
   @IsOptional()
   tableId?: string;

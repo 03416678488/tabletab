@@ -23,6 +23,7 @@
     "db:migrate:tenants": "node src/cor/scripts/migrate-tenants.js",
     "db:seed": "ts-node -r tsconfig-paths/register src/database/seeds/seeder.ts",
     "db:seed:catalog": "ts-node -r tsconfig-paths/register src/database/seeds/catalog.seed.ts",
+    "db:seed:catalog:append": "ts-node -r tsconfig-paths/register src/database/seeds/catalog-append.seed.ts",
     "db:rollback": "npx ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/config/migration.config.ts",
     "migration:create": "node src/cor/scripts/create-migration.js",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",

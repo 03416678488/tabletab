@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pencil, Plus, Search, Table2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -21,25 +22,28 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
-import { useTables } from "@/features/table/hooks/use-tables";
+import { usePaginatedTables } from "@/features/table/hooks/use-paginated-tables";
 import { tableService } from "@/features/table/services/table.service";
 import { TableFormDialog } from "@/features/table/components/table-form-dialog";
 import type { DiningTable } from "@/features/table/types/table.types";
 
 /** Plain tabular listing of tables (config view). */
 export function TableListManager() {
-  const { tables, loading, error, refetch } = useTables();
+  const [search, setSearch] = useState("");
+  const {
+    tables,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedTables({ search });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<DiningTable | null>(null);
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return tables;
-    return tables.filter((t) =>
-      `${t.name} ${t.area?.name ?? ""} ${t.branch?.name ?? ""}`.toLowerCase().includes(q),
-    );
-  }, [tables, search]);
 
   const openCreate = () => {
     setEditing(null);
@@ -69,7 +73,7 @@ export function TableListManager() {
         <div>
           <h1 className="font-display text-xl font-semibold tracking-tight text-ink">Tables</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {tables.length} table{tables.length === 1 ? "" : "s"} · list view.
+            {totalItems} table{totalItems === 1 ? "" : "s"} · list view.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -108,20 +112,20 @@ export function TableListManager() {
               </Button>
             }
           />
-        ) : filtered.length === 0 ? (
+        ) : tables.length === 0 ? (
           <EmptyState
             className="py-12"
             icon={Table2}
-            title={tables.length === 0 ? "No tables yet" : "No matches"}
+            title={search.trim() ? "No matches" : "No tables yet"}
             description={
-              tables.length === 0 ? "Add your first table." : "Try a different search."
+              search.trim() ? "Try a different search." : "Add your first table."
             }
             action={
-              tables.length === 0 ? (
+              search.trim() ? undefined : (
                 <Button onClick={openCreate}>
                   <Plus className="size-4" /> Add table
                 </Button>
-              ) : undefined
+              )
             }
           />
         ) : (
@@ -137,7 +141,7 @@ export function TableListManager() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((t) => (
+              {tables.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell className="text-muted-foreground">{t.area?.name ?? "—"}</TableCell>
@@ -164,6 +168,18 @@ export function TableListManager() {
           </Table>
         )}
       </Card>
+
+      {!loading && !error && tables.length > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
+      )}
 
       <TableFormDialog
         open={dialogOpen}

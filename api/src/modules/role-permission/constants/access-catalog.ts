@@ -2,12 +2,13 @@ import { PermissionsEnum } from '@modules/permissions/enums/permissions.enum';
 
 /** The fixed set of roles surfaced in the permissions manager. */
 export const MANAGED_ROLES = [
-  'Administrators',
-  'Delivery Boys',
-  'Customers',
-  'Employees',
-  'Waiters',
-  'Chefs',
+  'Owner',
+  'Multi Branch Manager',
+  'Branch Manager',
+  'Chef',
+  'Waiter',
+  'Delivery Rider',
+  'Customer',
 ] as const;
 
 /** App modules an admin can grant per role. `key` is the stable resource id. */
