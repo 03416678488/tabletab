@@ -1,20 +1,35 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, QrCode, UtensilsCrossed } from "lucide-react";
+import {
+  Loader2,
+  QrCode,
+  UtensilsCrossed,
+  ShoppingBag,
+  BellRing,
+  Receipt,
+  Check,
+  ChevronRight,
+} from "lucide-react";
 import {
   resolveQrSlug,
+  callWaiter,
   type ResolvedQr,
 } from "@/features/storefront/services/qr-ordering";
+import { toast } from "@/hooks/use-toast";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
+import { branchOnlineConfig } from "@/features/storefront/services/storefront-branches";
 import { useDineIn } from "@/hooks/use-dine-in";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 
-/** Scan landing: resolve `/t/{slug}` → start a dine-in session and drop the
-    customer into that branch's menu. */
+/**
+ * QR scan landing: resolve `/t/{token}` → a table + branch, then show the guest
+ * a choice of what to do (instead of silently dropping them into the menu).
+ * Options are added incrementally — dine-in first.
+ */
 export default function QrLandingPage({
   params,
 }: {
@@ -23,12 +38,16 @@ export default function QrLandingPage({
   const { token } = use(params);
   const router = useRouter();
   const startDineIn = useDineIn((s) => s.start);
+  const clearDineIn = useDineIn((s) => s.clear);
   const setCartBranch = useCart((s) => s.setBranch);
+  const setFulfillmentType = useCart((s) => s.setFulfillmentType);
   const clearCart = useCart((s) => s.clear);
   const { branches } = useStorefrontBranches();
 
   const [resolved, setResolved] = useState<ResolvedQr | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [calling, setCalling] = useState(false);
+  const [called, setCalled] = useState(false);
 
   // Resolve the slug once.
   useEffect(() => {
@@ -41,17 +60,26 @@ export default function QrLandingPage({
     };
   }, [token]);
 
-  // Once resolved (and branches loaded for the fallback), start the session and
-  // redirect into the branch menu.
-  const startedRef = useRef(false);
-  useEffect(() => {
-    if (!resolved || startedRef.current) return;
-    const branchId = resolved.branchId ?? branches[0]?.id ?? null;
-    if (!branchId) return; // wait for branches to load for the fallback
-    startedRef.current = true;
+  // Branch: the QR's own branch, or the first branch as a fallback.
+  const branchId = useMemo(
+    () => resolved?.branchId ?? branches[0]?.id ?? null,
+    [resolved, branches],
+  );
+  const branchName = useMemo(
+    () => resolved?.branchName ?? branches.find((b) => b.id === branchId)?.name ?? "Restaurant",
+    [resolved, branches, branchId],
+  );
 
-    const branchName =
-      resolved.branchName ?? branches.find((b) => b.id === branchId)?.name ?? "Restaurant";
+  // Only offer takeaway if the branch actually has pickup enabled (show it
+  // optimistically until the branch config loads).
+  const pickupAvailable = useMemo(() => {
+    const branch = branches.find((b) => b.id === branchId);
+    return branch ? branchOnlineConfig(branch).pickupAvailable : true;
+  }, [branches, branchId]);
+
+  /** Start a dine-in session for this table and open the menu. */
+  const startDineInOrder = () => {
+    if (!resolved || !branchId) return;
     // Scanning a different table starts a fresh order.
     if (useDineIn.getState().slug && useDineIn.getState().slug !== resolved.slug) {
       clearCart();
@@ -64,12 +92,36 @@ export default function QrLandingPage({
       tableName: resolved.tableName,
     });
     setCartBranch(branchId);
-    router.replace(`/order/${branchId}`);
-  }, [resolved, branches, startDineIn, setCartBranch, clearCart, router]);
+    router.push(`/order/${branchId}`);
+  };
+
+  /** Alert staff that this table wants a waiter. */
+  const handleCallWaiter = async () => {
+    if (!resolved || calling || called) return;
+    setCalling(true);
+    try {
+      await callWaiter(resolved.slug);
+      setCalled(true);
+      toast("A waiter is on the way", { tone: "success" });
+    } catch {
+      toast("Couldn't reach a waiter — please try again", { tone: "error" });
+    } finally {
+      setCalling(false);
+    }
+  };
+
+  /** Order for takeaway/pickup — not tied to the table (no dine-in session). */
+  const startTakeaway = () => {
+    if (!branchId) return;
+    clearDineIn(); // takeaway isn't served to the table
+    setCartBranch(branchId);
+    setFulfillmentType("pickup");
+    router.push(`/order/${branchId}`);
+  };
 
   if (error) {
     return (
-      <div className="max-w-sm text-center">
+      <div className="mx-auto max-w-sm px-4 py-16 text-center">
         <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
           <UtensilsCrossed className="size-7" />
         </div>
@@ -82,15 +134,110 @@ export default function QrLandingPage({
     );
   }
 
-  return (
-    <div className="text-center">
-      <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-tint text-brand">
-        <QrCode className="size-7" />
+  // Still resolving (or waiting for the branch fallback to load).
+  if (!resolved || !branchId) {
+    return (
+      <div className="px-4 py-24 text-center">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-tint text-brand">
+          <QrCode className="size-7" />
+        </div>
+        <p className="flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Setting up your table…
+        </p>
       </div>
-      <p className="flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
-        Setting up your table…
-      </p>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-sm px-4 py-12">
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-tint text-brand">
+          <UtensilsCrossed className="size-7" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">Welcome to {branchName}</p>
+        <h1 className="mt-1 font-display text-2xl font-bold text-ink">
+          Table {resolved.tableName}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">What would you like to do?</p>
+      </div>
+
+      <div className="mt-8 space-y-3">
+        {/* Primary — dine-in */}
+        <button
+          type="button"
+          onClick={startDineInOrder}
+          className="flex w-full items-center gap-4 rounded-2xl border border-brand bg-brand px-5 py-4 text-left text-primary-foreground shadow-[var(--shadow-card)] transition-colors hover:bg-brand/90"
+        >
+          <UtensilsCrossed className="size-6 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Start your order</span>
+            <span className="block text-sm text-primary-foreground/80">
+              Order to this table — served to you
+            </span>
+          </span>
+          <ChevronRight className="size-5 shrink-0" />
+        </button>
+
+        {/* Takeaway / pickup */}
+        {pickupAvailable && (
+          <button
+            type="button"
+            onClick={startTakeaway}
+            className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-ink shadow-[var(--shadow-card)] transition-colors hover:bg-secondary"
+          >
+            <ShoppingBag className="size-6 shrink-0 text-brand" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Takeaway</span>
+              <span className="block text-sm text-muted-foreground">
+                Order to collect — pick it up at the counter
+              </span>
+            </span>
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+          </button>
+        )}
+
+        {/* Call waiter */}
+        <button
+          type="button"
+          onClick={handleCallWaiter}
+          disabled={calling || called}
+          className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-ink shadow-[var(--shadow-card)] transition-colors hover:bg-secondary disabled:cursor-default disabled:opacity-100 disabled:hover:bg-card"
+        >
+          {called ? (
+            <Check className="size-6 shrink-0 text-emerald-600" />
+          ) : calling ? (
+            <Loader2 className="size-6 shrink-0 animate-spin text-brand" />
+          ) : (
+            <BellRing className="size-6 shrink-0 text-brand" />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">
+              {called ? "A waiter is on the way" : "Call waiter"}
+            </span>
+            <span className="block text-sm text-muted-foreground">
+              {called
+                ? "Someone will be with you shortly"
+                : "Ask a member of staff to come to your table"}
+            </span>
+          </span>
+        </button>
+
+        {/* View / pay bill */}
+        <Link
+          href={`/t/${token}/bill`}
+          className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-ink shadow-[var(--shadow-card)] transition-colors hover:bg-secondary"
+        >
+          <Receipt className="size-6 shrink-0 text-brand" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">View bill</span>
+            <span className="block text-sm text-muted-foreground">
+              See your running order and pay
+            </span>
+          </span>
+          <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+        </Link>
+      </div>
     </div>
   );
 }

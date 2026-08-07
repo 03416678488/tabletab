@@ -1,80 +1,76 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bell, ConciergeBell, Plus, RefreshCw, Utensils } from "lucide-react";
-import { AddItemSheet } from "@/features/waiter/components/add-item-sheet";
-import { BuffetOrderSheet } from "@/features/waiter/components/buffet-order-sheet";
+import { Bell, ConciergeBell, Receipt, RefreshCw, Utensils } from "lucide-react";
 import { ElapsedTimer } from "@/features/ops/components/elapsed-timer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { OrderStatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLiveOps } from "@/hooks/use-live-ops";
-import { useSession } from "@/hooks/use-session";
-import { api } from "@/lib/api";
-import { orderTableLabel } from "@/lib/order-display";
-import type { Order, ServiceRequest } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { useServiceRequests } from "@/features/service-request/hooks/use-service-requests";
+import { useOrderBoard } from "@/features/order/hooks/use-order-board";
+import { orderService } from "@/features/order/services/order.service";
+import { ApiError } from "@/lib/httpClient";
+import type { Order } from "@/features/order/types/order.types";
+import type { ServiceRequest } from "@/lib/types";
+import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 const REQUEST_LABELS: Record<string, string> = {
   waiter: "Call waiter",
-  bill: "Request bill",
+  bill: "Ready to pay",
   water: "Water",
   manager: "Manager",
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  placed: "New",
+  confirmed: "Confirmed",
+  preparing: "Preparing",
+  ready: "Ready",
+};
+
+const tableNameOf = (o: Order) =>
+  o.table?.name ?? o.customer?.name ?? o.customerName ?? "Table";
+
 export function WaiterBoard() {
-  const activeBranch = useSession((s) => s.activeBranch);
-  const { orders, requests, loading, error, refresh } = useLiveOps({
-    branchId: activeBranch.id,
-    simulateOrders: true,
-    simulateRequests: true,
-  });
+  // Live service-request queue (call waiter / ready to pay from QR scans).
+  const { requests, resolve: resolveRequest } = useServiceRequests();
+  // Real, live table orders from the order board (SSE + poll).
+  const { orders, loading, error, refetch, connected } = useOrderBoard();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [addToOrder, setAddToOrder] = useState<Order | null>(null);
-  const [buffetOrder, setBuffetOrder] = useState<Order | null | undefined>(undefined);
 
-  const dineInOrders = useMemo(
-    () =>
-      orders.filter(
-        (o) =>
-          o.channel === "in-venue" &&
-          o.fulfillmentType === "dine-in" &&
-          !["completed", "cancelled"].includes(o.status),
-      ),
-    [orders],
-  );
-
-  const activeOrders = useMemo(
-    () => dineInOrders.filter((o) => !["ready", "served"].includes(o.status)),
-    [dineInOrders],
-  );
-
-  const readyOrders = useMemo(
-    () => dineInOrders.filter((o) => o.status === "ready"),
-    [dineInOrders],
-  );
+  const tableOrders = useMemo(() => orders.filter((o) => o.orderType === "table"), [orders]);
+  const readyOrders = useMemo(() => tableOrders.filter((o) => o.status === "ready"), [tableOrders]);
+  const activeOrders = useMemo(() => tableOrders.filter((o) => o.status !== "ready"), [tableOrders]);
 
   const openRequests = useMemo(
     () =>
-      requests
-        .filter((r) => !r.resolved)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+      [...requests].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
     [requests],
   );
-
   const waiterCalls = openRequests.filter((r) => r.type === "waiter");
   const otherRequests = openRequests.filter((r) => r.type !== "waiter");
 
-  const runAction = async (id: string, action: () => Promise<unknown>) => {
-    setBusyId(id);
+  const serve = async (order: Order) => {
+    setBusyId(order.id);
     try {
-      await action();
-      await refresh();
-    } catch {
-      toast("Action failed", { tone: "error" });
+      await orderService.update(order.id, { status: "served" });
+      await refetch();
+      toast(`${tableNameOf(order)} served`, { tone: "success" });
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Couldn't serve — try again", { tone: "error" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const resolve = async (req: ServiceRequest) => {
+    setBusyId(req.id);
+    try {
+      await resolveRequest(req.id);
     } finally {
       setBusyId(null);
     }
@@ -97,20 +93,21 @@ export function WaiterBoard() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">Waiter station</h1>
-          <p className="text-sm text-muted-foreground">
-            {activeBranch.name} · Your tables &amp; requests
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+            Your tables &amp; requests ·
+            <span
+              className={cn(
+                "inline-block size-2 rounded-full",
+                connected ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/40",
+              )}
+            />
+            {connected ? "Live" : "Reconnecting…"}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => refresh()}>
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setBuffetOrder(null)}>
-            <Utensils className="size-4" />
-            Walk-in buffet
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>
+          <RefreshCw className="size-4" />
+          Refresh
+        </Button>
       </div>
 
       {error && (
@@ -119,14 +116,14 @@ export function WaiterBoard() {
         </p>
       )}
 
-      {/* Call waiter requests */}
+      {/* Guest requests */}
       <section>
         <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
           <Bell className="size-5 text-brand" />
           Guest requests
-          {waiterCalls.length > 0 && (
+          {openRequests.length > 0 && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-              {waiterCalls.length} waiting
+              {openRequests.length} waiting
             </span>
           )}
         </h2>
@@ -134,7 +131,7 @@ export function WaiterBoard() {
           <EmptyState
             icon={ConciergeBell}
             title="No open requests"
-            description="Call waiter alerts will appear here with a live waiting timer."
+            description="Call-waiter and pay-bill alerts appear here with a live waiting timer."
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -143,9 +140,7 @@ export function WaiterBoard() {
                 key={req.id}
                 request={req}
                 busy={busyId === req.id}
-                onResolve={() =>
-                  runAction(req.id, () => api.resolveServiceRequest(req.id))
-                }
+                onResolve={() => void resolve(req)}
               />
             ))}
           </div>
@@ -161,25 +156,25 @@ export function WaiterBoard() {
         {readyOrders.length === 0 ? (
           <EmptyState
             title="Nothing ready yet"
-            description="Orders marked ready in the kitchen will show up here."
+            description="Table orders marked ready in the kitchen will show up here."
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {readyOrders.map((order) => (
               <Card key={order.id} className="border-brand/20 bg-brand-tint/30">
                 <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">
-                      {orderTableLabel(order, activeBranch)}
-                    </CardTitle>
-                    <OrderStatusPill status={order.status} />
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base">{tableNameOf(order)}</CardTitle>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                      Ready
+                    </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{order.reference}</p>
+                  <p className="text-sm text-muted-foreground">{order.orderNumber}</p>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <ul className="text-sm">
-                    {order.items.map((item, i) => (
-                      <li key={i}>
+                    {order.items.map((item) => (
+                      <li key={item.id}>
                         {item.quantity}× {item.name}
                       </li>
                     ))}
@@ -187,9 +182,7 @@ export function WaiterBoard() {
                   <Button
                     className="w-full"
                     disabled={busyId === order.id}
-                    onClick={() =>
-                      runAction(order.id, () => api.serveOrder(order.id))
-                    }
+                    onClick={() => void serve(order)}
                   >
                     Serve
                   </Button>
@@ -214,69 +207,30 @@ export function WaiterBoard() {
               <Card key={order.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">
-                      {orderTableLabel(order, activeBranch)}
-                    </CardTitle>
-                    <OrderStatusPill status={order.status} dot={false} />
+                    <CardTitle className="text-base">{tableNameOf(order)}</CardTitle>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {STATUS_LABEL[order.status] ?? order.status}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {order.reference} · {formatCurrency(order.total)}
+                    {order.orderNumber} · {formatCurrency(order.total)}
                   </p>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent>
                   <ul className="text-sm text-muted-foreground">
-                    {order.buffet && (
-                      <li className="font-medium text-brand-deep">
-                        Buffet · {order.buffet.totalCovers} covers
-                      </li>
-                    )}
-                    {order.items.slice(0, 4).map((item, i) => (
-                      <li key={i}>
+                    {order.items.slice(0, 4).map((item) => (
+                      <li key={item.id}>
                         {item.quantity}× {item.name}
                       </li>
                     ))}
-                    {order.items.length > 4 && (
-                      <li>+{order.items.length - 4} more</li>
-                    )}
+                    {order.items.length > 4 && <li>+{order.items.length - 4} more</li>}
                   </ul>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setBuffetOrder(order)}
-                  >
-                    <Utensils className="size-4" />
-                    {order.buffet ? "Change buffet" : "Add buffet"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setAddToOrder(order)}
-                  >
-                    <Plus className="size-4" />
-                    Add item
-                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </section>
-
-      <AddItemSheet
-        order={addToOrder}
-        open={!!addToOrder}
-        onOpenChange={(open) => !open && setAddToOrder(null)}
-        onAdded={refresh}
-      />
-
-      <BuffetOrderSheet
-        order={buffetOrder === undefined ? null : buffetOrder}
-        open={buffetOrder !== undefined}
-        onOpenChange={(open) => !open && setBuffetOrder(undefined)}
-        onDone={refresh}
-      />
     </div>
   );
 }
@@ -291,30 +245,34 @@ function RequestCard({
   onResolve: () => void;
 }) {
   const isWaiter = request.type === "waiter";
+  const Icon = isWaiter ? ConciergeBell : Receipt;
 
   return (
     <Card
       className={
         isWaiter
           ? "border-amber-300 bg-accent-tint/50 ring-1 ring-amber-200"
-          : undefined
+          : "border-emerald-300 bg-emerald-50/60 ring-1 ring-emerald-200"
       }
     >
       <CardContent className="flex items-start justify-between gap-3 p-4">
-        <div>
-          <p className="font-semibold text-ink">
-            Table {request.tableLabel} · {REQUEST_LABELS[request.type] ?? request.type}
-          </p>
-          {request.note && (
-            <p className="mt-1 text-sm text-muted-foreground">{request.note}</p>
-          )}
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-            Waiting{" "}
-            <ElapsedTimer
-              since={request.createdAt}
-              className="text-ink"
-            />
-          </p>
+        <div className="flex gap-3">
+          <span
+            className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${
+              isWaiter ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+            }`}
+          >
+            <Icon className="size-5" />
+          </span>
+          <div>
+            <p className="font-semibold text-ink">Table {request.tableLabel}</p>
+            <p className="text-sm text-muted-foreground">
+              {REQUEST_LABELS[request.type] ?? request.type}
+            </p>
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              Waiting <ElapsedTimer since={request.createdAt} className="text-ink" />
+            </p>
+          </div>
         </div>
         <Button size="sm" disabled={busy} onClick={onResolve}>
           Resolve

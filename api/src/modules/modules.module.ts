@@ -13,6 +13,7 @@ import { FoodTypeModule } from '@modules/food-type/food-type.module';
 import { AreaModule } from '@modules/area/area.module';
 import { TableModule } from '@modules/table/table.module';
 import { QrCodeModule } from '@modules/qr-code/qr-code.module';
+import { ServiceRequestModule } from '@modules/service-request/service-request.module';
 import { OrderModule } from '@modules/order/order.module';
 import { CustomerModule } from '@modules/customer/customer.module';
 import { ReservationModule } from '@modules/reservation/reservation.module';
@@ -59,6 +60,7 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     AreaModule,
     TableModule,
     QrCodeModule,
+    ServiceRequestModule,
     OrderModule,
     CustomerModule,
     ReservationModule,

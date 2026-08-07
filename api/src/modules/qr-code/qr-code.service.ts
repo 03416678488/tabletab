@@ -10,6 +10,9 @@ import { QrCode } from './entities/qr-code.entity';
 import { QrCodeValidatorService } from './services/qr-code-validator.service';
 import { QrCodeHelperService } from './services/qr-code.helper.service';
 import { CreateQrCodeDto, UpdateQrCodeDto, GetQrCodeQueryDto } from './dto';
+import { OrderService } from '@modules/order/order.service';
+import { Order } from '@modules/order/entities/order.entity';
+import { ServiceRequestService } from '@modules/service-request/service-request.service';
 
 /** Main QR-code flow only — validation + normalization live in the sibling services. */
 @Injectable()
@@ -20,8 +23,39 @@ export class QrCodeService extends AbstractService<QrCode> {
     protected readonly pagination: PaginationProvider,
     private readonly _validator: QrCodeValidatorService,
     private readonly _helper: QrCodeHelperService,
+    private readonly _orders: OrderService,
+    private readonly _serviceRequests: ServiceRequestService,
   ) {
     super(repository, pagination);
+  }
+
+  /** The table's current open order (the bill), or null when nothing is running. */
+  async getBill(slug: string): Promise<Order | null> {
+    const qr = await this.resolveBySlug(slug);
+    return this._orders.getActiveByTable(qr.tableId);
+  }
+
+  /** Queue a service request from the table — lands live on the staff board + bell. */
+  private async requestService(slug: string, type: 'waiter' | 'bill'): Promise<void> {
+    const qr = await this.resolveBySlug(slug);
+    await this._serviceRequests.create({
+      type,
+      tableId: qr.tableId,
+      tableName: qr.table?.name ?? null,
+      branchId: qr.table?.branchId ?? null,
+    });
+  }
+
+  /** A guest tapped "Call waiter" — queue it for staff. */
+  async callWaiter(slug: string): Promise<{ message: string }> {
+    await this.requestService(slug, 'waiter');
+    return { message: 'A waiter has been notified — someone will be with you shortly.' };
+  }
+
+  /** A guest is ready to pay — queue a bill request for staff. */
+  async requestBill(slug: string): Promise<{ message: string }> {
+    await this.requestService(slug, 'bill');
+    return { message: 'Staff have been notified — someone will bring your bill.' };
   }
 
   getAll(query: GetQrCodeQueryDto): Promise<Paginated<QrCode>> {

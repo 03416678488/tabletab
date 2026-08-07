@@ -30,6 +30,27 @@ export class QrCodeController {
     return this._qrCodeService.resolveBySlug(slug);
   }
 
+  /** Public — a guest taps "Call waiter" at the table; alerts branch staff. */
+  @Public()
+  @Post('call-waiter/:slug')
+  callWaiter(@Param('slug') slug: string) {
+    return this._qrCodeService.callWaiter(slug);
+  }
+
+  /** Public — the table's running order (bill), or null. */
+  @Public()
+  @Get('bill/:slug')
+  bill(@Param('slug') slug: string) {
+    return this._qrCodeService.getBill(slug);
+  }
+
+  /** Public — a guest is ready to pay; alerts branch staff to bring the bill. */
+  @Public()
+  @Post('request-bill/:slug')
+  requestBill(@Param('slug') slug: string) {
+    return this._qrCodeService.requestBill(slug);
+  }
+
   @Get()
   getAll(@Query() query: GetQrCodeQueryDto) {
     return this._qrCodeService.getAll(query);

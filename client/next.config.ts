@@ -72,6 +72,7 @@ const nextConfig: NextConfig = {
       beforeFiles: [{ source: "/api/:path((?!auth/).*)", destination: `${origin}/api/:path` }],
     };
   },
+  allowedDevOrigins: ['100.93.96.108'],
 };
 
 export default nextConfig;

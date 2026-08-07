@@ -31,7 +31,7 @@ export function StorefrontHeader() {
   const showSearch = headerCfg?.showSearch ?? true;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-border bg-surface md:bg-surface/90 md:backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <TenantLogo href="/" showTagline nameOverride={headerCfg?.brandName} />

@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { OrderStatusPill, StatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveOps } from "@/hooks/use-live-ops";
+import { useServiceRequests } from "@/features/service-request/hooks/use-service-requests";
 import { useSession } from "@/hooks/use-session";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
@@ -33,11 +34,13 @@ const ACTIVE_STATUSES = new Set([
 
 export function ManagerBoard() {
   const activeBranch = useSession((s) => s.activeBranch);
-  const { orders, requests, loading, error, refresh } = useLiveOps({
+  const { orders, loading, error, refresh } = useLiveOps({
     branchId: activeBranch.id,
     simulateOrders: true,
-    simulateRequests: true,
+    simulateRequests: false,
   });
+  // Real, live service-request queue (call waiter / ready to pay from QR scans).
+  const { requests, resolve: resolveRequest } = useServiceRequests();
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [actionOrder, setActionOrder] = useState<Order | null>(null);
   const [actionType, setActionType] = useState<ManagerAction | null>(null);
@@ -62,11 +65,7 @@ export function ManagerBoard() {
     [activeOrders],
   );
 
-  const managerCalls = useMemo(
-    () =>
-      requests.filter((r) => r.type === "manager" && !r.resolved),
-    [requests],
-  );
+  const openRequests = useMemo(() => requests.filter((r) => !r.resolved), [requests]);
 
   const openAction = (order: Order, action: ManagerAction) => {
     setActionOrder(order);
@@ -135,14 +134,14 @@ export function ManagerBoard() {
         <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
           <ShieldAlert className="size-5 text-red-600" />
           Escalations
-          {(slaBreaches.length > 0 || managerCalls.length > 0) && (
-            <StatusPill tone="red">{slaBreaches.length + managerCalls.length} open</StatusPill>
+          {(slaBreaches.length > 0 || openRequests.length > 0) && (
+            <StatusPill tone="red">{slaBreaches.length + openRequests.length} open</StatusPill>
           )}
         </h2>
-        {slaBreaches.length === 0 && managerCalls.length === 0 ? (
+        {slaBreaches.length === 0 && openRequests.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No escalations — all orders within SLA and no manager calls.
+              No escalations — all orders within SLA and no open service requests.
             </CardContent>
           </Card>
         ) : (
@@ -158,19 +157,17 @@ export function ManagerBoard() {
                 onAction={() => openAction(order, "override")}
               />
             ))}
-            {managerCalls.map((req) => (
+            {openRequests.map((req) => (
               <EscalationCard
                 key={req.id}
                 variant="manager"
-                title={`Call manager · Table ${req.tableLabel}`}
-                subtitle={req.note ?? "Guest requested manager"}
+                title={`${req.type === "bill" ? "Ready to pay" : "Call waiter"} · Table ${req.tableLabel}`}
+                subtitle={req.type === "bill" ? "Guest is ready to pay" : "Guest requested a waiter"}
                 since={req.createdAt}
-                onResolve={() =>
-                  api.resolveServiceRequest(req.id).then(() => {
-                    toast("Request resolved", { tone: "success" });
-                    refresh();
-                  })
-                }
+                onResolve={() => {
+                  void resolveRequest(req.id);
+                  toast("Request resolved", { tone: "success" });
+                }}
               />
             ))}
           </div>

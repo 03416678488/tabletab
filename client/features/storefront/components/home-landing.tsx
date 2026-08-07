@@ -260,7 +260,7 @@ export function HomeLanding({
       {/* Tabs + location — sticky under the header while scrolling */}
       <div
         ref={stickyRef}
-        className="sticky top-16 z-30 border-b border-border bg-subtle/95 backdrop-blur-md"
+        className="sticky top-16 z-30 border-b border-border bg-subtle md:bg-subtle/95 md:backdrop-blur-md"
       >
         <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -455,7 +455,7 @@ export function HomeLanding({
           {/* Sticky category nav (scroll-spy) — sits below the sticky tabs bar */}
           {itemsByCategory.some(({ items: ci }) => ci.length > 0) && (
             <div
-              className="sticky z-20 border-y border-border bg-surface/95 backdrop-blur-md"
+              className="sticky z-20 border-y border-border bg-surface md:bg-surface/95 md:backdrop-blur-md"
               style={{ top: `calc(4rem + ${stickyHeight}px)` }}
             >
               <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -493,7 +493,11 @@ export function HomeLanding({
                   ref={(el) => {
                     sectionRefs.current[category.id] = el;
                   }}
-                  className="mx-auto max-w-6xl px-4 py-4 sm:px-6"
+                  // content-visibility skips rendering off-screen category
+                  // sections while scrolling a long menu; contain-intrinsic-size
+                  // reserves their space (auto = remember real height after first
+                  // paint) so the scrollbar and category jumps stay accurate.
+                  className="mx-auto max-w-6xl px-4 py-4 sm:px-6 [content-visibility:auto] [contain-intrinsic-size:auto_500px]"
                   style={{ scrollMarginTop: `calc(7rem + ${stickyHeight}px)` }}
                 >
                   <div className="mb-3 flex items-center justify-between gap-3">

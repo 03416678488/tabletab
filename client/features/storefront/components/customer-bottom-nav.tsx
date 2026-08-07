@@ -29,7 +29,7 @@ export function CustomerBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 backdrop-blur-md pb-safe md:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface pb-safe md:hidden"
       aria-label="Mobile navigation"
     >
       <div className="mx-auto flex h-16 max-w-lg items-stretch justify-around px-2">

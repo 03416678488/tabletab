@@ -39,3 +39,7 @@ export const reservationChannel = (reservationId: string): string =>
 /** Tenant reservation book — new + changed bookings for the manager view. Staff. */
 export const reservationsChannel = (tenantId?: string | null): string =>
   `reservations:${tenantId ?? 'default'}`;
+
+/** Tenant service-request queue — guests calling a waiter / asking for the bill. Staff. */
+export const serviceChannel = (tenantId?: string | null): string =>
+  `service:${tenantId ?? 'default'}`;

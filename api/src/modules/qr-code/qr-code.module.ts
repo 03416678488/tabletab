@@ -12,12 +12,16 @@ import { QrCodeHelperService } from './services/qr-code.helper.service';
 
 import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
+import { OrderModule } from '@modules/order/order.module';
+import { ServiceRequestModule } from '@modules/service-request/service-request.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([QrCode, Table]),
     PaginationModule,
     ErrorModule,
+    OrderModule,
+    ServiceRequestModule,
   ],
   controllers: [QrCodeController],
   providers: [
