@@ -15,21 +15,37 @@ const SELECT = `SELECT id, slug, "dbName", "dbHost", status, plan FROM tenants`;
 export class TenantRegistryService implements OnModuleDestroy {
   private readonly logger = new Logger(TenantRegistryService.name);
   private ds: DataSource | null = null;
+  /** In-flight initialization, so concurrent callers share one connect. */
+  private dsPromise: Promise<DataSource> | null = null;
   private readonly cache = new Map<string, { rec: TenantRecord | null; at: number }>();
   private readonly ttlMs = 30_000;
 
-  private async source(): Promise<DataSource> {
-    if (this.ds?.isInitialized) return this.ds;
-    this.ds = new DataSource({
-      type: 'postgres',
-      host: process.env.POSTGRES_HOST || 'localhost',
-      port: parseInt(process.env.POSTGRES_PORT ?? '5432', 10),
-      username: process.env.POSTGRES_USER,
-      password: process.env.POSTGRES_PASSWORD,
-      database: process.env.CONTROL_PLANE_DB || 'tabletap_console',
-    });
-    await this.ds.initialize();
-    return this.ds;
+  private source(): Promise<DataSource> {
+    if (this.ds?.isInitialized) return Promise.resolve(this.ds);
+    // Coalesce concurrent first-hits onto a single initialize(): returning the
+    // shared `this.ds` field mid-init let one request query a DataSource another
+    // had just replaced but not yet connected ("Driver not Connected").
+    if (!this.dsPromise) {
+      const ds = new DataSource({
+        type: 'postgres',
+        host: process.env.POSTGRES_HOST || 'localhost',
+        port: parseInt(process.env.POSTGRES_PORT ?? '5432', 10),
+        username: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+        database: process.env.CONTROL_PLANE_DB || 'tabletap_console',
+      });
+      this.dsPromise = ds
+        .initialize()
+        .then((initialized) => {
+          this.ds = initialized;
+          return initialized;
+        })
+        .catch((err) => {
+          this.dsPromise = null; // allow a later retry
+          throw err;
+        });
+    }
+    return this.dsPromise;
   }
 
   private fromCache(key: string): TenantRecord | null | undefined {

@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'crypto';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigType } from '@nestjs/config';
 import {
   Inject,
@@ -86,7 +86,9 @@ export class AuthService {
 
     const payload = this.buildJwtPayload(user, { id: tenant.id, slug: tenant.slug });
     const expiresIn = process.env.IMPERSONATION_EXPIRES_IN || '30m';
-    const token = this._jwtService.sign(payload, { expiresIn });
+    const token = this._jwtService.sign(payload, {
+      expiresIn: expiresIn as JwtSignOptions['expiresIn'],
+    });
 
     // Audit trail — who viewed which tenant, as whom, when.
     this.logger.warn(
@@ -589,7 +591,7 @@ export class AuthService {
       // must not be usable to rotate the session.
       refreshToken: this._jwtService.sign(
         { ...payload, sid: session.sid, jti: session.jti },
-        this._refreshTokenConfig,
+        this._refreshTokenConfig as JwtSignOptions,
       ),
       tokenExpiresAt: tokenExpiresAt,
       refreshTokenExpiresAt: refreshTokenExpiresAt,

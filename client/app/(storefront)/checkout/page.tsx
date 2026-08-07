@@ -237,7 +237,7 @@ function CheckoutContent() {
       toast("Select a pickup time", { tone: "error" });
       return;
     }
-    if (!paymentMethodId) {
+    if (!paymentMethodId || !selectedPayment?.enabled) {
       toast("Select a payment method", { tone: "error" });
       return;
     }
@@ -540,29 +540,45 @@ function CheckoutContent() {
                   paymentMethods.map((m) => {
                     const Icon = PAYMENT_ICONS[m.id] ?? CreditCard;
                     const active = paymentMethodId === m.id;
+                    // Disabled in Settings → Payment Gateways: show it, but greyed
+                    // out and unselectable, so the option is discoverable.
+                    const disabled = !m.enabled;
                     return (
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => setPaymentMethodId(m.id)}
+                        disabled={disabled}
+                        aria-disabled={disabled}
+                        onClick={() => !disabled && setPaymentMethodId(m.id)}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-xl border p-4 text-left text-sm transition-colors",
-                          active ? "border-brand bg-brand-tint" : "border-border hover:bg-secondary",
+                          disabled
+                            ? "cursor-not-allowed border-border bg-secondary/40 opacity-60"
+                            : active
+                              ? "border-brand bg-brand-tint"
+                              : "border-border hover:bg-secondary",
                         )}
                       >
                         <span
                           className={cn(
                             "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                            active ? "border-brand" : "border-muted-foreground/40",
+                            active && !disabled ? "border-brand" : "border-muted-foreground/40",
                           )}
                         >
-                          {active && <span className="size-2 rounded-full bg-brand" />}
+                          {active && !disabled && <span className="size-2 rounded-full bg-brand" />}
                         </span>
                         <Icon className="size-5 shrink-0 text-brand" />
                         <div className="min-w-0">
                           <p className="font-medium text-ink">{m.label}</p>
-                          {m.id === "cod" && m.instructions && (
-                            <p className="truncate text-xs text-muted-foreground">{m.instructions}</p>
+                          {disabled ? (
+                            <p className="text-xs text-muted-foreground">Currently unavailable</p>
+                          ) : (
+                            m.id === "cod" &&
+                            m.instructions && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {m.instructions}
+                              </p>
+                            )
                           )}
                         </div>
                       </button>

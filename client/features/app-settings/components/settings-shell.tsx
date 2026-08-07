@@ -172,11 +172,6 @@ export function SettingsShell() {
                   label: "Schedule Order Slot Duration (min)",
                   type: "number",
                 },
-                { key: "takeaway", label: "Takeaway", type: "toggle" },
-                { key: "delivery", label: "Delivery", type: "toggle" },
-                { key: "free_delivery_km", label: "Free Delivery Kilometer", type: "number" },
-                { key: "basic_delivery_charge", label: "Basic Delivery Charge", type: "number" },
-                { key: "charge_per_kilo", label: "Charge Per Kilo", type: "number" },
               ]}
             />
           )}

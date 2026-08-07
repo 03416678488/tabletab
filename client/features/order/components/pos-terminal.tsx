@@ -118,9 +118,12 @@ export function PosTerminal() {
   const { online, queue, pending, failed, syncing, syncNow, enqueue, retry, discard } =
     useOfflineQueue();
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [offlineMenu] = useState(() => loadMenuSnapshot());
+  const [offlineMenu, setOfflineMenu] = useState<MenuItem[]>([]);
   useEffect(() => {
-    if (online && allItems.length) saveMenuSnapshot(allItems);
+    void loadMenuSnapshot().then(setOfflineMenu);
+  }, []);
+  useEffect(() => {
+    if (online && allItems.length) void saveMenuSnapshot(allItems);
   }, [online, allItems]);
   const catalog = allItems.length > 0 ? allItems : offlineMenu;
 

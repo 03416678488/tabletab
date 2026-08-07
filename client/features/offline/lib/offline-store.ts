@@ -2,15 +2,15 @@
 
 import type { CreateOrderInput } from "@/features/order/types/order.types";
 import type { MenuItem } from "@/features/menu/types/menu.types";
+import { idbGet, idbSet } from "@/features/offline/lib/idb";
 
 /**
- * localStorage-backed offline store for the POS: a cached menu snapshot (so the
- * terminal still renders products with no network) and a queue of orders taken
- * while offline (replayed to the API on reconnect). Small payloads — a few
- * hundred items + a handful of pending orders fit comfortably.
+ * Offline store for the POS. The menu snapshot (potentially large — hundreds of
+ * items with variants/add-ons) lives in IndexedDB; the small order queue stays
+ * in localStorage (read synchronously by the sync loop).
  */
 
-const MENU_KEY = "tabletap.offline.menu";
+const MENU_KEY = "menu";
 const QUEUE_KEY = "tabletap.offline.queue";
 
 /** Broadcast so every mounted hook re-reads the queue after a change. */
@@ -44,14 +44,14 @@ function write(key: string, value: unknown): void {
   }
 }
 
-// ── Menu snapshot ────────────────────────────────────────────────────────────
+// ── Menu snapshot (IndexedDB) ────────────────────────────────────────────────
 
-export function saveMenuSnapshot(items: MenuItem[]): void {
-  if (items.length) write(MENU_KEY, items);
+export async function saveMenuSnapshot(items: MenuItem[]): Promise<void> {
+  if (items.length) await idbSet(MENU_KEY, items);
 }
 
-export function loadMenuSnapshot(): MenuItem[] {
-  return read<MenuItem[]>(MENU_KEY, []);
+export async function loadMenuSnapshot(): Promise<MenuItem[]> {
+  return (await idbGet<MenuItem[]>(MENU_KEY)) ?? [];
 }
 
 // ── Order queue ──────────────────────────────────────────────────────────────

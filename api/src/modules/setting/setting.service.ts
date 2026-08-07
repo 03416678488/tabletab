@@ -43,8 +43,10 @@ export class SettingService {
   }
 
   /**
-   * Enabled payment methods for the storefront checkout. Public-safe only —
-   * secret keys are never returned, just the enabled flag + any publishable key.
+   * Payment methods for the storefront checkout. Public-safe only — secret keys
+   * are never returned, just the enabled flag + any publishable key. Disabled
+   * methods are still returned (with `enabled: false`) so the storefront can show
+   * them greyed-out/unselectable rather than hiding them outright.
    */
   async getPaymentMethods(): Promise<PublicPaymentMethod[]> {
     const defs: { id: string; label: string; group: string; publicKeyField?: string }[] = [
@@ -54,18 +56,16 @@ export class SettingService {
       { id: 'cod', label: 'Cash on Delivery', group: 'payment_cod' },
     ];
     const grouped = await this.getGrouped(defs.map((d) => d.group));
-    return defs
-      .map((d) => {
-        const g = grouped[d.group] ?? {};
-        return {
-          id: d.id,
-          label: d.label,
-          enabled: g.enabled === 'enable',
-          publicKey: d.publicKeyField ? (g[d.publicKeyField] ?? '') : undefined,
-          instructions: d.id === 'cod' ? (g.instructions ?? '') : undefined,
-        };
-      })
-      .filter((m) => m.enabled);
+    return defs.map((d) => {
+      const g = grouped[d.group] ?? {};
+      return {
+        id: d.id,
+        label: d.label,
+        enabled: g.enabled === 'enable',
+        publicKey: d.publicKeyField ? (g[d.publicKeyField] ?? '') : undefined,
+        instructions: d.id === 'cod' ? (g.instructions ?? '') : undefined,
+      };
+    });
   }
 
   async getGroup(group: string): Promise<Record<string, string>> {
