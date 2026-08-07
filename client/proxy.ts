@@ -54,6 +54,13 @@ const PROTECTED_SEGMENTS = new Set([
 
 export default auth((req) => {
   const { nextUrl } = req;
+
+  // API paths are not pages. They now flow through the client (NextAuth at
+  // `/api/auth/*`, and the same-origin `/api/* → backend` proxy), so the page
+  // middleware must pass them straight through — never treat `api` as a custom
+  // page slug or a protected route.
+  if (nextUrl.pathname.startsWith("/api/")) return NextResponse.next();
+
   const segments = nextUrl.pathname.split("/").filter(Boolean);
   const first = segments[0] ?? "";
 
