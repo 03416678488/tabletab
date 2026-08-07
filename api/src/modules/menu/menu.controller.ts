@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   type MessageEvent,
   Param,
   ParseUUIDPipe,
@@ -58,26 +59,34 @@ export class MenuController {
   }
 
   // Public so the storefront can render menu items (e.g. the "Menu grid" block).
+  // `x-lang` (set by the client from the active locale) overlays translated text.
   @Public()
   @Get()
-  getAll(@Query() query: GetMenuItemQueryDto) {
-    return this._menuService.getAll(query);
+  getAll(@Query() query: GetMenuItemQueryDto, @Headers('x-lang') lang?: string) {
+    return this._menuService.getAll(query, lang);
   }
 
   @Public()
   @Get(':id')
-  getOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this._menuService.getById(id);
+  getOne(@Param('id', ParseUUIDPipe) id: string, @Headers('x-lang') lang?: string) {
+    return this._menuService.getById(id, lang);
   }
 
+  // Create/update read/write in the caller's active language (`x-lang`): in a
+  // non-default language, name/description are saved as that language's
+  // translation instead of the base row.
   @Post()
-  create(@Body() dto: CreateMenuItemDto) {
-    return this._menuService.createMenuItem(dto);
+  create(@Body() dto: CreateMenuItemDto, @Headers('x-lang') lang?: string) {
+    return this._menuService.createMenuItem(dto, lang);
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateMenuItemDto) {
-    return this._menuService.updateMenuItem(id, dto);
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMenuItemDto,
+    @Headers('x-lang') lang?: string,
+  ) {
+    return this._menuService.updateMenuItem(id, dto, lang);
   }
 
   @Delete(':id')

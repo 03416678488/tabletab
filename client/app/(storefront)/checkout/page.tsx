@@ -10,6 +10,7 @@ import { CartSummary } from "@/features/order/components/cart-summary";
 import { AddressForm } from "@/features/storefront/components/address-form";
 import { usePaymentMethods } from "@/features/storefront/hooks/use-payment-methods";
 import { CheckoutPaymentDialog } from "@/features/storefront/components/checkout-payment-dialog";
+import { useI18n } from "@/features/i18n/i18n-provider";
 
 // Read-only map for the selected delivery address (Leaflet → client-only).
 const AddressMap = dynamic(() => import("@/features/storefront/components/address-map"), {
@@ -60,6 +61,10 @@ function CheckoutContent() {
   const dineIn = useDineIn();
   const isDineIn = dineIn.active && dineIn.branchId === branchId;
   const [guestName, setGuestName] = useState("");
+
+  // FX: when the storefront shows a converted display currency, the order still
+  // transacts in the tenant's base currency — disclose that before payment.
+  const { fx } = useI18n();
 
   // Payment methods (enabled ones only; no secrets). Dine-in pays at the table.
   const { methods: paymentMethods } = usePaymentMethods();
@@ -696,6 +701,12 @@ function CheckoutContent() {
                   ? "Your order goes straight to the kitchen — pay at the table."
                   : "Mock payment — no card charged."}
               </p>
+              {fx.converting && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Prices shown in {fx.displayCurrency} are approximate. You&apos;ll be charged{" "}
+                  {formatCurrency(total, fx.baseCurrency)} in {fx.baseCurrency}.
+                </p>
+              )}
             </>
           ) : (
             <Card>

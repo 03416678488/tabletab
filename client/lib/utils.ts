@@ -1,16 +1,19 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { getSettingsSnapshot } from "@/hooks/use-settings-store";
+import { formatMoney } from "@/lib/currency";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(amount);
+/**
+ * Format an amount as currency using the active region's Intl conventions
+ * (set by I18nProvider). Pass an explicit `currency` code to override the
+ * region default for a one-off (e.g. showing a foreign-currency amount).
+ */
+export function formatCurrency(amount: number, currency?: string) {
+  return formatMoney(amount, currency);
 }
 
 /**
