@@ -15,6 +15,8 @@ import { type Observable } from 'rxjs';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 import { CurrentTenant } from '@modules/tenancy/current-tenant.decorator';
+import { CurrentUser } from '@cor/decorators/auth/current-user.decorator';
+import { AuthenticatedUser } from '@modules/auth/strategies/jwt.strategy';
 import { TenantRecord } from '@modules/tenancy/tenancy.types';
 import { boardChannel, orderChannel } from '@modules/realtime/channels';
 import { sseFromChannel } from '@modules/realtime/sse.util';
@@ -22,6 +24,7 @@ import { sseFromChannel } from '@modules/realtime/sse.util';
 import { OrderService } from './order.service';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
+import { assertOrderUpdateAllowed } from './order-status.policy';
 
 @Controller('orders')
 export class OrderController {
@@ -102,7 +105,17 @@ export class OrderController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateOrderDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateOrderDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    // Role scope: who may change status / mark paid (Chef = kitchen statuses
+    // only, never payment). Super admins bypass. Internal writes (webhooks,
+    // status sync) call the service directly and are not gated here.
+    if (!user?.isSuperAdmin) {
+      assertOrderUpdateAllowed(user?.roleNames ?? [], dto);
+    }
     return this._orderService.updateOrder(id, dto);
   }
 

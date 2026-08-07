@@ -22,6 +22,8 @@ import {
 } from "@/features/order/constants/order.constants";
 import { PaymentDialog, type PaymentResult } from "@/features/order/components/payment-dialog";
 import { paymentMethodLabel } from "@/features/order/lib/payment-label";
+import { canSetOrderStatus, canMarkOrderPaid } from "@/features/order/lib/order-permissions";
+import { useSession } from "@/hooks/use-session";
 import type { Order, OrderStatus } from "@/features/order/types/order.types";
 
 const COLUMNS: {
@@ -99,6 +101,18 @@ export function KdsBoard() {
   // An order awaiting payment before it can be completed (unpaid dine-in / POS).
   const [payFor, setPayFor] = useState<Order | null>(null);
 
+  // Role scope: hide actions the role can't perform (backend also enforces this).
+  // A Chef advances kitchen statuses only and can never take payment.
+  const role = useSession((s) => s.user?.role);
+  const mayAdvance = (order: Order): boolean => {
+    const next = nextStatus(order.status, order.orderType);
+    if (!next) return false;
+    if (!canSetOrderStatus(role, next)) return false;
+    // Completing an unpaid order requires taking payment.
+    if (next === "completed" && order.paymentStatus === "unpaid") return canMarkOrderPaid(role);
+    return true;
+  };
+
   const grouped = useMemo(() => {
     const map: Record<string, Order[]> = {
       placed: [],
@@ -113,6 +127,7 @@ export function KdsBoard() {
   const bump = async (order: Order) => {
     const next = nextStatus(order.status, order.orderType);
     if (!next || inFlight.current.has(order.id)) return; // one step per click
+    if (!mayAdvance(order)) return; // role not allowed (button is also hidden)
     // Completing an unpaid order must collect payment first.
     if (next === "completed" && order.paymentStatus === "unpaid") {
       setPayFor(order);
@@ -238,6 +253,7 @@ export function KdsBoard() {
                         now={now}
                         accent={col.accent}
                         action={action}
+                        canAct={mayAdvance(order)}
                         busy={busyId === order.id}
                         isNew={newIds.has(order.id)}
                         onBump={() => bump(order)}
@@ -266,6 +282,7 @@ function Ticket({
   now,
   accent,
   action,
+  canAct,
   busy,
   isNew,
   onBump,
@@ -274,6 +291,7 @@ function Ticket({
   now: number;
   accent: string;
   action: string;
+  canAct: boolean;
   busy: boolean;
   isNew: boolean;
   onBump: () => void;
@@ -329,9 +347,11 @@ function Ticket({
         ))}
       </ul>
 
-      <Button className="mt-3 w-full" size="sm" disabled={busy} onClick={onBump}>
-        {action}
-      </Button>
+      {canAct && (
+        <Button className="mt-3 w-full" size="sm" disabled={busy} onClick={onBump}>
+          {action}
+        </Button>
+      )}
     </div>
   );
 }
