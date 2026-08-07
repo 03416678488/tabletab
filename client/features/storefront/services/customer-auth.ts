@@ -1,6 +1,5 @@
 import type { CustomerAccount } from "@/lib/types";
-
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { resolveApiBaseUrl } from "@/lib/api-base";
 
 interface ApiCustomer {
   id: string;
@@ -26,7 +25,7 @@ function errorMessage(json: unknown, fallback: string): string {
 }
 
 async function request<T>(path: string, init: RequestInit, fallbackErr: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${resolveApiBaseUrl()}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
   });

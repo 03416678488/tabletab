@@ -23,6 +23,17 @@ function apiImagePatterns(): RemotePattern[] {
   }
 }
 
+/** Origin of the backend API (e.g. http://localhost:3003), for proxying /api. */
+function apiOrigin(): string | null {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!base) return null;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
+}
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -43,6 +54,19 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
       },
     ];
+  },
+
+  // Proxy the backend API through the client so a single origin (localhost, a
+  // LAN IP, or one Cloudflare tunnel) serves both the app and its data — the
+  // browser calls same-origin `/api/*` and Next forwards it to the API server.
+  // `afterFiles`: the client's own `app/api/auth/*` (NextAuth) routes win first;
+  // only unmatched `/api/*` is proxied to the backend.
+  async rewrites() {
+    const origin = apiOrigin();
+    if (!origin) return [];
+    return {
+      afterFiles: [{ source: "/api/:path*", destination: `${origin}/api/:path*` }],
+    };
   },
 };
 

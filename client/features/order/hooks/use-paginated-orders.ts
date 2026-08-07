@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError } from "@/lib/httpClient";
 import { orderService } from "@/features/order/services/order.service";
+import { useActiveBranch, isAllBranches } from "@/features/branch/hooks/use-active-branch";
 import type {
   Order,
   OrderStatus,
@@ -35,7 +36,11 @@ export function usePaginatedOrders({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${orderType ?? ""}|${search ?? ""}|${status ?? ""}|${paymentStatus ?? ""}|${perPage}`;
+  // Scope to the topbar branch selection ("All branches" → undefined = all).
+  const activeBranchId = useActiveBranch((s) => s.activeBranchId);
+  const branchId = activeBranchId && !isAllBranches(activeBranchId) ? activeBranchId : undefined;
+
+  const key = `${orderType ?? ""}|${search ?? ""}|${status ?? ""}|${paymentStatus ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -52,6 +57,7 @@ export function usePaginatedOrders({
           status,
           paymentStatus,
           search: search || undefined,
+          branchId,
         });
         if (keyRef.current !== activeKey) return;
         setOrders(data.items);

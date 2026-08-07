@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getSession } from "next-auth/react";
 
 import { openEventStream } from "@/lib/event-stream";
+import { resolveApiBaseUrl } from "@/lib/api-base";
 import { toast } from "@/hooks/use-toast";
 import { playNewOrderChime, primeChime } from "@/features/order/lib/chime";
 import { notificationService } from "@/features/notifications/services/notification.service";
@@ -16,7 +17,7 @@ import type {
   NotificationPriority,
 } from "@/features/notifications/types/notification.types";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const BASE = resolveApiBaseUrl();
 /** Coalesce a burst of alerts into a single chime + summary toast. */
 const BURST_WINDOW_MS = 1200;
 

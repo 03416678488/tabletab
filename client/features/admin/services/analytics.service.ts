@@ -6,8 +6,11 @@ import type { AnalyticsPeriod, OwnerAnalytics } from "@/lib/types";
  * (GET /dashboard/analytics). Shape matches OwnerAnalytics exactly.
  */
 export const analyticsService = {
-  getOwnerAnalytics: (period: AnalyticsPeriod) =>
+  getOwnerAnalytics: (period: AnalyticsPeriod, branchId?: string) =>
     httpClient
-      .get<OwnerAnalytics>(`/dashboard/analytics`, { auth: true, params: { period } })
+      .get<OwnerAnalytics>(`/dashboard/analytics`, {
+        auth: true,
+        params: { period, branchId: branchId || undefined },
+      })
       .then((r) => r.data),
 };

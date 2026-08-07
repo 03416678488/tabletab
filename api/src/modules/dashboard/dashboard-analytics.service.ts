@@ -1,4 +1,4 @@
-import { Inject, Injectable, Scope } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Scope } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -42,13 +42,39 @@ export class DashboardAnalyticsService {
     return this._req.tenantDataSource ?? this._defaultDs;
   }
 
+  /** Active branch scope for this request ("all branches" when undefined). */
+  private _branchId?: string;
+
+  private static readonly UUID =
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+  /** Validate the incoming branch filter — a strict UUID, or none for all branches. */
+  private normalizeBranchId(branchId?: string): string | undefined {
+    if (!branchId || branchId === 'all') return undefined;
+    if (!DashboardAnalyticsService.UUID.test(branchId)) {
+      throw new BadRequestException('Invalid branchId');
+    }
+    return branchId;
+  }
+
+  /**
+   * SQL fragment scoping a query to the active branch (empty = all branches).
+   * `col` is the fully-qualified branch column, e.g. `o."branchId"`. Safe to
+   * inline: `_branchId` is only ever a validated UUID.
+   */
+  private branchAnd(col: string): string {
+    return this._branchId ? ` AND ${col} = '${this._branchId}'` : '';
+  }
+
   /** Start of the series window for a period, as an SQL expression. */
   private windowStart(period: Period): string {
     const { trunc, step, back } = CFG[period];
     return `date_trunc('${trunc}', now()) - interval '${back} ${step}'`;
   }
 
-  async getOwnerAnalytics(period: Period) {
+  async getOwnerAnalytics(period: Period, branchId?: string) {
+    this._branchId = this.normalizeBranchId(branchId);
+
     const [
       revenueSeries,
       kpis,
@@ -111,7 +137,7 @@ export class DashboardAnalyticsService {
              COALESCE(COUNT(o.id), 0) AS orders
       FROM buckets bk
       LEFT JOIN orders o
-        ON date_trunc('${trunc}', o."createdAt") = bk.b AND o.status <> 'cancelled'
+        ON date_trunc('${trunc}', o."createdAt") = bk.b AND o.status <> 'cancelled'${this.branchAnd('o."branchId"')}
       GROUP BY bk.b ORDER BY bk.b
     `);
     return rows.map((r: any) => ({
@@ -132,8 +158,8 @@ export class DashboardAnalyticsService {
       FROM (
         SELECT total,
                (date_trunc('day', now())::date - date_trunc('day', "createdAt")::date) AS d
-        FROM orders
-        WHERE status <> 'cancelled' AND "createdAt" >= date_trunc('day', now()) - interval '1 day'
+        FROM orders o
+        WHERE status <> 'cancelled' AND "createdAt" >= date_trunc('day', now()) - interval '1 day'${this.branchAnd('o."branchId"')}
       ) t
     `);
     const [k] = await this.ds.query(`
@@ -145,9 +171,9 @@ export class DashboardAnalyticsService {
       FROM (
         SELECT "updatedAt", "createdAt",
                (date_trunc('day', now())::date - date_trunc('day', "createdAt")::date) AS d
-        FROM orders
+        FROM orders o
         WHERE status IN ('served', 'completed')
-          AND "createdAt" >= date_trunc('day', now()) - interval '1 day'
+          AND "createdAt" >= date_trunc('day', now()) - interval '1 day'${this.branchAnd('o."branchId"')}
       ) t
     `);
 
@@ -187,7 +213,7 @@ export class DashboardAnalyticsService {
                  FILTER (WHERE o.status IN ('served', 'completed')), 0) AS kitchen
       FROM buckets bk
       LEFT JOIN orders o
-        ON date_trunc('day', o."createdAt") = bk.b AND o.status <> 'cancelled'
+        ON date_trunc('day', o."createdAt") = bk.b AND o.status <> 'cancelled'${this.branchAnd('o."branchId"')}
       GROUP BY bk.b ORDER BY bk.b
     `);
     const revenueSpark = rows.map((r: any) => num(r.revenue));
@@ -204,7 +230,7 @@ export class DashboardAnalyticsService {
              SUM(oi.quantity) AS quantity, SUM(oi."lineTotal") AS revenue
       FROM order_items oi
       JOIN orders o ON o.id = oi."orderId"
-      WHERE o.status <> 'cancelled' AND o."createdAt" >= ${this.windowStart(period)}
+      WHERE o.status <> 'cancelled' AND o."createdAt" >= ${this.windowStart(period)}${this.branchAnd('o."branchId"')}
       GROUP BY oi."menuItemId", oi.name
       ORDER BY quantity DESC LIMIT 5
     `);
@@ -222,7 +248,7 @@ export class DashboardAnalyticsService {
       SELECT CASE WHEN "orderType" = 'online' THEN 'online' ELSE 'in-venue' END AS channel,
              SUM(total) AS revenue, COUNT(*) AS orders
       FROM orders
-      WHERE status <> 'cancelled' AND "createdAt" >= ${this.windowStart(period)}
+      WHERE status <> 'cancelled' AND "createdAt" >= ${this.windowStart(period)}${this.branchAnd('"branchId"')}
       GROUP BY channel
     `);
     const total = rows.reduce((s: number, r: any) => s + num(r.revenue), 0);
@@ -266,7 +292,7 @@ export class DashboardAnalyticsService {
       JOIN orders o ON o.id = oi."orderId"
       LEFT JOIN menu_items mi ON mi.id = oi."menuItemId"
       LEFT JOIN categories c ON c.id = mi."categoryId"
-      WHERE o.status <> 'cancelled' AND o."createdAt" >= ${this.windowStart(period)}
+      WHERE o.status <> 'cancelled' AND o."createdAt" >= ${this.windowStart(period)}${this.branchAnd('o."branchId"')}
       GROUP BY c.name
       ORDER BY revenue DESC LIMIT 6
     `);
@@ -282,10 +308,11 @@ export class DashboardAnalyticsService {
   // ── Payment method split (from transactions) ──────────────────────────────
   private async paymentSplit(period: Period) {
     const rows = await this.ds.query(`
-      SELECT method, SUM(amount) AS amount
-      FROM transactions
-      WHERE type = 'sale' AND "createdAt" >= ${this.windowStart(period)}
-      GROUP BY method ORDER BY amount DESC
+      SELECT t.method, SUM(t.amount) AS amount
+      FROM transactions t
+      LEFT JOIN orders o ON o.id = t."orderId"
+      WHERE t.type = 'sale' AND t."createdAt" >= ${this.windowStart(period)}${this.branchAnd('o."branchId"')}
+      GROUP BY t.method ORDER BY amount DESC
     `);
     const total = rows.reduce((s: number, r: any) => s + num(r.amount), 0);
     const labels: Record<string, string> = {
@@ -307,7 +334,7 @@ export class DashboardAnalyticsService {
     const rows = await this.ds.query(`
       SELECT "orderType" AS type, COUNT(*) AS orders
       FROM orders
-      WHERE status <> 'cancelled' AND "createdAt" >= ${this.windowStart(period)}
+      WHERE status <> 'cancelled' AND "createdAt" >= ${this.windowStart(period)}${this.branchAnd('"branchId"')}
       GROUP BY "orderType" ORDER BY orders DESC
     `);
     const total = rows.reduce((s: number, r: any) => s + num(r.orders), 0);
@@ -330,11 +357,11 @@ export class DashboardAnalyticsService {
     const [r] = await this.ds.query(`
       WITH firsts AS (
         SELECT "customerId", MIN("createdAt") AS first_at
-        FROM orders WHERE "customerId" IS NOT NULL GROUP BY "customerId"
+        FROM orders WHERE "customerId" IS NOT NULL${this.branchAnd('"branchId"')} GROUP BY "customerId"
       ),
       active AS (
         SELECT DISTINCT "customerId" FROM orders
-        WHERE "customerId" IS NOT NULL AND "createdAt" >= ${start}
+        WHERE "customerId" IS NOT NULL AND "createdAt" >= ${start}${this.branchAnd('"branchId"')}
       )
       SELECT
         COUNT(*) FILTER (WHERE fr.first_at >= ${start}) AS new_count,
@@ -361,7 +388,7 @@ export class DashboardAnalyticsService {
              COUNT(*) AS c
       FROM orders
       WHERE status <> 'cancelled'
-        AND "createdAt" >= now() - interval '90 days'
+        AND "createdAt" >= now() - interval '90 days'${this.branchAnd('"branchId"')}
       GROUP BY dow, hr
     `);
     // counts[dowName][hour] = orders
@@ -386,7 +413,7 @@ export class DashboardAnalyticsService {
         COALESCE(SUM(total) FILTER (
           WHERE "createdAt" >= date_trunc('${trunc}', now()) - interval '1 ${step}'
             AND "createdAt" <  date_trunc('${trunc}', now())), 0) AS prev
-      FROM orders WHERE status <> 'cancelled'
+      FROM orders WHERE status <> 'cancelled'${this.branchAnd('"branchId"')}
     `);
     const achieved = round2(num(r.achieved));
     const prev = num(r.prev);

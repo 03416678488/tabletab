@@ -16,8 +16,11 @@ export class DashboardController {
 
   @RequiresFeature('analytics')
   @Get('analytics')
-  getAnalytics(@Query('period', new DefaultValuePipe('day')) period: string) {
+  getAnalytics(
+    @Query('period', new DefaultValuePipe('day')) period: string,
+    @Query('branchId') branchId?: string,
+  ) {
     const p = (PERIODS.includes(period as Period) ? period : 'day') as Period;
-    return this._analytics.getOwnerAnalytics(p);
+    return this._analytics.getOwnerAnalytics(p, branchId);
   }
 }

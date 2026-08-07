@@ -61,13 +61,6 @@ export function StorefrontHeader() {
               <Search className="size-4" />
             </button>
           )}
-          <Link
-            href="/favorites"
-            aria-label="My favorites"
-            className="flex size-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:border-brand/40 hover:text-ink"
-          >
-            <Heart className="size-4" />
-          </Link>
           {isAuthenticated ? (
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
               <Link href="/account">

@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getSession } from "next-auth/react";
 
 import { openEventStream } from "@/lib/event-stream";
-
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+import { resolveApiBaseUrl } from "@/lib/api-base";
 
 /**
  * Subscribe to the tenant's live kitchen/pickup board (`GET /orders/board/stream`).
@@ -19,7 +18,7 @@ export function useBoardStream(onChange: () => void, enabled = true): { connecte
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
-    return openEventStream(`${BASE}/orders/board/stream`, {
+    return openEventStream(`${resolveApiBaseUrl()}/orders/board/stream`, {
       getToken: async () => (await getSession())?.accessToken,
       onOpen: () => setConnected(true),
       onError: () => setConnected(false),

@@ -5,7 +5,7 @@ import { MapPin } from "lucide-react";
 
 import { Dropdown } from "@/components/ui/dropdown";
 import { useBranches } from "@/features/branch/hooks/use-branches";
-import { useActiveBranch } from "@/features/branch/hooks/use-active-branch";
+import { useActiveBranch, ALL_BRANCHES } from "@/features/branch/hooks/use-active-branch";
 
 /**
  * Topbar branch selector (owner / multi-branch manager only), backed by the
@@ -16,11 +16,11 @@ export function BranchSwitcher() {
   const activeBranchId = useActiveBranch((s) => s.activeBranchId);
   const setActiveBranchId = useActiveBranch((s) => s.setActiveBranchId);
 
-  // Default to the first branch once loaded (or if the saved one disappeared).
+  // Default to "All branches" once loaded (or if the saved branch disappeared).
   useEffect(() => {
     if (!branches.length) return;
-    const valid = branches.some((b) => b.id === activeBranchId);
-    if (!valid) setActiveBranchId(branches[0].id);
+    const valid = activeBranchId === ALL_BRANCHES || branches.some((b) => b.id === activeBranchId);
+    if (!valid) setActiveBranchId(ALL_BRANCHES);
   }, [branches, activeBranchId, setActiveBranchId]);
 
   if (loading && !branches.length) {
@@ -41,15 +41,18 @@ export function BranchSwitcher() {
     <div className="hidden sm:block">
       <Dropdown
         className="w-52"
-        value={activeBranchId ?? branches[0].id}
+        value={activeBranchId ?? ALL_BRANCHES}
         onChange={setActiveBranchId}
         searchable={branches.length > 8}
         aria-label="Active branch"
-        options={branches.map((b) => ({
-          value: b.id,
-          label: b.name,
-          sublabel: b.city || undefined,
-        }))}
+        options={[
+          { value: ALL_BRANCHES, label: "All branches" },
+          ...branches.map((b) => ({
+            value: b.id,
+            label: b.name,
+            sublabel: b.city || undefined,
+          })),
+        ]}
       />
     </div>
   );

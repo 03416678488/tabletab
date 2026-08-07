@@ -1,5 +1,6 @@
 import { getSession, signOut } from "next-auth/react";
 import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
+import { resolveApiBaseUrl } from "@/lib/api-base";
 
 export type ApiResponse<T> = {
     _metaData: {
@@ -43,8 +44,6 @@ type RequestOptions = {
     cache?: RequestCache;
     next?: NextFetchRequestConfig;
 };
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // Prevent multiple simultaneous redirects
 let isRedirectingToLogin = false;
@@ -195,7 +194,7 @@ async function request<T>(
     }
 
     const queryString = buildQueryString(params);
-    const url = `${API_BASE_URL}${endpoint}${queryString ? `?${queryString}` : ""}`;
+    const url = `${resolveApiBaseUrl()}${endpoint}${queryString ? `?${queryString}` : ""}`;
 
     let requestBody: BodyInit | undefined;
     if (body !== undefined && body !== null) {

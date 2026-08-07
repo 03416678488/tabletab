@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+import { resolveApiBaseUrl } from "@/lib/api-base";
+
+const BASE = resolveApiBaseUrl();
 
 /**
  * Live status for a guest's reservation confirmation page (`GET

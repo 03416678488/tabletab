@@ -1,4 +1,6 @@
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { resolveApiBaseUrl } from "@/lib/api-base";
+
+const BASE = resolveApiBaseUrl();
 
 /** Unwrap the API's `{ _metaData, data }` envelope. */
 function unwrap<T>(json: unknown): T {

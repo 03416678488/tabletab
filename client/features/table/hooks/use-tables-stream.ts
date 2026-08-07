@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { getSession } from "next-auth/react";
 
 import { openEventStream } from "@/lib/event-stream";
+import { resolveApiBaseUrl } from "@/lib/api-base";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const BASE = resolveApiBaseUrl();
 
 /**
  * Subscribe to the tenant's live floor stream (`GET /tables/stream`): table CRUD

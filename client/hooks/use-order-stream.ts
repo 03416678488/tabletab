@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { mapOrderStatus } from "@/features/storefront/services/storefront-orders";
 import type { OrderStatus } from "@/lib/types";
+import { resolveApiBaseUrl } from "@/lib/api-base";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const BASE = resolveApiBaseUrl();
 
 export interface OrderStreamUpdate {
   status: OrderStatus;

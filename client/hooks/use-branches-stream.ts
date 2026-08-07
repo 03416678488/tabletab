@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+import { resolveApiBaseUrl } from "@/lib/api-base";
+
+const BASE = resolveApiBaseUrl();
 
 /**
  * Subscribe to live branch changes (open/closed, online ordering, delivery /

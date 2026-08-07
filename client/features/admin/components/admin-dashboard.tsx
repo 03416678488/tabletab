@@ -34,6 +34,7 @@ import { formatSlotLabel } from "@/lib/reservation-utils";
 import type { AnalyticsPeriod, OwnerAnalytics, Reservation, ReservationTask } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
+import { useActiveBranch, isAllBranches } from "@/features/branch/hooks/use-active-branch";
 
 const PERIODS: { id: AnalyticsPeriod; label: string }[] = [
   { id: "day", label: "Day" },
@@ -44,6 +45,9 @@ const PERIODS: { id: AnalyticsPeriod; label: string }[] = [
 export function AdminDashboard() {
   const { get } = useSettings();
   const brandName = get("company", "name") || "Your restaurant";
+  // Scope KPIs to the topbar branch selection ("All branches" → undefined = all).
+  const activeBranchId = useActiveBranch((s) => s.activeBranchId);
+  const branchId = activeBranchId && !isAllBranches(activeBranchId) ? activeBranchId : undefined;
   const [period, setPeriod] = useState<AnalyticsPeriod>("day");
   const [data, setData] = useState<OwnerAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +61,7 @@ export function AdminDashboard() {
     let cancelled = false;
     setLoading(true);
     analyticsService
-      .getOwnerAnalytics(period)
+      .getOwnerAnalytics(period, branchId)
       .then((d) => {
         if (!cancelled) {
           setData(d);
@@ -70,7 +74,7 @@ export function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, branchId]);
 
   useEffect(() => {
     Promise.all([
