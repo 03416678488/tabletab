@@ -3,9 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { menuService } from "@/features/menu/services/menu.service";
+import { useI18n } from "@/features/i18n/i18n-provider";
 import type { MenuItem } from "@/features/menu/types/menu.types";
 
-/** Query key for the full menu-items cache (invalidate to refetch). */
+/**
+ * Query-key prefix for the full menu-items cache. The active language is appended
+ * per-hook; invalidating by this prefix still clears every language's cache.
+ */
 export const MENU_ITEMS_ALL_KEY = ["menu-items", "all"] as const;
 
 const PER_PAGE = 500;
@@ -31,5 +35,6 @@ async function fetchAllMenuItems(): Promise<MenuItem[]> {
  * category/search client-side for instant results — used by the POS terminal.
  */
 export function useAllMenuItems() {
-  return useQuery({ queryKey: MENU_ITEMS_ALL_KEY, queryFn: fetchAllMenuItems });
+  const { def } = useI18n();
+  return useQuery({ queryKey: [...MENU_ITEMS_ALL_KEY, def.language], queryFn: fetchAllMenuItems });
 }

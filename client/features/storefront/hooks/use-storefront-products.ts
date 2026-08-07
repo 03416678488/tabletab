@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchStorefrontProducts } from "@/features/storefront/services/storefront-catalog";
+import { useI18n } from "@/features/i18n/i18n-provider";
 import type { MenuItem } from "@/lib/types";
 
 /**
@@ -10,8 +11,9 @@ import type { MenuItem } from "@/lib/types";
  * `useCatalogInfinite` instead.
  */
 export function useStorefrontProducts() {
+  const { def } = useI18n();
   const query = useQuery({
-    queryKey: ["storefront", "products"],
+    queryKey: ["storefront", "products", def.language],
     queryFn: fetchStorefrontProducts,
     staleTime: 5 * 60_000,
   });

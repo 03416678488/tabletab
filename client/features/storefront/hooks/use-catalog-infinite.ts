@@ -2,6 +2,7 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchStorefrontProductsPage } from "@/features/storefront/services/storefront-catalog";
+import { useI18n } from "@/features/i18n/i18n-provider";
 import type { MenuItem } from "@/lib/types";
 
 const PER_PAGE = 48;
@@ -37,11 +38,14 @@ export function useCatalogInfinite(filters: CatalogFilters): CatalogInfinite {
   // Sort so key is order-independent (same set of categories → same cache entry).
   const categoryIds = [...filters.categoryIds].sort();
   const { minPrice, maxPrice } = filters;
+  // Language is part of the key so switching language refetches translated text.
+  const { def } = useI18n();
 
   const query = useInfiniteQuery({
     queryKey: [
       "storefront",
       "catalog",
+      def.language,
       search,
       categoryIds.join(","),
       minPrice ?? "",

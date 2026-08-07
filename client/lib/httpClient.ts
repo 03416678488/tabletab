@@ -1,5 +1,6 @@
 import { getSession, signOut } from "next-auth/react";
 import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
+import { LOCALE_COOKIE } from "@/features/i18n/config";
 
 export type ApiResponse<T> = {
     _metaData: {
@@ -94,6 +95,13 @@ function clearSessionTokenCache() {
     sessionTokenInflight = null;
 }
 
+/** Active language code (e.g. "ar") from the locale cookie; "" on the server. */
+function getActiveLang(): string {
+    if (typeof document === "undefined") return "";
+    const match = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]).split("-")[0] : "";
+}
+
 async function getAuthToken(manualToken?: string) {
     if (manualToken) return manualToken;
 
@@ -186,6 +194,13 @@ async function request<T>(
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...headers,
     };
+
+    // Tell the API which language to serve translated content in (name/description
+    // overlays). Derived from the active locale cookie set by the proxy/provider.
+    const lang = getActiveLang();
+    if (lang && !requestHeaders["x-lang"]) {
+        requestHeaders["x-lang"] = lang;
+    }
 
     if (auth) {
         const authToken = await getAuthToken(token);

@@ -10,7 +10,6 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 
-import { setCurrencyConfig } from "@/lib/currency";
 import { brandingCssVars, resolveBranding } from "@/lib/theme";
 import { settingsService } from "@/features/app-settings/services/settings.service";
 import type {
@@ -28,18 +27,6 @@ interface SettingsContextValue {
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
-
-/** Applies the configured currency (symbol/position/decimals) to formatMoney. */
-function applyCurrency(settings: SettingsGroups, currencies: CurrencyRow[]) {
-  const site = settings.site ?? {};
-  const code = site.default_currency || "USD";
-  const match = currencies.find((c) => c.code === code);
-  setCurrencyConfig({
-    symbol: match?.symbol ?? "$",
-    position: site.currency_position === "right" ? "right" : "left",
-    decimals: Number(site.digit_after_decimal ?? 2) || 0,
-  });
-}
 
 /** Applies the configured brand color to the runtime theme CSS variables. */
 function applyTheme(settings: SettingsGroups) {
@@ -96,7 +83,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       ]);
       setSettings(s);
       setCurrencies(c);
-      applyCurrency(s, c);
+      // Currency/FX config is owned by I18nProvider (it needs the active locale).
       applyTheme(s);
       applyFavicon(s);
       applyTitle(s);
