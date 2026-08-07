@@ -24,8 +24,10 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {
+      // Storefront customers sign in at /signin (staff use /login) — send guests
+      // there and bring them back to where they were afterward.
       const returnUrl = encodeURIComponent(pathname);
-      router.replace(`/login?returnUrl=${returnUrl}`);
+      router.replace(`/signin?returnUrl=${returnUrl}`);
     }
   }, [hydrated, isAuthenticated, pathname, router]);
 

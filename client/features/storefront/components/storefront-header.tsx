@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, Search, User } from "lucide-react";
+import { Heart, Menu, Search, User } from "lucide-react";
 import { CartMenu } from "@/features/storefront/components/cart-menu";
 import { SearchDialog } from "@/features/storefront/components/search-dialog";
 import { TenantLogo } from "@/components/brand/tenant-logo";
@@ -61,6 +61,13 @@ export function StorefrontHeader() {
               <Search className="size-4" />
             </button>
           )}
+          <Link
+            href="/favorites"
+            aria-label="My favorites"
+            className="flex size-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:border-brand/40 hover:text-ink"
+          >
+            <Heart className="size-4" />
+          </Link>
           {isAuthenticated ? (
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
               <Link href="/account">
@@ -97,6 +104,9 @@ export function StorefrontHeader() {
                     {l.label}
                   </Link>
                 ))}
+                <Link href="/favorites" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                  My favorites
+                </Link>
                 {isAuthenticated ? (
                   <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
                     My account

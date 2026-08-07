@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Minus, Plus, UtensilsCrossed } from "lucide-react";
+import { Heart, Minus, Plus, UtensilsCrossed } from "lucide-react";
 import { AppImage } from "@/components/ui/app-image";
 import { ProductDetailsDialog } from "@/features/storefront/components/product-details-dialog";
+import { useFavoritesStore } from "@/features/storefront/hooks/use-favorites";
 import { useCart } from "@/hooks/use-cart";
+import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { toast } from "@/hooks/use-toast";
@@ -53,6 +56,32 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
   const locationBranchId = useLocationStore((s) => s.branchId);
   const hydrated = useHydrated();
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Favorites — gated on a signed-in customer; guests are sent to sign-in.
+  const router = useRouter();
+  const pathname = usePathname();
+  const user = useCustomerSession((s) => s.user);
+  const isAuthenticated = useCustomerSession((s) => s.isAuthenticated);
+  const toggleFavorite = useFavoritesStore((s) => s.toggle);
+  const isFavorite = useFavoritesStore((s) =>
+    user ? (s.byCustomer[user.id]?.includes(item.id) ?? false) : false,
+  );
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    // The whole card is a stretched <Link>; don't let this open the item.
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated || !user) {
+      toast("Sign in to save your favorites", { tone: "info" });
+      router.push(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    const nowFavorite = toggleFavorite(user.id, item.id);
+    toast(
+      nowFavorite ? `Saved ${item.name} to favorites` : `Removed ${item.name} from favorites`,
+      { tone: "success" },
+    );
+  };
 
   // The plain (unmodified) cart line for this item — what the stepper controls.
   const baseLine = cartItems.find(
@@ -126,6 +155,26 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
             {ribbon}
           </span>
         )}
+
+        {/* Save to favorites — requires sign-in (handled in the click). */}
+        <button
+          type="button"
+          onClick={handleToggleFavorite}
+          aria-pressed={hydrated && isFavorite}
+          aria-label={
+            hydrated && isFavorite
+              ? `Remove ${item.name} from favorites`
+              : `Save ${item.name} to favorites`
+          }
+          className="absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-white/85 shadow-md backdrop-blur transition-transform hover:bg-white active:scale-90"
+        >
+          <Heart
+            className={cn(
+              "size-4 transition-colors",
+              hydrated && isFavorite ? "fill-brand text-brand" : "text-ink/70",
+            )}
+          />
+        </button>
 
         {!item.isAvailable && (
           <span className="absolute inset-x-0 bottom-0 bg-ink/70 py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-white">

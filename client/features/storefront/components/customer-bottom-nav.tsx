@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User } from "lucide-react";
+import { Heart, Home, User } from "lucide-react";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
+  {
+    href: "/favorites",
+    label: "Saved",
+    icon: Heart,
+    match: (p: string) => p.startsWith("/favorites"),
+  },
   {
     href: "/account",
     label: "Account",

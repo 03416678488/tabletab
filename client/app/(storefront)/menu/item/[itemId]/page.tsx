@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, UtensilsCrossed } from "lucide-react";
 import { ProductCard } from "@/features/storefront/components/product-card";
 import { ProductGallery } from "@/features/storefront/components/product-gallery";
+import { ShareButton } from "@/features/storefront/components/share-button";
 import { ProductHeroMedia } from "@/features/menu/components/product-hero-media";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -237,14 +238,23 @@ export default function ProductDetailsPage({
   return (
     <div className="pb-36 lg:pb-16">
       <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 lg:pt-8">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-secondary"
-        >
-          <ArrowLeft className="size-4" />
-          Back
-        </button>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-secondary"
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </button>
+          <ShareButton
+            path={`/menu/item/${item.id}`}
+            title={item.name}
+            text={item.description}
+            label="Share"
+            className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-secondary"
+          />
+        </div>
 
         <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
           {/* Media — sticky on desktop. Multi-image items get the synced gallery. */}

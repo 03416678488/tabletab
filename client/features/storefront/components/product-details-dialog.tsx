@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusPill } from "@/components/ui/status-pill";
+import { ShareButton } from "@/features/storefront/components/share-button";
 import { useCart } from "@/hooks/use-cart";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { toast } from "@/hooks/use-toast";
@@ -158,6 +159,13 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
           fallbackIcon={UtensilsCrossed}
           className={cn("object-cover", !item.isAvailable && "grayscale")}
           sizes="(max-width: 640px) 100vw, 512px"
+        />
+        {/* Share — top-left (the dialog's close button sits top-right). */}
+        <ShareButton
+          path={`/menu/item/${item.id}`}
+          title={item.name}
+          text={item.description}
+          className="absolute left-3 top-3 size-8 rounded-full bg-white/85 text-ink shadow-md backdrop-blur transition-transform hover:bg-white active:scale-90"
         />
       </div>
 

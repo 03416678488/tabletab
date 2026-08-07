@@ -5,6 +5,7 @@ import { CustomerBottomNav } from "@/features/storefront/components/customer-bot
 import { StorefrontFooter } from "@/features/storefront/components/storefront-footer";
 import { StorefrontHeader } from "@/features/storefront/components/storefront-header";
 import { StorefrontSkeleton } from "@/features/storefront/components/storefront-skeleton";
+import { useFavoritesSync } from "@/features/storefront/hooks/use-favorites-sync";
 
 /**
  * Holds the storefront chrome behind a full-page skeleton until branding/settings
@@ -12,6 +13,8 @@ import { StorefrontSkeleton } from "@/features/storefront/components/storefront-
  */
 export function StorefrontShell({ children }: { children: React.ReactNode }) {
   const { loading } = useSettings();
+  // Keep favorites in sync with the customer's account across devices.
+  useFavoritesSync();
 
   if (loading) return <StorefrontSkeleton />;
 
