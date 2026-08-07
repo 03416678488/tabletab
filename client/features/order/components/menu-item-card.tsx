@@ -33,47 +33,48 @@ export function MenuItemCard({ item, onAdd }: MenuItemCardProps) {
       whileHover={{ y: -2 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={cn(
-        "flex gap-4 rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-elevated)]",
+        "flex gap-3 rounded-2xl border border-border bg-surface p-3 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-elevated)] sm:gap-4 sm:p-4",
         !item.isAvailable && "opacity-60",
       )}
     >
-      <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-subtle sm:size-28">
+      <div className="relative size-20 shrink-0 overflow-hidden rounded-xl bg-subtle sm:size-28">
         <Image
           src={item.imageUrl}
           alt={item.name}
           fill
           className="object-cover"
-          sizes="112px"
+          sizes="(max-width: 640px) 80px, 112px"
         />
+        {!item.isAvailable && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-[11px] font-semibold uppercase tracking-wide text-white">
+            Sold out
+          </span>
+        )}
       </div>
+
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <h3 className="font-display font-semibold text-ink">{item.name}</h3>
-          <span className="shrink-0 font-medium text-ink">{formatCurrency(item.price)}</span>
-        </div>
-        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
+        <h3 className="font-display font-semibold leading-snug text-ink">{item.name}</h3>
+        <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-muted-foreground sm:text-sm">
+          {item.description}
+        </p>
         {item.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {item.tags.slice(0, 3).map((tag) => (
-              <StatusPill key={tag} tone="neutral" dot={false} className="text-[10px] px-2">
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {item.tags.slice(0, 2).map((tag) => (
+              <StatusPill key={tag} tone="neutral" dot={false} className="px-2 text-[10px]">
                 {TAG_LABELS[tag] ?? tag}
               </StatusPill>
             ))}
           </div>
         )}
-        <div className="mt-auto flex items-center justify-between pt-3">
-          {!item.isAvailable ? (
-            <span className="text-xs font-medium text-muted-foreground">Sold out</span>
-          ) : (
-            <span className="text-xs text-muted-foreground">
-              {hasModifiers ? "Customize available" : ""}
-            </span>
-          )}
+
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2.5">
+          <span className="font-semibold text-ink">{formatCurrency(item.price)}</span>
           <Button
             size="sm"
             variant={hasModifiers ? "outline" : "default"}
             disabled={!item.isAvailable}
             onClick={() => onAdd(item)}
+            className="shrink-0 rounded-full"
           >
             <Plus className="size-4" />
             {hasModifiers ? "Customize" : "Add"}

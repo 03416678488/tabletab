@@ -3,16 +3,18 @@
 import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { CartSummary } from "@/features/order/components/cart-summary";
+import { MenuBodySkeleton } from "@/features/order/components/menu-skeleton";
+import { MenuHighlights } from "@/features/order/components/menu-highlights";
 import { MenuItemCard } from "@/features/order/components/menu-item-card";
 import { ModifierSheet } from "@/features/order/components/modifier-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { StatusPill } from "@/components/ui/status-pill";
 import { useCart } from "@/hooks/use-cart";
+import { useHydrated } from "@/hooks/use-hydrated";
+import { formatCurrency } from "@/lib/utils";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 import { useStorefrontCategories } from "@/features/storefront/hooks/use-storefront-categories";
 import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
@@ -29,6 +31,9 @@ export default function BranchMenuPage({
   const router = useRouter();
   const setBranch = useCart((s) => s.setBranch);
   const addItem = useCart((s) => s.addItem);
+  const itemCount = useCart((s) => s.itemCount());
+  const cartTotal = useCart((s) => s.totalWithFees(0));
+  const hydrated = useHydrated();
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [modifierItem, setModifierItem] = useState<MenuItem | null>(null);
@@ -87,20 +92,7 @@ export default function BranchMenuPage({
   };
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <Skeleton className="mb-6 h-8 w-48" />
-        <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-          <div className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32 w-full" />
-            ))}
-          </div>
-          <Skeleton className="hidden h-64 lg:block" />
-        </div>
-      </div>
-    );
+    return <MenuBodySkeleton />;
   }
 
   if (error || !branch) {
@@ -136,31 +128,35 @@ export default function BranchMenuPage({
     );
   }
 
+  const showBar = hydrated && itemCount > 0;
+
   return (
     <>
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
+      <div className="mx-auto max-w-6xl px-4 pb-4 pt-4 sm:px-6 sm:pt-6">
+        <Button asChild variant="ghost" size="sm" className="mb-3 -ml-2">
           <Link href="/">
             <ArrowLeft className="size-4" />
             All branches
           </Link>
         </Button>
 
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">{branch.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {branch.address}, {branch.city}
-            </p>
-          </div>
-          <StatusPill tone="green">Open now</StatusPill>
+        <div className="mb-4 min-w-0 sm:mb-6">
+          <h1 className="truncate font-display text-xl font-bold text-ink sm:text-3xl">
+            {branch.name}
+          </h1>
+          <p className="truncate text-sm text-muted-foreground">
+            {branch.address}, {branch.city}
+          </p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          <div>
-            {/* Category nav */}
-            <div className="sticky top-16 z-30 -mx-4 mb-6 overflow-x-auto border-b border-border bg-subtle/95 px-4 py-2 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:top-16">
-              <div className="flex gap-2">
+          <div className="min-w-0">
+            {/* Highlighted dishes — swipeable image slider */}
+            <MenuHighlights items={items} onAdd={handleAdd} />
+
+            {/* Category nav — horizontally scrollable pill bar */}
+            <div className="sticky top-16 z-30 -mx-4 mb-4 border-b border-border bg-subtle/95 backdrop-blur-sm sm:-mx-6 sm:mb-6">
+              <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-2.5 sm:px-6">
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
@@ -169,7 +165,7 @@ export default function BranchMenuPage({
                     className={cn(
                       "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
                       activeCategory === cat.id
-                        ? "bg-brand text-primary-foreground"
+                        ? "bg-brand text-primary-foreground shadow-sm"
                         : "bg-surface text-muted-foreground hover:bg-secondary",
                     )}
                   >
@@ -179,7 +175,7 @@ export default function BranchMenuPage({
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {filteredItems.length === 0 ? (
                 <EmptyState
                   title="No items in this category"
@@ -207,13 +203,38 @@ export default function BranchMenuPage({
         </div>
       </div>
 
-      {/* Mobile sticky checkout bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface p-4 pb-safe shadow-[var(--shadow-elevated)] lg:hidden">
-        <Button className="w-full" size="lg" onClick={() => router.push("/checkout")}>
-          View cart &amp; checkout
-        </Button>
+      {/* Mobile floating cart bar — sits above the tab bar once the cart has items */}
+      <div
+        className={cn(
+          "fixed inset-x-0 z-40 px-4 transition-all duration-300 lg:hidden",
+          "bottom-[calc(0.75rem+env(safe-area-inset-bottom))]",
+          showBar
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-4 opacity-0",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => router.push("/checkout")}
+          className="flex w-full items-center gap-3 rounded-2xl bg-brand px-4 py-3 text-left text-primary-foreground shadow-[var(--shadow-elevated)] active:scale-[0.99]"
+        >
+          <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15">
+            <ShoppingBag className="size-5" />
+            <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-bold text-brand">
+              {itemCount}
+            </span>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] leading-tight opacity-90">
+              {itemCount} {itemCount === 1 ? "item" : "items"}
+            </span>
+            <span className="block text-base font-semibold leading-tight">View cart</span>
+          </span>
+          <span className="shrink-0 text-base font-bold">{formatCurrency(cartTotal)}</span>
+        </button>
       </div>
-      <div className="h-20 lg:hidden" aria-hidden />
+      {/* Clearance so the floating bar never covers the last menu item */}
+      <div className={cn("lg:hidden", showBar ? "h-24" : "h-4")} aria-hidden />
 
       <ModifierSheet item={modifierItem} open={sheetOpen} onOpenChange={setSheetOpen} />
     </>

@@ -90,7 +90,7 @@ export function TenantLogo({
     return (
       <Link
         href={href}
-        className="min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {content}
       </Link>

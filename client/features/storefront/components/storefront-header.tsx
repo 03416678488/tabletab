@@ -33,7 +33,7 @@ export function StorefrontHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface md:bg-surface/90 md:backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
           <TenantLogo href="/" showTagline nameOverride={headerCfg?.brandName} />
           {navLinks.length > 0 && (
             <nav className="ml-1 hidden items-center gap-5 lg:flex">
