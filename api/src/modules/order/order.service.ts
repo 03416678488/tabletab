@@ -153,9 +153,9 @@ export class OrderService extends AbstractService<Order> {
   }
 
   /** Live kitchen/pickup board — active orders oldest-first, with everything needed to render a ticket. */
-  getBoard(): Promise<Order[]> {
+  getBoard(branchId?: string): Promise<Order[]> {
     return this.repository.find({
-      where: { status: In(BOARD_STATUSES) },
+      where: { status: In(BOARD_STATUSES), ...(branchId ? { branchId } : {}) },
       relations: ['table', 'table.area', 'branch', 'customer', 'items'],
       order: { createdAt: 'ASC' },
     });
@@ -284,9 +284,9 @@ export class OrderService extends AbstractService<Order> {
   }
 
   /** Live per-table aggregation used by the Tables board (occupied / KOT / totals). */
-  async getTableStats(): Promise<TableStat[]> {
+  async getTableStats(branchId?: string): Promise<TableStat[]> {
     const orders = await this.repository.find({
-      where: { status: In(ACTIVE_STATUSES) },
+      where: { status: In(ACTIVE_STATUSES), ...(branchId ? { branchId } : {}) },
       relations: ['items'],
       order: { createdAt: 'DESC' },
     });

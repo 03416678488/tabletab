@@ -63,13 +63,15 @@ export class OrderController {
   }
 
   @Get('table-stats')
-  getTableStats() {
-    return this._orderService.getTableStats();
+  getTableStats(
+    @Query('branchId', new ParseUUIDPipe({ optional: true })) branchId?: string,
+  ) {
+    return this._orderService.getTableStats(branchId);
   }
 
   @Get('board')
-  getBoard() {
-    return this._orderService.getBoard();
+  getBoard(@Query('branchId', new ParseUUIDPipe({ optional: true })) branchId?: string) {
+    return this._orderService.getBoard(branchId);
   }
 
   /** The active/open order for a table (POS load-to-edit), or null. */

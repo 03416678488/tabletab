@@ -28,15 +28,15 @@ export const orderService = {
       .then((res) => res.data);
   },
 
-  tableStats() {
+  tableStats(branchId?: string) {
     return httpClient
-      .get<TableStat[]>(ORDER_ENDPOINTS.tableStats, { auth: true })
+      .get<TableStat[]>(ORDER_ENDPOINTS.tableStats, { auth: true, params: { branchId } })
       .then((res) => res.data);
   },
 
-  board() {
+  board(branchId?: string) {
     return httpClient
-      .get<Order[]>(ORDER_ENDPOINTS.board, { auth: true })
+      .get<Order[]>(ORDER_ENDPOINTS.board, { auth: true, params: { branchId } })
       .then((res) => res.data);
   },
 

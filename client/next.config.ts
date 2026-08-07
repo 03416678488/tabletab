@@ -59,15 +59,19 @@ const nextConfig: NextConfig = {
   // Proxy the backend API through the client so a single origin (localhost, a
   // LAN IP, or one Cloudflare tunnel) serves both the app and its data — the
   // browser calls same-origin `/api/*` and Next forwards it to the API server.
-  // `afterFiles`: the client's own `app/api/auth/*` (NextAuth) routes win first;
-  // only unmatched `/api/*` is proxied to the backend.
+  // `fallback` runs AFTER dynamic routes, so the client's own catch-all
+  // `app/api/auth/[...nextauth]` (NextAuth) handles `/api/auth/*`; only `/api/*`
+  // paths with no client route fall through and proxy to the backend.
   async rewrites() {
     const origin = apiOrigin();
     if (!origin) return [];
     return {
-      afterFiles: [{ source: "/api/:path*", destination: `${origin}/api/:path*` }],
+      fallback: [{ source: "/api/:path*", destination: `${origin}/api/:path*` }],
     };
   },
+   allowedDevOrigins: [
+    'ideas-gain-binding-cleaners.trycloudflare.com/',
+  ],
 };
 
 export default nextConfig;

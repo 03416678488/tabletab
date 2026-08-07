@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/httpClient";
 import { orderService } from "@/features/order/services/order.service";
 import { useBoardStream } from "@/features/order/hooks/use-board-stream";
+import { useActiveBranch, isAllBranches } from "@/features/branch/hooks/use-active-branch";
 import type { Order } from "@/features/order/types/order.types";
 
 /**
@@ -21,9 +22,13 @@ export function useOrderBoard(pollMs = 30000) {
   const initial = useRef(true);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Scope to the topbar branch selection ("All branches" → undefined = all).
+  const activeBranchId = useActiveBranch((s) => s.activeBranchId);
+  const branchId = activeBranchId && !isAllBranches(activeBranchId) ? activeBranchId : undefined;
+
   const refetch = useCallback(async () => {
     try {
-      const data = await orderService.board();
+      const data = await orderService.board(branchId);
       setOrders(data);
       setError(null);
       setLastUpdated(Date.now());
@@ -35,7 +40,7 @@ export function useOrderBoard(pollMs = 30000) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [branchId]);
 
   // Coalesce bursts (e.g. several line items placed at once) into one refetch.
   const scheduleRefetch = useCallback(() => {
