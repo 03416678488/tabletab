@@ -38,14 +38,16 @@ export function useCatalogInfinite(filters: CatalogFilters): CatalogInfinite {
   // Sort so key is order-independent (same set of categories → same cache entry).
   const categoryIds = [...filters.categoryIds].sort();
   const { minPrice, maxPrice } = filters;
-  // Language is part of the key so switching language refetches translated text.
-  const { def } = useI18n();
+  // Language is part of the key so switching language refetches translated text;
+  // currency so a display-currency change re-renders converted prices.
+  const { def, currency } = useI18n();
 
   const query = useInfiniteQuery({
     queryKey: [
       "storefront",
       "catalog",
       def.language,
+      currency,
       search,
       categoryIds.join(","),
       minPrice ?? "",

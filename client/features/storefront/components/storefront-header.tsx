@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Menu, Search, User } from "lucide-react";
 import { CartMenu } from "@/features/storefront/components/cart-menu";
 import { SearchDialog } from "@/features/storefront/components/search-dialog";
+import { LanguageMenu } from "@/features/i18n/language-menu";
+import { CurrencyMenu } from "@/features/i18n/currency-menu";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +53,11 @@ export function StorefrontHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Language (x-lang / translated content) + display currency (FX). */}
+          <div className="hidden items-center gap-2 sm:flex">
+            <LanguageMenu />
+            <CurrencyMenu />
+          </div>
           {showSearch && (
             <button
               type="button"
@@ -114,6 +121,10 @@ export function StorefrontHeader() {
                 <Link href="/checkout" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
                   Cart ({hydrated ? itemCount : 0})
                 </Link>
+                <div className="mt-2 flex flex-col gap-3 border-t border-border px-1 pt-3">
+                  <LanguageMenu />
+                  <CurrencyMenu />
+                </div>
               </nav>
             </SheetContent>
           </Sheet>

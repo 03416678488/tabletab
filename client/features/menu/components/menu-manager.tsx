@@ -28,6 +28,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { menuService } from "@/features/menu/services/menu.service";
 import { MenuFormDialog } from "@/features/menu/components/menu-form-dialog";
 import { useCategories } from "@/features/category/hooks/use-categories";
+import { useI18n } from "@/features/i18n/i18n-provider";
 import type { MenuItem } from "@/features/menu/types/menu.types";
 
 const SELECT_CLASS =
@@ -36,6 +37,7 @@ const SELECT_CLASS =
 type AvailFilter = "all" | "available" | "unavailable";
 
 export function MenuManager() {
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [categoryId, setCategoryId] = useState<string>("all");
@@ -79,13 +81,13 @@ export function MenuManager() {
   const confirm = useConfirm();
 
   const remove = async (item: MenuItem) => {
-    if (!(await confirm({ title: `Delete "${item.name}"?`, confirmLabel: "Delete" }))) return;
+    if (!(await confirm({ title: `${t("common.delete", "Delete")} "${item.name}"?`, confirmLabel: t("common.delete", "Delete") }))) return;
     try {
       await menuService.remove(item.id);
-      toast("Menu item deleted", { tone: "success" });
+      toast(t("menu.deleted", "Menu item deleted"), { tone: "success" });
       refetch();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete item", {
+      toast(err instanceof ApiError ? err.message : t("menu.deleteFailed", "Failed to delete item"), {
         tone: "error",
       });
     }
@@ -96,14 +98,14 @@ export function MenuManager() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            Menu
+            {t("menu.title", "Menu")}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {totalItems} item{totalItems === 1 ? "" : "s"} · manage your dishes.
+            {totalItems} item{totalItems === 1 ? "" : "s"} · {t("menu.manageDishes", "manage your dishes")}.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
-          <Plus className="size-4" /> Add item
+          <Plus className="size-4" /> {t("menu.addItem", "Add item")}
         </Button>
       </div>
 
@@ -113,9 +115,9 @@ export function MenuManager() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search menu…"
+            placeholder={t("menu.searchPlaceholder", "Search menu…")}
             className="h-9 pl-9"
-            aria-label="Search menu"
+            aria-label={t("menu.searchPlaceholder", "Search menu")}
           />
         </div>
         <Button
@@ -123,7 +125,7 @@ export function MenuManager() {
           size="sm"
           onClick={() => setShowFilters((v) => !v)}
         >
-          <SlidersHorizontal className="size-4" /> Filters
+          <SlidersHorizontal className="size-4" /> {t("menu.filters", "Filters")}
           {activeFilters > 0 && (
             <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-white">
               {activeFilters}
@@ -138,13 +140,13 @@ export function MenuManager() {
       {showFilters && (
         <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            Category
+            {t("menu.category", "Category")}
             <select
               className={SELECT_CLASS}
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
             >
-              <option value="all">All</option>
+              <option value="all">{t("menu.all", "All")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -153,20 +155,20 @@ export function MenuManager() {
             </select>
           </label>
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            Availability
+            {t("menu.availability", "Availability")}
             <select
               className={SELECT_CLASS}
               value={avail}
               onChange={(e) => setAvail(e.target.value as AvailFilter)}
             >
-              <option value="all">All</option>
-              <option value="available">Available</option>
-              <option value="unavailable">Unavailable</option>
+              <option value="all">{t("menu.all", "All")}</option>
+              <option value="available">{t("menu.available", "Available")}</option>
+              <option value="unavailable">{t("menu.unavailable", "Unavailable")}</option>
             </select>
           </label>
           {activeFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="size-4" /> Clear
+              <X className="size-4" /> {t("menu.clear", "Clear")}
             </Button>
           )}
         </div>
@@ -179,11 +181,11 @@ export function MenuManager() {
           <EmptyState
             className="py-12"
             icon={UtensilsCrossed}
-            title="Couldn't load menu"
+            title={t("menu.loadError", "Couldn't load menu")}
             description={error}
             action={
               <Button variant="outline" onClick={refetch}>
-                Retry
+                {t("menu.retry", "Retry")}
               </Button>
             }
           />
@@ -191,16 +193,16 @@ export function MenuManager() {
           <EmptyState
             className="py-12"
             icon={UtensilsCrossed}
-            title={search.trim() || activeFilters ? "No matches" : "No menu items yet"}
+            title={search.trim() || activeFilters ? t("menu.noMatches", "No matches") : t("menu.empty", "No menu items yet")}
             description={
               items.length === 0
-                ? "Add your first dish to get started."
-                : "Try adjusting your search or filters."
+                ? t("menu.emptyHint", "Add your first dish to get started.")
+                : t("menu.adjustHint", "Try adjusting your search or filters.")
             }
             action={
               items.length === 0 ? (
                 <Button onClick={openCreate}>
-                  <Plus className="size-4" /> Add item
+                  <Plus className="size-4" /> {t("menu.addItem", "Add item")}
                 </Button>
               ) : undefined
             }
@@ -209,12 +211,12 @@ export function MenuManager() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-16">Image</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-16">{t("menu.image", "Image")}</TableHead>
+                <TableHead>{t("common.name", "Name")}</TableHead>
+                <TableHead>{t("menu.category", "Category")}</TableHead>
+                <TableHead>{t("menu.price", "Price")}</TableHead>
+                <TableHead>{t("common.status", "Status")}</TableHead>
+                <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,7 +242,7 @@ export function MenuManager() {
                   </TableCell>
                   <TableCell>
                     <StatusPill tone={item.isAvailable ? "green" : "neutral"}>
-                      {item.isAvailable ? "Available" : "Unavailable"}
+                      {item.isAvailable ? t("menu.available", "Available") : t("menu.unavailable", "Unavailable")}
                     </StatusPill>
                   </TableCell>
                   <TableCell className="text-right">
@@ -248,7 +250,7 @@ export function MenuManager() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label="Edit"
+                        aria-label={t("common.edit", "Edit")}
                         onClick={() => openEdit(item)}
                       >
                         <Pencil className="size-4" />
@@ -256,7 +258,7 @@ export function MenuManager() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label="Delete"
+                        aria-label={t("common.delete", "Delete")}
                         onClick={() => remove(item)}
                       >
                         <Trash2 className="size-4" />

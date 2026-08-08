@@ -11,9 +11,11 @@ import type { MenuItem } from "@/lib/types";
  * `useCatalogInfinite` instead.
  */
 export function useStorefrontProducts() {
-  const { def } = useI18n();
+  const { def, currency } = useI18n();
   const query = useQuery({
-    queryKey: ["storefront", "products", def.language],
+    // `currency` in the key re-renders prices when the display currency changes
+    // (formatMoney reads a module singleton, so it needs a render to re-run).
+    queryKey: ["storefront", "products", def.language, currency],
     queryFn: fetchStorefrontProducts,
     staleTime: 5 * 60_000,
   });

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { SidebarNav } from "@/features/dashboard/components/sidebar-nav";
 import { BranchSwitcher } from "@/features/branch/components/branch-switcher";
+import { LanguageMenu } from "@/features/i18n/language-menu";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { ProfileMenu } from "@/features/dashboard/components/profile-menu";
 import { hrefFor, roleHomePath } from "@/lib/nav";
@@ -67,6 +68,9 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
       {canSwitchBranch && <BranchSwitcher />}
 
       <div className="ml-auto flex items-center gap-2">
+        <div className="hidden sm:block">
+          <LanguageMenu />
+        </div>
         <NotificationBell />
 
         <ProfileMenu />

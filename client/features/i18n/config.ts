@@ -35,6 +35,34 @@ export const DEFAULT_LOCALE = "en-us";
 /** Cookie the proxy sets (and the provider reads) to remember the choice. */
 export const LOCALE_COOKIE = "tabletap.locale";
 
+/** Cookie holding a display-currency override, independent of the region. */
+export const CURRENCY_COOKIE = "tabletap.currency";
+
+/** Human names for the language dropdown (language subtag → native label). */
+export const LANGUAGE_LABELS: Record<string, string> = {
+  en: "English",
+  ar: "العربية",
+  de: "Deutsch",
+  bn: "বাংলা",
+};
+
+/** One entry per language (deduped from LOCALES), for a language-only switcher. */
+export const LANGUAGES = LOCALES.reduce<{ language: string; label: string }[]>((acc, l) => {
+  if (!acc.some((x) => x.language === l.language)) {
+    acc.push({ language: l.language, label: LANGUAGE_LABELS[l.language] ?? l.language });
+  }
+  return acc;
+}, []);
+
+/** Pick the best locale code for a language, keeping `region` when that combo
+ *  exists (e.g. ar + AE → ar-ae), else the first locale for that language. */
+export function localeForLanguage(language: string, region: string): string {
+  const sameRegion = LOCALES.find((l) => l.language === language && l.region === region);
+  if (sameRegion) return sameRegion.code;
+  const anyForLang = LOCALES.find((l) => l.language === language);
+  return (anyForLang ?? LOCALES[0]).code;
+}
+
 export const LOCALE_CODES = LOCALES.map((l) => l.code);
 
 const BY_CODE = new Map(LOCALES.map((l) => [l.code, l]));

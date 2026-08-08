@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -14,6 +15,7 @@ import bn from "@/features/i18n/locales/bn.json";
 import de from "@/features/i18n/locales/de.json";
 import ar from "@/features/i18n/locales/ar.json";
 import {
+  CURRENCY_COOKIE,
   DEFAULT_LOCALE,
   LOCALE_COOKIE,
   getLocale,
@@ -55,6 +57,14 @@ interface I18nContextValue {
   formatNumber: (value: number, opts?: Intl.NumberFormatOptions) => string;
   /** FX conversion status for the active display currency. */
   fx: FxInfo;
+  /** Active display currency code (override, or the region's default). */
+  currency: string;
+  /** True when the display currency follows the region (no manual override). */
+  currencyIsAuto: boolean;
+  /** Override the display currency; pass null to fall back to the region's. */
+  setCurrency: (code: string | null) => void;
+  /** Active, selectable currencies (from Settings → Currency). */
+  currencies: CurrencyRow[];
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -80,9 +90,19 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const code = splitLocalePath(pathname ?? "/").locale ?? DEFAULT_LOCALE;
   const def = useMemo(() => getLocale(code), [code]);
 
-  // Resolve FX: base = tenant's real pricing currency; target = region currency.
+  // Optional display-currency override (cookie), independent of the region. Null
+  // = follow the region's currency. Read once on the client (SSR-safe).
+  const [currencyOverride, setCurrencyOverride] = useState<string | null>(() => {
+    if (typeof document === "undefined") return null;
+    const m = document.cookie.match(/(?:^|; )tabletap\.currency=([^;]+)/);
+    return m ? decodeURIComponent(m[1]).toUpperCase() : null;
+  });
+
+  // Resolve FX: base = tenant's real pricing currency; target = chosen currency
+  // (manual override) or the region's default.
   const baseCurrency = (get("site", "default_currency") || "USD").toUpperCase();
-  const targetCurrency = def.currency.toUpperCase();
+  const currencyIsAuto = !currencyOverride;
+  const targetCurrency = (currencyOverride ?? def.currency).toUpperCase();
   const rate = fxRate(currencies, baseCurrency, targetCurrency);
   // Only convert when we actually have a rate; otherwise show the base currency
   // (region formatting only) rather than mislabel a base amount as the target.
@@ -124,6 +144,16 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     [pathname, router],
   );
 
+  const setCurrency = useCallback((codeOrNull: string | null) => {
+    const val = codeOrNull ? codeOrNull.toUpperCase() : null;
+    setCurrencyOverride(val);
+    if (typeof document !== "undefined") {
+      document.cookie = val
+        ? `${CURRENCY_COOKIE}=${val}; path=/; max-age=31536000; samesite=lax`
+        : `${CURRENCY_COOKIE}=; path=/; max-age=0; samesite=lax`;
+    }
+  }, []);
+
   const t = useCallback(
     (key: string, fallback?: string) => {
       const dict = DICTS[def.language] ?? DICTS.en;
@@ -145,8 +175,20 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ locale: def.code, def, setLocale, t, formatDate, formatNumber, fx }),
-    [def, setLocale, t, formatDate, formatNumber, fx],
+    () => ({
+      locale: def.code,
+      def,
+      setLocale,
+      t,
+      formatDate,
+      formatNumber,
+      fx,
+      currency: displayCurrency,
+      currencyIsAuto,
+      setCurrency,
+      currencies,
+    }),
+    [def, setLocale, t, formatDate, formatNumber, fx, displayCurrency, currencyIsAuto, setCurrency, currencies],
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
