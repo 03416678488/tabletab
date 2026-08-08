@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  CheckCircle2,
   Clock,
   Download,
   Pencil,
@@ -32,6 +33,7 @@ import { TableFormDialog } from "@/features/table/components/table-form-dialog";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useAreas } from "@/features/area/hooks/use-areas";
 import { useTableStats } from "@/features/order/hooks/use-table-stats";
+import { orderService } from "@/features/order/services/order.service";
 import { ORDER_STATUS_META } from "@/features/order/constants/order.constants";
 import type { TableStat } from "@/features/order/types/order.types";
 import type { DiningTable } from "@/features/table/types/table.types";
@@ -113,7 +115,7 @@ export function TableManager() {
   const { tables, loading, error, refetch } = useTables();
   const { branches } = useBranches();
   const { areas } = useAreas();
-  const { byTable } = useTableStats();
+  const { byTable, refetch: refetchStats } = useTableStats();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<DiningTable | null>(null);
 
@@ -175,6 +177,25 @@ export function TableManager() {
       toast(err instanceof ApiError ? err.message : "Failed to delete table", {
         tone: "error",
       });
+    }
+  };
+
+  /** Close a table's session — settle every open order on it and free the table. */
+  const closeTable = async (table: DiningTable) => {
+    const ok = await confirm({
+      title: `Close table "${table.name}"?`,
+      description: "Settles every open order on this table as paid and frees it for the next guests.",
+      confirmLabel: "Close & settle",
+    });
+    if (!ok) return;
+    try {
+      const { closed } = await orderService.closeTable(table.id, true);
+      toast(closed > 0 ? `Table closed — ${closed} order${closed === 1 ? "" : "s"} settled` : "Table already free", {
+        tone: "success",
+      });
+      refetchStats();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to close table", { tone: "error" });
     }
   };
 
@@ -347,6 +368,7 @@ export function TableManager() {
                 stat={byTable.get(table.id)}
                 onEdit={() => openEdit(table)}
                 onDelete={() => remove(table)}
+                onClose={() => closeTable(table)}
               />
             ))}
           </div>
@@ -391,11 +413,13 @@ function TableCard({
   stat,
   onEdit,
   onDelete,
+  onClose,
 }: {
   table: DiningTable;
   stat?: TableStat;
   onEdit: () => void;
   onDelete: () => void;
+  onClose: () => void;
 }) {
   const status = statusOf(table, stat);
   const s = STATUS_STYLES[status];
@@ -445,6 +469,13 @@ function TableCard({
           {stat ? relativeTime(stat.lastOrderAt) : "N/A"}
         </span>
       </div>
+
+      {stat && (
+        <Button variant="outline" size="sm" className="mt-3 w-full" onClick={onClose}>
+          <CheckCircle2 className="size-4" />
+          Close table
+        </Button>
+      )}
     </Card>
   );
 }

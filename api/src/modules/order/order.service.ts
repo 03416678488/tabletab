@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -12,6 +12,8 @@ import { Paginated } from '@modules/common/pagination/interface/pagination.inter
 
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { MenuItem } from '@modules/menu/entities/menu-item.entity';
+import { AuthenticatedUser } from '@modules/auth/strategies/jwt.strategy';
 import { OrderValidatorService } from './services/order-validator.service';
 import { OrderHelperService } from './services/order.helper.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
@@ -34,6 +36,40 @@ const ACTIVE_STATUSES: OrderStatus[] = [
 /** Statuses the kitchen (KDS) and pickup (OSS) boards care about. */
 const BOARD_STATUSES: OrderStatus[] = ['placed', 'confirmed', 'preparing', 'ready'];
 
+export interface TableSessionRound {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  paymentStatus: 'paid' | 'unpaid';
+  createdAt: string;
+  total: number;
+  items: {
+    id: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+    notes: string | null;
+  }[];
+}
+
+/** A table's running bill = every active order (round) on the table, merged. */
+export interface TableSessionBill {
+  tableId: string;
+  tableName: string | null;
+  branchId: string | null;
+  orderCount: number;
+  rounds: TableSessionRound[];
+  /** Line items merged across rounds (same name + unit price folded together). */
+  items: { name: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  amountPaid: number;
+  amountDue: number;
+  paymentStatus: 'paid' | 'unpaid' | 'partial';
+}
+
 export interface TableStat {
   tableId: string;
   status: 'kot' | 'occupied';
@@ -53,6 +89,8 @@ export class OrderService extends AbstractService<Order> {
     protected readonly repository: Repository<Order>,
     @InjectRepository(OrderItem)
     private readonly _itemRepo: Repository<OrderItem>,
+    @InjectRepository(MenuItem)
+    private readonly _menuItems: Repository<MenuItem>,
     protected readonly pagination: PaginationProvider,
     private readonly _validator: OrderValidatorService,
     private readonly _helper: OrderHelperService,
@@ -161,9 +199,59 @@ export class OrderService extends AbstractService<Order> {
     });
   }
 
-  async createOrder(dto: CreateOrderDto): Promise<Order> {
+  /**
+   * Re-price items against the live menu so a client can never dictate the
+   * price. **Untrusted** callers (guests placing storefront/QR orders) must
+   * reference a real, available menu item; its unit price becomes the DB base
+   * price plus any add-on premium, bounded to what the item's real options
+   * allow — so `unitPrice` can neither drop below base (free food) nor be
+   * inflated. **Trusted** callers — authenticated staff (POS: manual discounts,
+   * custom lines) and external aggregators (provider is authoritative, flagged
+   * by `dto.source`) — keep their prices.
+   */
+  private async securePriceItems(
+    dto: CreateOrderDto,
+    trusted: boolean,
+  ): Promise<CreateOrderDto['items']> {
+    if (trusted) return dto.items;
+
+    const ids = [
+      ...new Set(dto.items.map((i) => i.menuItemId).filter((v): v is string => !!v)),
+    ];
+    const menu = ids.length ? await this._menuItems.find({ where: { id: In(ids) } }) : [];
+    const byId = new Map(menu.map((m) => [m.id, m]));
+
+    return dto.items.map((it) => {
+      if (!it.menuItemId) {
+        throw new BadRequestException('Every item must reference a menu item.');
+      }
+      const mi = byId.get(it.menuItemId);
+      if (!mi) throw new BadRequestException(`Menu item not found: ${it.name}`);
+      if (!mi.isAvailable) throw new BadRequestException(`"${mi.name}" is sold out.`);
+
+      const base = mi.price ?? 0;
+      const options = [...(mi.sizes ?? []), ...(mi.variants ?? []), ...(mi.addOns ?? [])];
+      const maxPremium = options.reduce((s, o) => s + (o.price ?? 0), 0);
+      const claimedPremium = round2((it.unitPrice ?? base) - base);
+      const premium = Math.min(Math.max(claimedPremium, 0), maxPremium);
+      return { ...it, unitPrice: round2(base + premium) };
+    });
+  }
+
+  async createOrder(
+    dto: CreateOrderDto,
+    actor?: AuthenticatedUser,
+    opts: { initialStatus?: OrderStatus } = {},
+  ): Promise<Order> {
     await this._validator.validateCreate(dto);
-    const payload = this._helper.resolveCreatePayload(dto);
+    // Trusted = authenticated staff (POS) or an external aggregator (dto.source).
+    // Everyone else is an untrusted guest and gets re-priced + payment-locked.
+    const trusted = !!actor?.id || !!dto.source;
+    const items = await this.securePriceItems(dto, trusted);
+    const payload = this._helper.resolveCreatePayload(
+      { ...dto, items },
+      { trusted, initialStatus: opts.initialStatus },
+    );
 
     // Server-authoritative promo: when a code is supplied we re-validate it
     // against the computed subtotal and apply the discount ourselves — the
@@ -201,6 +289,29 @@ export class OrderService extends AbstractService<Order> {
     }
     const order = await this.getById(saved.id);
     this.emitOrder(order, 'order.created');
+    // A prepay order that hasn't been paid yet stays invisible to the kitchen
+    // and the floor (no board event, no "new order" bell) until it's confirmed.
+    if (order.status !== 'pending_payment') {
+      this.emitBoard(order);
+      await this.notify(order, 'placed');
+    }
+    return order;
+  }
+
+  /**
+   * Confirm payment on a prepay ('pending_payment') dine-in order — called by
+   * the payment-gateway webhook (Phase 2) or a staff manual confirmation. Flips
+   * the order live: `placed` + `paid`, then fans it out to the kitchen board and
+   * the floor exactly as a normal new order would. No-op for any other status.
+   */
+  async confirmDineInPayment(id: string): Promise<Order> {
+    const existing = await this._validator.ensureExists(id);
+    if (existing.status !== 'pending_payment') {
+      return this.getById(id);
+    }
+    await this.repository.update(id, { status: 'placed', paymentStatus: 'paid' });
+    const order = await this.getById(id);
+    this.emitOrder(order, 'order.updated');
     this.emitBoard(order);
     await this.notify(order, 'placed');
     return order;
@@ -276,6 +387,109 @@ export class OrderService extends AbstractService<Order> {
       relations: ['table', 'table.area', 'branch', 'customer', 'items'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  /**
+   * The table's full running bill: EVERY active order (round) on the table,
+   * merged into one session so a guest who ordered again ("a water bottle after
+   * being served") sees a single, complete bill. Excludes `pending_payment`
+   * (unconfirmed prepay) — those aren't part of the settle-at-table bill.
+   */
+  async getTableSessionBill(tableId: string): Promise<TableSessionBill | null> {
+    const orders = await this.repository.find({
+      where: { tableId, status: In(ACTIVE_STATUSES) },
+      relations: ['table', 'items'],
+      order: { createdAt: 'ASC' },
+    });
+    if (orders.length === 0) return null;
+
+    const rounds: TableSessionRound[] = orders.map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      status: o.status,
+      paymentStatus: o.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+      createdAt: String(o.createdAt),
+      total: o.total,
+      items: (o.items ?? []).map((it) => ({
+        id: it.id,
+        name: it.name,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        lineTotal: it.lineTotal,
+        notes: it.notes ?? null,
+      })),
+    }));
+
+    // Merge identical lines (same name + unit price) across every round.
+    const merged = new Map<string, { name: string; quantity: number; unitPrice: number; lineTotal: number }>();
+    for (const o of orders) {
+      for (const it of o.items ?? []) {
+        const key = `${it.name}|${it.unitPrice}`;
+        const ex = merged.get(key);
+        if (ex) {
+          ex.quantity += it.quantity;
+          ex.lineTotal = round2(ex.lineTotal + it.lineTotal);
+        } else {
+          merged.set(key, {
+            name: it.name,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+            lineTotal: it.lineTotal,
+          });
+        }
+      }
+    }
+
+    const subtotal = round2(orders.reduce((s, o) => s + o.subtotal, 0));
+    const tax = round2(orders.reduce((s, o) => s + o.tax, 0));
+    const total = round2(orders.reduce((s, o) => s + o.total, 0));
+    const amountPaid = round2(
+      orders.filter((o) => o.paymentStatus === 'paid').reduce((s, o) => s + o.total, 0),
+    );
+    const amountDue = round2(total - amountPaid);
+    const paymentStatus = amountDue <= 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid';
+
+    return {
+      tableId,
+      tableName: orders[0].table?.name ?? null,
+      branchId: orders[0].branchId ?? null,
+      orderCount: orders.length,
+      rounds,
+      items: [...merged.values()],
+      subtotal,
+      tax,
+      total,
+      amountPaid,
+      amountDue,
+      paymentStatus,
+    };
+  }
+
+  /**
+   * Close a table's session — settle every active order (all rounds) on it and
+   * free the table. `markPaid` true (default) settles as paid; false records a
+   * walkout/comp (completed, left unpaid). Emits one board + floor nudge.
+   */
+  async closeTableSession(
+    tableId: string,
+    markPaid = true,
+  ): Promise<{ closed: number; total: number }> {
+    const orders = await this.repository.find({
+      where: { tableId, status: In(ACTIVE_STATUSES) },
+    });
+    let total = 0;
+    for (const o of orders) {
+      await this.repository.update(o.id, {
+        status: 'completed',
+        ...(markPaid ? { paymentStatus: 'paid' } : {}),
+      });
+      total = round2(total + o.total);
+    }
+    if (orders.length > 0) {
+      this._realtime.publish(boardChannel(this._req.tenant?.id), 'board.changed', { tableId });
+      this._realtime.publish(tablesChannel(this._req.tenant?.id), 'tables.changed', { tableId });
+    }
+    return { closed: orders.length, total };
   }
 
   async deleteOrder(id: string) {

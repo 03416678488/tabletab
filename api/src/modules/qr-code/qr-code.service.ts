@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -10,9 +10,27 @@ import { QrCode } from './entities/qr-code.entity';
 import { QrCodeValidatorService } from './services/qr-code-validator.service';
 import { QrCodeHelperService } from './services/qr-code.helper.service';
 import { CreateQrCodeDto, UpdateQrCodeDto, GetQrCodeQueryDto } from './dto';
+import { CreateTableOrderDto } from './dto/create-table-order.dto';
 import { OrderService } from '@modules/order/order.service';
 import { Order } from '@modules/order/entities/order.entity';
 import { ServiceRequestService } from '@modules/service-request/service-request.service';
+
+/**
+ * Idempotency store for guest dine-in submits — module-level so it survives the
+ * request-scoped service instances. A repeated `idempotencyKey` (double-tap,
+ * network retry) within the TTL returns the original order id instead of
+ * creating a duplicate. (Single-instance in-memory; a multi-instance deployment
+ * would back this with Redis — noted as a follow-up.)
+ */
+const IDEMPOTENCY_TTL_MS = 60_000;
+const recentSubmits = new Map<string, { orderId: string; at: number }>();
+function rememberSubmit(key: string, orderId: string): void {
+  const now = Date.now();
+  for (const [k, v] of recentSubmits) {
+    if (now - v.at > IDEMPOTENCY_TTL_MS) recentSubmits.delete(k);
+  }
+  recentSubmits.set(key, { orderId, at: now });
+}
 
 /** Main QR-code flow only — validation + normalization live in the sibling services. */
 @Injectable()
@@ -29,10 +47,61 @@ export class QrCodeService extends AbstractService<QrCode> {
     super(repository, pagination);
   }
 
-  /** The table's current open order (the bill), or null when nothing is running. */
-  async getBill(slug: string): Promise<Order | null> {
+  /**
+   * Place a dine-in order from a scanned table QR. Security-critical: the table
+   * and branch come from the QR (`resolveBySlug`), never the request body, so a
+   * guest can't order to another table or branch. The order runs through the
+   * normal (untrusted) create path — items re-priced against the live menu,
+   * `paymentStatus` forced to `unpaid`. A duplicate `idempotencyKey` returns the
+   * original order instead of creating a second one.
+   */
+  async createTableOrder(slug: string, dto: CreateTableOrderDto): Promise<Order> {
+    const key = dto.idempotencyKey?.trim();
+    if (key) {
+      const hit = recentSubmits.get(key);
+      if (hit && Date.now() - hit.at < IDEMPOTENCY_TTL_MS) {
+        return this._orders.getById(hit.orderId);
+      }
+    }
+
     const qr = await this.resolveBySlug(slug);
-    return this._orders.getActiveByTable(qr.tableId);
+    const table = qr.table;
+    if (!table || table.isActive === false) {
+      throw new BadRequestException('This table is not available for ordering right now.');
+    }
+    if (table.branch && table.branch.isOpen === false) {
+      throw new BadRequestException('This location is currently closed.');
+    }
+
+    // Per-branch payment timing: prepay ('pay_first') holds the order in
+    // `pending_payment` (off the kitchen board / not occupying the table) until
+    // the gateway confirms; 'pay_after' (default) goes straight to the kitchen.
+    const prepay = table.branch?.dineInPaymentMode === 'pay_first';
+
+    const order = await this._orders.createOrder(
+      {
+        orderType: 'table',
+        tableId: table.id,
+        branchId: table.branchId ?? undefined,
+        customerName: dto.customerName,
+        customerPhone: dto.customerPhone,
+        notes: dto.notes,
+        promotionCode: dto.promotionCode,
+        items: dto.items,
+      },
+      undefined,
+      { initialStatus: prepay ? 'pending_payment' : 'placed' },
+    );
+
+    if (key) rememberSubmit(key, order.id);
+    return order;
+  }
+
+  /** The table's full running bill — every active round merged into one session
+   *  (so a second-round "water bottle" shows on the same bill). Null when empty. */
+  async getBill(slug: string) {
+    const qr = await this.resolveBySlug(slug);
+    return this._orders.getTableSessionBill(qr.tableId);
   }
 
   /** Queue a service request from the table — lands live on the staff board + bell. */

@@ -28,7 +28,7 @@ import { useCustomerSession } from "@/hooks/use-customer-session";
 import { toast } from "@/hooks/use-toast";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 import { branchOnlineConfig } from "@/features/storefront/services/storefront-branches";
-import { placeStorefrontOrder } from "@/features/storefront/services/storefront-orders";
+import { placeStorefrontOrder, placeDineInOrder } from "@/features/storefront/services/storefront-orders";
 import { validatePromotionCode } from "@/features/promotion/services/storefront-promotions";
 import type { Address } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -85,6 +85,8 @@ function CheckoutContent() {
   const online = useMemo(() => (branch ? branchOnlineConfig(branch) : null), [branch]);
   const loading = Boolean(branchId) && branchesLoading;
   const [paying, setPaying] = useState(false);
+  // Idempotency key for the dine-in submit — stable across retries of one attempt.
+  const idempotencyRef = useRef<string | null>(null);
 
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [pickupTime, setPickupTime] = useState<string | null>(null);
@@ -195,26 +197,29 @@ function CheckoutContent() {
   const handlePay = async () => {
     if (!branchId || items.length === 0) return;
 
-    // Dine-in (QR): guest-friendly — no account required, no address/fee.
+    // Dine-in (QR): the secure guest path — the order is placed through the QR
+    // slug so the server derives the table/branch and re-prices every item; the
+    // client can't set the table, price, or payment status.
     if (isDineIn) {
+      if (!dineIn.slug) {
+        toast("Please re-scan the table QR to order.", { tone: "error" });
+        return;
+      }
       setPaying(true);
+      // Stable key for this attempt so a double-tap / retry can't double-order.
+      idempotencyRef.current ??= crypto.randomUUID();
       try {
-        const order = await placeStorefrontOrder({
-          branchId,
-          orderType: "table",
-          tableId: dineIn.tableId ?? undefined,
+        const order = await placeDineInOrder(dineIn.slug, {
           items,
-          customerId: user?.id,
           customerName: guestName.trim() || user?.name || "Table guest",
           customerPhone: user?.phone || undefined,
           promotionCode: appliedPromo?.code,
-          paymentStatus: "unpaid", // dine-in pays at the table
-          tax,
-          deliveryFee: 0,
+          idempotencyKey: idempotencyRef.current,
           notes: [`Dine-in · Table ${dineIn.tableName ?? ""}`.trim(), note.trim()]
             .filter(Boolean)
             .join("\n") || undefined,
         });
+        idempotencyRef.current = null;
         clear();
         toast("Order sent to the kitchen!", { tone: "success" });
         router.push(`/track/${order.id}`);

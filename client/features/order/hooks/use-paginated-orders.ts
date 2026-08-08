@@ -18,6 +18,9 @@ interface Params {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   initialPerPage?: number;
+  /** Ignore the topbar branch filter (e.g. a notification deep-link to a
+   *  specific order must be found regardless of which branch is selected). */
+  crossBranch?: boolean;
 }
 
 /** Server-paginated orders (multi-column search + type/status/payment filters). */
@@ -27,6 +30,7 @@ export function usePaginatedOrders({
   status,
   paymentStatus,
   initialPerPage = 15,
+  crossBranch = false,
 }: Params = {}) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);
@@ -37,8 +41,11 @@ export function usePaginatedOrders({
   const [error, setError] = useState<string | null>(null);
 
   // Scope to the topbar branch selection ("All branches" → undefined = all).
+  // `crossBranch` overrides it so a deep-linked order is never hidden by the
+  // currently selected branch.
   const activeBranchId = useActiveBranch((s) => s.activeBranchId);
-  const branchId = activeBranchId && !isAllBranches(activeBranchId) ? activeBranchId : undefined;
+  const branchId =
+    crossBranch || !activeBranchId || isAllBranches(activeBranchId) ? undefined : activeBranchId;
 
   const key = `${orderType ?? ""}|${search ?? ""}|${status ?? ""}|${paymentStatus ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);

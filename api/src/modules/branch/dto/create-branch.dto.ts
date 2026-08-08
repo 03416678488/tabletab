@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsIn,
   IsLatitude,
   IsLongitude,
   IsNotEmpty,
@@ -105,4 +106,9 @@ export class CreateBranchDto {
   @Min(0)
   @IsOptional()
   reservationCutoffMins?: number;
+
+  /** Dine-in (QR) payment timing: 'pay_after' (default) or 'pay_first' (prepay). */
+  @IsIn(['pay_first', 'pay_after'])
+  @IsOptional()
+  dineInPaymentMode?: 'pay_first' | 'pay_after';
 }

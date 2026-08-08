@@ -83,6 +83,7 @@ function toDefaults(branch: Branch | null): BranchFormValues {
     pickupEnabled: branch?.pickupEnabled ?? true,
     reservationsEnabled: branch?.reservationsEnabled ?? true,
     reservationTurnMins: branch?.reservationTurnMins ?? undefined,
+    dineInPaymentMode: branch?.dineInPaymentMode ?? "pay_after",
   };
 }
 
@@ -167,6 +168,7 @@ export function BranchFormDialog({
         : {}),
       deliveryEnabled: values.deliveryEnabled,
       pickupEnabled: values.pickupEnabled,
+      dineInPaymentMode: values.dineInPaymentMode,
       reservationsEnabled: values.reservationsEnabled,
       ...(values.reservationTurnMins !== undefined
         ? { reservationTurnMins: values.reservationTurnMins }
@@ -331,6 +333,16 @@ export function BranchFormDialog({
             <Toggle label="Pickup" {...register("pickupEnabled")} />
             <Toggle label="Reservations" {...register("reservationsEnabled")} />
           </div>
+
+          <Field label="Dine-in (QR) payment">
+            <select
+              {...register("dineInPaymentMode")}
+              className="h-10 w-full appearance-none rounded-lg border border-input bg-white px-3 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30"
+            >
+              <option value="pay_after">Pay after — order goes to the kitchen, settle at the table</option>
+              <option value="pay_first">Pay first — guest pays online before the order is sent (needs online payment)</option>
+            </select>
+          </Field>
 
           <DialogFooter>
             <Button

@@ -14,6 +14,7 @@ import { Public } from '@modules/auth/guards/public/public.decorator';
 
 import { QrCodeService } from './qr-code.service';
 import { CreateQrCodeDto, UpdateQrCodeDto, GetQrCodeQueryDto } from './dto';
+import { CreateTableOrderDto } from './dto/create-table-order.dto';
 
 @Controller('qr-codes')
 export class QrCodeController {
@@ -49,6 +50,17 @@ export class QrCodeController {
   @Post('request-bill/:slug')
   requestBill(@Param('slug') slug: string) {
     return this._qrCodeService.requestBill(slug);
+  }
+
+  /**
+   * Public — place a dine-in order from a scanned table QR. The table + branch
+   * are taken from the slug (never the body), and every item is re-priced
+   * server-side, so a guest can only choose *what* to order.
+   */
+  @Public()
+  @Post(':slug/orders')
+  createOrder(@Param('slug') slug: string, @Body() dto: CreateTableOrderDto) {
+    return this._qrCodeService.createTableOrder(slug, dto);
   }
 
   @Get()

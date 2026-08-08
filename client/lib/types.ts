@@ -21,6 +21,7 @@ export type TableStatus = "available" | "seated" | "needs-service" | "inactive";
 
 /** Lifecycle of an order. "out-for-delivery" only applies to delivery orders. */
 export type OrderStatus =
+  | "pending_payment"
   | "placed"
   | "accepted"
   | "preparing"

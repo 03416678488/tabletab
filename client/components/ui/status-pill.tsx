@@ -44,6 +44,7 @@ function StatusPill({ className, tone, dark, dot = true, children, ...props }: S
 type Tone = NonNullable<StatusPillProps["tone"]>;
 
 const ORDER_STATUS_META: Record<OrderStatus, { label: string; tone: Tone }> = {
+  pending_payment: { label: "Awaiting payment", tone: "neutral" },
   placed: { label: "Placed", tone: "amber" },
   accepted: { label: "Accepted", tone: "blue" },
   preparing: { label: "Preparing", tone: "purple" },

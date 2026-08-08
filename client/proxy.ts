@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { AUTH_ROUTES } from "@/features/auth/constants/auth.constants";
-import { mapApiRolesToStaffRole } from "@/lib/roles";
+import { isStaffRole, mapApiRolesToStaffRole } from "@/lib/roles";
+import {
+  canAccessSlug,
+  homePathForRole,
+  resolveAllowedPath,
+} from "@/lib/permissions";
 
 /**
  * Route protection for the staff/admin dashboard + public custom-page routing.
@@ -88,6 +93,22 @@ export default auth((req) => {
     const loginUrl = new URL(AUTH_ROUTES.login, nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // 4) Role authorization — a signed-in staff member may only enter their OWN
+  //    role's namespace, and only the pages that role is permitted. This is the
+  //    authoritative gate: it stops e.g. a delivery rider reaching the chef KDS
+  //    via a stale callbackUrl or a hand-typed `/chef/...` URL, regardless of
+  //    what the client renders.
+  if (isLoggedIn && isStaffRole(first)) {
+    const role = mapApiRolesToStaffRole(req.auth?.user?.roleNames ?? []);
+    const slug = segments[1] ?? "dashboard";
+    if (first !== role) {
+      return NextResponse.redirect(new URL(resolveAllowedPath(role, slug), nextUrl));
+    }
+    if (!canAccessSlug(role, slug)) {
+      return NextResponse.redirect(new URL(homePathForRole(role), nextUrl));
+    }
   }
 
   return NextResponse.next();

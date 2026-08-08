@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -23,7 +24,12 @@ import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefron
 import { branchOnlineConfig } from "@/features/storefront/services/storefront-branches";
 import { useDineIn } from "@/hooks/use-dine-in";
 import { useCart } from "@/hooks/use-cart";
+import { useSettings } from "@/features/app-settings/components/settings-provider";
+import { useTenant } from "@/hooks/use-tenant";
+import { resolveBranding } from "@/lib/theme";
+import { isLocalUpload } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SuccessDialog } from "@/components/ui/success-dialog";
 
 /**
  * QR scan landing: resolve `/t/{token}` → a table + branch, then show the guest
@@ -44,10 +50,20 @@ export default function QrLandingPage({
   const clearCart = useCart((s) => s.clear);
   const { branches } = useStorefrontBranches();
 
+  // Real brand identity (Settings → Company / Branding), same source as the
+  // storefront header — logo + business name instead of a generic icon.
+  const { get } = useSettings();
+  const tenant = useTenant();
+  const branding = resolveBranding(tenant.branding);
+  const businessName = get("company", "name") || tenant.name || "Restaurant";
+  const logoSrc =
+    branding.logoDataUrl ?? (get("theme", "logo") || branding.logoUrl || undefined);
+
   const [resolved, setResolved] = useState<ResolvedQr | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [called, setCalled] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Resolve the slug once.
   useEffect(() => {
@@ -97,12 +113,17 @@ export default function QrLandingPage({
 
   /** Alert staff that this table wants a waiter. */
   const handleCallWaiter = async () => {
-    if (!resolved || calling || called) return;
+    if (!resolved || calling) return;
+    // Already requested — just re-show the confirmation so the guest is reassured.
+    if (called) {
+      setConfirmOpen(true);
+      return;
+    }
     setCalling(true);
     try {
       await callWaiter(resolved.slug);
       setCalled(true);
-      toast("A waiter is on the way", { tone: "success" });
+      setConfirmOpen(true);
     } catch {
       toast("Couldn't reach a waiter — please try again", { tone: "error" });
     } finally {
@@ -152,14 +173,27 @@ export default function QrLandingPage({
   return (
     <div className="mx-auto max-w-sm px-4 py-12">
       <div className="text-center">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-tint text-brand">
-          <UtensilsCrossed className="size-7" />
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center overflow-hidden rounded-2xl bg-brand-tint text-brand ring-1 ring-border">
+          {logoSrc ? (
+            <Image
+              src={logoSrc}
+              alt={businessName}
+              width={64}
+              height={64}
+              className="size-full object-contain p-1.5"
+              unoptimized={logoSrc.startsWith("data:") || isLocalUpload(logoSrc)}
+            />
+          ) : (
+            <UtensilsCrossed className="size-7" />
+          )}
         </div>
-        <p className="text-sm font-medium text-muted-foreground">Welcome to {branchName}</p>
+        <p className="text-sm font-medium text-muted-foreground">Welcome to {businessName}</p>
         <h1 className="mt-1 font-display text-2xl font-bold text-ink">
           Table {resolved.tableName}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">What would you like to do?</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {branchName} · What would you like to do?
+        </p>
       </div>
 
       <div className="mt-8 space-y-3">
@@ -238,6 +272,22 @@ export default function QrLandingPage({
           <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
         </Link>
       </div>
+
+      {/* Waiter-called confirmation — a clear, dismissible modal instead of a
+          fleeting toast (easy to miss on a shared table phone). */}
+      <SuccessDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        icon={BellRing}
+        title="A waiter is on the way"
+        description={
+          <>
+            Someone from {businessName} will come to{" "}
+            <span className="font-medium text-ink">Table {resolved.tableName}</span>{" "}
+            shortly. Hang tight!
+          </>
+        }
+      />
     </div>
   );
 }

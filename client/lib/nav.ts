@@ -28,6 +28,11 @@ import {
   Wallet,
 } from "lucide-react";
 import type { StaffRole } from "@/lib/types";
+import {
+  ALL_ROLES as ALL,
+  MANAGER_ROLES as MANAGERS,
+  OWNER_ROLES as OWNER_ONLY,
+} from "@/lib/permissions";
 
 export type NavSection =
   | "Operations"
@@ -67,18 +72,8 @@ export interface NavItem {
   children?: NavChild[];
 }
 
-const ALL: StaffRole[] = [
-  "owner",
-  "multi_branch_manager",
-  "branch_manager",
-  "chef",
-  "waiter",
-  "delivery",
-];
-/** Management tier: owner + both manager roles. */
-const MANAGERS: StaffRole[] = ["owner", "multi_branch_manager", "branch_manager"];
-/** Owner-only (top admin) items. */
-const OWNER_ONLY: StaffRole[] = ["owner"];
+// Role groups (ALL / MANAGERS / OWNER_ONLY) come from the authorization matrix
+// in lib/permissions.ts so the nav a user sees matches the pages they can reach.
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", slug: "dashboard", icon: LayoutDashboard, roles: ALL, section: "Operations", module: "dashboard" },

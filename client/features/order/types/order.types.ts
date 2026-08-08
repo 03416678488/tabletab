@@ -3,6 +3,7 @@ export type OrderType = "pos" | "online" | "table";
 export type PaymentStatus = "unpaid" | "paid";
 
 export type OrderStatus =
+  | "pending_payment"
   | "placed"
   | "confirmed"
   | "preparing"

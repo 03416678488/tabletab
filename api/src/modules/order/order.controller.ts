@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   type MessageEvent,
   Param,
@@ -24,7 +25,7 @@ import { sseFromChannel } from '@modules/realtime/sse.util';
 import { OrderService } from './order.service';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
-import { assertOrderUpdateAllowed } from './order-status.policy';
+import { assertOrderUpdateAllowed, canChangePaymentStatus } from './order-status.policy';
 
 @Controller('orders')
 export class OrderController {
@@ -99,11 +100,49 @@ export class OrderController {
     return this._orderService.getById(id);
   }
 
-  // Public so the storefront can place online orders (guest or signed-in customer).
+  // Public so the storefront can place online orders (guest or signed-in
+  // customer). The global JWT guard still decodes a token when present, so
+  // `user` is set for authenticated staff (POS) and undefined for guests — the
+  // service uses that to decide whether to trust or re-price the order.
   @Public()
   @Post()
-  create(@Body() dto: CreateOrderDto) {
-    return this._orderService.createOrder(dto);
+  create(@Body() dto: CreateOrderDto, @CurrentUser() user: AuthenticatedUser) {
+    return this._orderService.createOrder(dto, user);
+  }
+
+  /**
+   * Confirm payment on a prepay ('pending_payment') dine-in order — a staff
+   * manual confirmation (e.g. the guest paid cash) that flips it live to the
+   * kitchen. Requires the same permission as marking an order paid. The Phase 2
+   * payment-gateway webhook will call `confirmDineInPayment` directly (server to
+   * server), not this staff route.
+   */
+  @Post(':id/confirm-payment')
+  confirmPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!user?.isSuperAdmin && !canChangePaymentStatus(user?.roleNames ?? [])) {
+      throw new ForbiddenException('You are not allowed to confirm payment.');
+    }
+    return this._orderService.confirmDineInPayment(id);
+  }
+
+  /**
+   * Close a table's session — settle every active order (all rounds) on the
+   * table and free it. `markPaid` (default true) settles as paid; false records
+   * a walkout/comp (completed, unpaid). Same permission as marking an order paid.
+   */
+  @Post('table/:tableId/close')
+  closeTable(
+    @Param('tableId', ParseUUIDPipe) tableId: string,
+    @Body('markPaid') markPaid: boolean | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!user?.isSuperAdmin && !canChangePaymentStatus(user?.roleNames ?? [])) {
+      throw new ForbiddenException('You are not allowed to close a table.');
+    }
+    return this._orderService.closeTableSession(tableId, markPaid ?? true);
   }
 
   @Put(':id')

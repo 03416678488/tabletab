@@ -23,9 +23,21 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedTables } from "@/features/table/hooks/use-paginated-tables";
+import { useTableStats } from "@/features/order/hooks/use-table-stats";
 import { tableService } from "@/features/table/services/table.service";
 import { TableFormDialog } from "@/features/table/components/table-form-dialog";
 import type { DiningTable } from "@/features/table/types/table.types";
+
+/** Live occupancy for a table, driven by active orders (independent of the
+ *  Active/Inactive config flag). */
+const OCCUPANCY: Record<
+  "available" | "occupied" | "kot",
+  { tone: "green" | "red" | "purple"; label: string }
+> = {
+  available: { tone: "green", label: "Available" },
+  occupied: { tone: "red", label: "Occupied" },
+  kot: { tone: "purple", label: "KOT" },
+};
 
 /** Plain tabular listing of tables (config view). */
 export function TableListManager() {
@@ -42,6 +54,9 @@ export function TableListManager() {
     goToPage,
     refetch,
   } = usePaginatedTables({ search });
+  // Live per-table occupancy (active orders), scoped to the topbar branch and
+  // reconciled over SSE — same source as the floor view.
+  const { byTable } = useTableStats();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<DiningTable | null>(null);
 
@@ -136,6 +151,7 @@ export function TableListManager() {
                 <TableHead>Area</TableHead>
                 <TableHead>Capacity</TableHead>
                 <TableHead>Branch</TableHead>
+                <TableHead>Occupancy</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -147,6 +163,22 @@ export function TableListManager() {
                   <TableCell className="text-muted-foreground">{t.area?.name ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{t.capacity}</TableCell>
                   <TableCell className="text-muted-foreground">{t.branch?.name ?? "—"}</TableCell>
+                  <TableCell>
+                    {(() => {
+                      if (!t.isActive) {
+                        return <span className="text-sm text-muted-foreground">—</span>;
+                      }
+                      const stat = byTable.get(t.id);
+                      const key = stat?.status === "kot" ? "kot" : stat ? "occupied" : "available";
+                      const { tone, label } = OCCUPANCY[key];
+                      return (
+                        <StatusPill tone={tone}>
+                          {label}
+                          {stat ? ` · ${stat.itemCount} item${stat.itemCount === 1 ? "" : "s"}` : ""}
+                        </StatusPill>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell>
                     <StatusPill tone={t.isActive ? "green" : "neutral"}>
                       {t.isActive ? "Active" : "Inactive"}

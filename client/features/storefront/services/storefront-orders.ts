@@ -174,6 +174,22 @@ export interface PlaceOrderInput {
   notes?: string;
 }
 
+/** Map a cart line to the API item shape. The API item has no modifier field,
+ *  so fold the chosen options into the name (kitchen/receipt still see them) and
+ *  the unit price. The server re-prices guest items from the menu regardless —
+ *  the price sent here is only a hint. */
+function toApiItem(i: CartItem) {
+  const mods = i.modifiers.reduce((s, m) => s + m.priceDelta, 0);
+  const modLabels = i.modifiers.map((m) => m.label).join(", ");
+  return {
+    menuItemId: i.menuItemId,
+    name: modLabels ? `${i.name} (${modLabels})` : i.name,
+    unitPrice: i.unitPrice + mods,
+    quantity: i.quantity,
+    notes: i.notes,
+  };
+}
+
 /** Place a real order (online or dine-in). The API computes subtotal/total + number. */
 export async function placeStorefrontOrder(input: PlaceOrderInput): Promise<StorefrontOrder> {
   const res = await httpClient.post<ApiOrder>("/orders", {
@@ -192,19 +208,37 @@ export async function placeStorefrontOrder(input: PlaceOrderInput): Promise<Stor
     notes: input.notes,
     tax: input.tax,
     deliveryFee: input.deliveryFee,
-    items: input.items.map((i) => {
-      // The API item has no modifier field, so fold the chosen options into the
-      // unit price and the name (kitchen/receipt still see the selections).
-      const mods = i.modifiers.reduce((s, m) => s + m.priceDelta, 0);
-      const modLabels = i.modifiers.map((m) => m.label).join(", ");
-      return {
-        menuItemId: i.menuItemId,
-        name: modLabels ? `${i.name} (${modLabels})` : i.name,
-        unitPrice: i.unitPrice + mods,
-        quantity: i.quantity,
-        notes: i.notes,
-      };
-    }),
+    items: input.items.map(toApiItem),
+  });
+  return toOrder(res.data);
+}
+
+export interface PlaceDineInInput {
+  items: CartItem[];
+  customerName: string;
+  customerPhone?: string;
+  notes?: string;
+  promotionCode?: string;
+  /** Per-submit key so a double-tap / retry doesn't create a second order. */
+  idempotencyKey?: string;
+}
+
+/**
+ * Place a dine-in order through the QR slug. The table + branch are derived
+ * server-side from the slug (never sent by the client) and every item is
+ * re-priced against the live menu — the secure guest ordering path.
+ */
+export async function placeDineInOrder(
+  slug: string,
+  input: PlaceDineInInput,
+): Promise<StorefrontOrder> {
+  const res = await httpClient.post<ApiOrder>(`/qr-codes/${slug}/orders`, {
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    notes: input.notes,
+    promotionCode: input.promotionCode,
+    idempotencyKey: input.idempotencyKey,
+    items: input.items.map(toApiItem),
   });
   return toOrder(res.data);
 }

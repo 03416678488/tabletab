@@ -14,6 +14,9 @@ export type PaymentStatus = 'unpaid' | 'paid';
 
 /** Lifecycle of an order. `preparing` is what surfaces a table's KOT badge. */
 export type OrderStatus =
+  // Prepay dine-in: created but NOT yet paid — held out of the kitchen/floor
+  // until the payment gateway (or staff) confirms, then it becomes 'placed'.
+  | 'pending_payment'
   | 'placed'
   | 'confirmed'
   | 'preparing'

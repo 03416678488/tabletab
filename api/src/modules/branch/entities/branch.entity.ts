@@ -73,4 +73,15 @@ export class Branch extends AbstractEntity {
   /** Latest a booking may be made before the slot (minutes). */
   @Column({ type: 'int', default: 60 })
   reservationCutoffMins: number;
+
+  /**
+   * Dine-in (QR) payment timing for this branch:
+   *  - `pay_after`  → order goes to the kitchen immediately, settled at the
+   *                   table (the current default flow).
+   *  - `pay_first`  → the guest must pay online first; the order is held in
+   *                   `pending_payment` (off the kitchen board / not occupying
+   *                   the table) until the gateway confirms.
+   */
+  @Column({ type: 'varchar', default: 'pay_after' })
+  dineInPaymentMode: 'pay_first' | 'pay_after';
 }

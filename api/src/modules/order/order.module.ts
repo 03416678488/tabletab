@@ -6,6 +6,7 @@ import { OrderItem } from './entities/order-item.entity';
 import { Table } from '@modules/table/entities/table.entity';
 import { Branch } from '@modules/branch/entities/branch.entity';
 import { Customer } from '@modules/customer/entities/customer.entity';
+import { MenuItem } from '@modules/menu/entities/menu-item.entity';
 import { Integration } from '@modules/integration/entities/integration.entity';
 import { IntegrationSyncLog } from '@modules/integration/entities/integration-sync-log.entity';
 
@@ -29,6 +30,7 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
       Table,
       Branch,
       Customer,
+      MenuItem,
       Integration,
       IntegrationSyncLog,
     ]),
@@ -52,6 +54,9 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
     tenantRepositoryProvider(OrderItem),
     tenantRepositoryProvider(Table),
     tenantRepositoryProvider(Branch),
+    // Read-only here: authoritative re-pricing of guest orders against the
+    // real menu (clients can never dictate the price).
+    tenantRepositoryProvider(MenuItem),
   ],
   exports: [OrderService, TypeOrmModule],
 })

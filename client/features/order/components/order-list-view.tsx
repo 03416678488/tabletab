@@ -65,6 +65,10 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
   // pre-searched to that specific order.
   const initialQuery = useSearchParams().get("q") ?? "";
   const [search, setSearch] = useState(initialQuery);
+  // While the search still matches the deep-link, ignore the topbar branch
+  // filter — the notified order may belong to a different branch than the one
+  // currently selected, and clicking the alert must always land on it.
+  const isDeepLink = initialQuery !== "" && search === initialQuery;
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid">("all");
@@ -86,6 +90,7 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
     search,
     status: statusFilter === "all" ? undefined : statusFilter,
     paymentStatus: paymentFilter === "all" ? undefined : paymentFilter,
+    crossBranch: isDeepLink,
   });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Order | null>(null);

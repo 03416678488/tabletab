@@ -64,4 +64,16 @@ export const orderService = {
       .delete<{ message: string }>(ORDER_ENDPOINTS.byId(id), { auth: true })
       .then((res) => res.data);
   },
+
+  /** Close a table's session — settle every active order on it and free it.
+   *  `markPaid` true (default) settles as paid; false records a walkout/comp. */
+  closeTable(tableId: string, markPaid = true) {
+    return httpClient
+      .post<{ closed: number; total: number }>(
+        `/orders/table/${tableId}/close`,
+        { markPaid },
+        { auth: true },
+      )
+      .then((res) => res.data);
+  },
 };

@@ -17,7 +17,11 @@ export class OrderHelperService {
     return `ORD-${randomBytes(3).toString('hex').toUpperCase()}`;
   }
 
-  resolveCreatePayload(dto: CreateOrderDto): Partial<Order> {
+  resolveCreatePayload(
+    dto: CreateOrderDto,
+    opts: { trusted?: boolean; initialStatus?: Order['status'] } = {},
+  ): Partial<Order> {
+    const trusted = opts.trusted ?? false;
     const items: Partial<OrderItem>[] = dto.items.map((it) => ({
       menuItemId: it.menuItemId ?? null,
       name: trimSpaces(it.name),
@@ -28,9 +32,16 @@ export class OrderHelperService {
     }));
 
     const subtotal = round2(items.reduce((sum, it) => sum + (it.lineTotal ?? 0), 0));
-    const tax = round2(dto.tax ?? 0);
-    const discount = round2(dto.discount ?? 0);
-    const deliveryFee = round2(dto.deliveryFee ?? 0);
+    // Untrusted (guest) money fields are sanity-bounded so they can't be gamed:
+    // tax/discount never exceed the subtotal and can't go negative. Trusted
+    // callers (staff POS / aggregators) keep their values as sent.
+    const clamp = (n: number, max: number) => Math.min(Math.max(n, 0), max);
+    const rawTax = round2(dto.tax ?? 0);
+    const rawDiscount = round2(dto.discount ?? 0);
+    const rawFee = round2(dto.deliveryFee ?? 0);
+    const tax = trusted ? rawTax : clamp(rawTax, subtotal);
+    const discount = trusted ? rawDiscount : clamp(rawDiscount, subtotal);
+    const deliveryFee = trusted ? rawFee : Math.max(rawFee, 0);
     const total = round2(subtotal + tax + deliveryFee - discount);
 
     return {
@@ -38,7 +49,7 @@ export class OrderHelperService {
       orderType: dto.orderType,
       source: dto.source ?? null,
       externalRef: dto.externalRef ?? null,
-      status: 'placed',
+      status: opts.initialStatus ?? 'placed',
       tableId: dto.tableId ?? null,
       branchId: dto.branchId ?? null,
       customerId: dto.customerId ?? null,
@@ -49,8 +60,13 @@ export class OrderHelperService {
       customerLng: dto.customerLng ?? null,
       paymentMethod: dto.paymentMethod ? trimSpaces(dto.paymentMethod) : null,
       // Online is paid at checkout; POS/dine-in default unpaid unless the client
-      // says otherwise (e.g. POS "pay now").
-      paymentStatus: dto.paymentStatus ?? (dto.orderType === 'online' ? 'paid' : 'unpaid'),
+      // says otherwise (e.g. POS "pay now"). A guest can NEVER self-declare a
+      // dine-in order as paid — that's settled at the table or via the gateway,
+      // never trusted from the request body.
+      paymentStatus:
+        !trusted && dto.orderType === 'table'
+          ? 'unpaid'
+          : (dto.paymentStatus ?? (dto.orderType === 'online' ? 'paid' : 'unpaid')),
       notes: dto.notes ? trimSpaces(dto.notes) : null,
       subtotal,
       tax,

@@ -21,6 +21,7 @@ export const branchSchema = z.object({
   pickupEnabled: z.boolean(),
   reservationsEnabled: z.boolean(),
   reservationTurnMins: z.number().min(0, "Must be 0 or more").optional(),
+  dineInPaymentMode: z.enum(["pay_first", "pay_after"]),
 });
 
 export type BranchFormValues = z.infer<typeof branchSchema>;

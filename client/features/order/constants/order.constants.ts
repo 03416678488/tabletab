@@ -13,6 +13,7 @@ export const ORDER_STATUS_META: Record<
   OrderStatus,
   { label: string; tone: Tone }
 > = {
+  pending_payment: { label: "Awaiting payment", tone: "neutral" },
   placed: { label: "Placed", tone: "amber" },
   confirmed: { label: "Confirmed", tone: "blue" },
   preparing: { label: "Preparing", tone: "purple" },

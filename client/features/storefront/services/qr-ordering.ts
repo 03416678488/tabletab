@@ -44,25 +44,30 @@ export async function callWaiter(slug: string): Promise<{ message: string }> {
 }
 
 export interface BillItem {
-  id: string;
   name: string;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
-  notes?: string | null;
 }
 
+/** The table's running bill — every active order (round) merged into one session. */
 export interface Bill {
-  id: string;
-  orderNumber: string;
-  paymentStatus: "paid" | "unpaid";
+  tableId: string;
+  tableName: string | null;
+  branchId: string | null;
+  /** Number of separate orders (rounds) making up this bill. */
+  orderCount: number;
+  /** Line items merged across all rounds. */
+  items: BillItem[];
   subtotal: number;
   tax: number;
   total: number;
-  items: BillItem[];
+  amountPaid: number;
+  amountDue: number;
+  paymentStatus: "paid" | "unpaid" | "partial";
 }
 
-/** The table's running order/bill (public), or null when nothing is open. */
+/** The table's running session bill (public), or null when nothing is open. */
 export async function getBill(slug: string): Promise<Bill | null> {
   const res = await httpClient.get<Bill | null>(
     `/qr-codes/bill/${encodeURIComponent(slug)}`,

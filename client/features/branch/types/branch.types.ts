@@ -21,6 +21,8 @@ export interface Branch {
   deliveryEtaMinutes: number | null;
   reservationsEnabled: boolean;
   reservationTurnMins: number;
+  /** Dine-in (QR) payment timing: 'pay_after' (default) or 'pay_first' (prepay). */
+  dineInPaymentMode: "pay_first" | "pay_after";
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +56,7 @@ export interface CreateBranchInput {
   deliveryEtaMinutes?: number;
   reservationsEnabled?: boolean;
   reservationTurnMins?: number;
+  dineInPaymentMode?: "pay_first" | "pay_after";
 }
 
 export type UpdateBranchInput = Partial<CreateBranchInput>;
