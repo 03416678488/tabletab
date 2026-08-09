@@ -96,9 +96,42 @@ services:
     networks:
       - tabletap-backend
 
+  # Web DB admin UI. Open http://localhost:${PGADMIN_PORT:-5050} and log in with
+  # PGADMIN_DEFAULT_EMAIL / PGADMIN_DEFAULT_PASSWORD. The "TableTap (dev)" server
+  # is pre-registered (servers.json) and points at the postgres service on the
+  # shared network; the password is pre-filled from pgpass (fallback: "secret").
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tabletap-pgadmin
+    restart: unless-stopped
+    user: root
+    depends_on:
+      - postgres
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@tabletap.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      # Desktop mode: no per-session login gate + no master password prompt.
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - tabletap_pgadmin_data:/var/lib/pgadmin
+      - ./.config/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - ./.config/pgadmin/pgpass:/pgpass.src:ro
+    # pgAdmin ignores a passfile unless it is 0600 — a macOS bind mount can't be,
+    # so copy it into the writable data dir with the right perms before boot.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - "cp -f /pgpass.src /var/lib/pgadmin/pgpass && chmod 600 /var/lib/pgadmin/pgpass && chown 5050:5050 /var/lib/pgadmin/pgpass && exec /entrypoint.sh"
+    networks:
+      - tabletap-backend
+
 volumes:
   tabletap_postgres_data:
   tabletap_redis_data:
+  tabletap_pgadmin_data:
 
 networks:
   tabletap-backend:
