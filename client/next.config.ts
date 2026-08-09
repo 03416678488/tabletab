@@ -35,6 +35,10 @@ function apiOrigin(): string | null {
 }
 
 const nextConfig: NextConfig = {
+  // The repo root holds a package-lock.json for the shared Husky/lint-staged
+  // tooling, so Next sees two lockfiles and guesses the wrong workspace root.
+  // Pin tracing to this project. (Drop this if the client moves to its own repo.)
+  outputFileTracingRoot: __dirname,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "picsum.photos" },
@@ -72,7 +76,7 @@ const nextConfig: NextConfig = {
       beforeFiles: [{ source: "/api/:path((?!auth/).*)", destination: `${origin}/api/:path` }],
     };
   },
-  allowedDevOrigins: ['100.93.96.108'],
+  allowedDevOrigins: ["100.93.96.108"],
 };
 
 export default nextConfig;

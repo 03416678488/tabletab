@@ -4,9 +4,12 @@ import { use, useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
+  BellRing,
   CalendarClock,
+  Check,
   Clock,
   CreditCard,
+  Loader2,
   MapPin,
   MessageSquare,
   Package,
@@ -26,6 +29,10 @@ import {
   type StorefrontOrder,
 } from "@/features/storefront/services/storefront-orders";
 import { useOrderStream } from "@/hooks/use-order-stream";
+import { useDineIn } from "@/hooks/use-dine-in";
+import { callWaiter } from "@/features/storefront/services/qr-ordering";
+import { SuccessDialog } from "@/components/ui/success-dialog";
+import { toast } from "@/hooks/use-toast";
 import type { Order } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -41,15 +48,18 @@ const RECONCILE_INTERVAL_MS = 30_000;
 
 const TERMINAL = new Set(["completed", "cancelled"]);
 
-export default function TrackOrderPage({
-  params,
-}: {
-  params: Promise<{ orderId: string }>;
-}) {
+export default function TrackOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params);
   const [order, setOrder] = useState<StorefrontOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Dine-in guests can summon a waiter straight from the tracking screen —
+  // the QR slug from their active session is what identifies the table to staff.
+  const dineSlug = useDineIn((s) => s.slug);
+  const [calling, setCalling] = useState(false);
+  const [called, setCalled] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isLive = Boolean(order) && !TERMINAL.has(order?.status ?? "");
 
@@ -90,6 +100,25 @@ export default function TrackOrderPage({
     }, RECONCILE_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [isLive, orderId]);
+
+  const handleCallWaiter = async () => {
+    if (!dineSlug || calling) return;
+    // Already requested — just re-show the confirmation so the guest is reassured.
+    if (called) {
+      setConfirmOpen(true);
+      return;
+    }
+    setCalling(true);
+    try {
+      await callWaiter(dineSlug);
+      setCalled(true);
+      setConfirmOpen(true);
+    } catch {
+      toast("Couldn't reach a waiter — please try again", { tone: "error" });
+    } finally {
+      setCalling(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -149,14 +178,21 @@ export default function TrackOrderPage({
             </div>
           )}
 
-          <div className={cn("flex items-start gap-3", order.branchName && "border-t border-border pt-3")}>
+          <div
+            className={cn(
+              "flex items-start gap-3",
+              order.branchName && "border-t border-border pt-3",
+            )}
+          >
             {order.isDineIn ? (
               <>
                 <UtensilsCrossed className="mt-0.5 size-5 shrink-0 text-brand" />
                 <div>
                   <p className="text-sm font-semibold text-ink">Dine-in</p>
                   <p className="text-sm text-muted-foreground">
-                    {order.tableName ? `Table ${order.tableName} · served to your table` : "Served to your table"}
+                    {order.tableName
+                      ? `Table ${order.tableName} · served to your table`
+                      : "Served to your table"}
                   </p>
                 </div>
               </>
@@ -300,14 +336,52 @@ export default function TrackOrderPage({
         </CardContent>
       </Card>
 
-      <div className="mt-6 flex justify-center gap-3">
-        <Button asChild variant="outline">
-          <Link href="/">Order again</Link>
-        </Button>
-        <Button asChild>
-          <Link href="/account">View history</Link>
-        </Button>
-      </div>
+      {order.isDineIn && dineSlug ? (
+        // Dine-in: the guest is at the table — offer a waiter, not "order again".
+        <div className="mt-6 flex justify-center">
+          <Button
+            onClick={handleCallWaiter}
+            disabled={calling}
+            className={cn(called && "bg-green-600 text-white hover:bg-green-600")}
+          >
+            {called ? (
+              <Check className="size-4" />
+            ) : calling ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <BellRing className="size-4" />
+            )}
+            {called ? "Waiter on the way" : "Call waiter"}
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-6 flex justify-center gap-3">
+          <Button asChild variant="outline">
+            <Link href="/">Order again</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/account">View history</Link>
+          </Button>
+        </div>
+      )}
+
+      {/* Waiter-called confirmation — a clear, dismissible modal instead of a
+          fleeting toast (easy to miss on a shared table phone). */}
+      <SuccessDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        icon={BellRing}
+        title="A waiter is on the way"
+        description={
+          <>
+            Someone will come to{" "}
+            <span className="font-medium text-ink">
+              {order.tableName ? `Table ${order.tableName}` : "your table"}
+            </span>{" "}
+            shortly. Hang tight!
+          </>
+        }
+      />
     </div>
   );
 }

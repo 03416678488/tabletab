@@ -68,6 +68,8 @@ export default function QrLandingPage({ params }: { params: Promise<{ token: str
     () => resolved?.branchName ?? branches.find((b) => b.id === branchId)?.name ?? "Restaurant",
     [resolved, branches, branchId],
   );
+  // Table names are often already prefixed ("Table-1"), so don't double it up.
+  const tableLabel = (name: string) => (/^\s*table\b/i.test(name) ? name : `Table ${name}`);
 
   /** Start a dine-in session for this table and open the menu. */
   const startDineInOrder = () => {
@@ -156,7 +158,7 @@ export default function QrLandingPage({ params }: { params: Promise<{ token: str
         </div>
         <p className="text-sm font-medium text-muted-foreground">Welcome to {businessName}</p>
         <h1 className="mt-1 font-display text-2xl font-bold text-ink">
-          Table {resolved.tableName}
+          {tableLabel(resolved.tableName)}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {branchName} · What would you like to do?
@@ -217,8 +219,8 @@ export default function QrLandingPage({ params }: { params: Promise<{ token: str
         description={
           <>
             Someone from {businessName} will come to{" "}
-            <span className="font-medium text-ink">Table {resolved.tableName}</span> shortly. Hang
-            tight!
+            <span className="font-medium text-ink">{tableLabel(resolved.tableName)}</span> shortly.
+            Hang tight!
           </>
         }
       />

@@ -5,7 +5,15 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
-import { Banknote, CreditCard, MapPin, ShoppingBag, Truck, UtensilsCrossed, Wallet } from "lucide-react";
+import {
+  Banknote,
+  CreditCard,
+  MapPin,
+  ShoppingBag,
+  Truck,
+  UtensilsCrossed,
+  Wallet,
+} from "lucide-react";
 import { CartSummary } from "@/features/order/components/cart-summary";
 import { AddressForm } from "@/features/storefront/components/address-form";
 import { usePaymentMethods } from "@/features/storefront/hooks/use-payment-methods";
@@ -28,7 +36,10 @@ import { useCustomerSession } from "@/hooks/use-customer-session";
 import { toast } from "@/hooks/use-toast";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 import { branchOnlineConfig } from "@/features/storefront/services/storefront-branches";
-import { placeStorefrontOrder, placeDineInOrder } from "@/features/storefront/services/storefront-orders";
+import {
+  placeStorefrontOrder,
+  placeDineInOrder,
+} from "@/features/storefront/services/storefront-orders";
 import { validatePromotionCode } from "@/features/promotion/services/storefront-promotions";
 import type { Address } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -39,6 +50,10 @@ const PAYMENT_ICONS: Record<string, typeof CreditCard> = {
   razorpay: CreditCard,
   cod: Banknote,
 };
+
+/** Table names are often already prefixed ("Table-1") — don't double it up. */
+const tableLabel = (name?: string | null): string =>
+  !name ? "your table" : /^\s*table\b/i.test(name) ? name : `Table ${name}`;
 
 function CheckoutContent() {
   const router = useRouter();
@@ -60,6 +75,8 @@ function CheckoutContent() {
   const dineIn = useDineIn();
   const isDineIn = dineIn.active && dineIn.branchId === branchId;
   const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [showGuestErrors, setShowGuestErrors] = useState(false);
 
   // Payment methods (enabled ones only; no secrets). Dine-in pays at the table.
   const { methods: paymentMethods } = usePaymentMethods();
@@ -79,7 +96,7 @@ function CheckoutContent() {
   // Cached branches (React Query) — branch + online config derived reactively.
   const { branches, isLoading: branchesLoading } = useStorefrontBranches();
   const branch = useMemo(
-    () => (branchId ? branches.find((b) => b.id === branchId) ?? null : null),
+    () => (branchId ? (branches.find((b) => b.id === branchId) ?? null) : null),
     [branches, branchId],
   );
   const online = useMemo(() => (branch ? branchOnlineConfig(branch) : null), [branch]);
@@ -110,9 +127,17 @@ function CheckoutContent() {
       defaultedRef.current = true;
       if (online.deliveryAvailable) setFulfillmentType("delivery");
       else if (online.pickupAvailable) setFulfillmentType("pickup");
-    } else if (fulfillmentType === "delivery" && !online.deliveryAvailable && online.pickupAvailable) {
+    } else if (
+      fulfillmentType === "delivery" &&
+      !online.deliveryAvailable &&
+      online.pickupAvailable
+    ) {
       setFulfillmentType("pickup");
-    } else if (fulfillmentType === "pickup" && !online.pickupAvailable && online.deliveryAvailable) {
+    } else if (
+      fulfillmentType === "pickup" &&
+      !online.pickupAvailable &&
+      online.deliveryAvailable
+    ) {
       setFulfillmentType("delivery");
     }
     if (!pickupTime && online.pickupSlots[0]) setPickupTime(online.pickupSlots[0]);
@@ -205,19 +230,26 @@ function CheckoutContent() {
         toast("Please re-scan the table QR to order.", { tone: "error" });
         return;
       }
+      const name = guestName.trim();
+      const phone = guestPhone.trim();
+      if (!name || !phone) {
+        setShowGuestErrors(true);
+        toast("Please enter your name and phone number.", { tone: "error" });
+        return;
+      }
       setPaying(true);
       // Stable key for this attempt so a double-tap / retry can't double-order.
       idempotencyRef.current ??= crypto.randomUUID();
       try {
         const order = await placeDineInOrder(dineIn.slug, {
           items,
-          customerName: guestName.trim() || user?.name || "Table guest",
-          customerPhone: user?.phone || undefined,
+          customerName: name,
+          customerPhone: phone,
           promotionCode: appliedPromo?.code,
           idempotencyKey: idempotencyRef.current,
-          notes: [`Dine-in · Table ${dineIn.tableName ?? ""}`.trim(), note.trim()]
-            .filter(Boolean)
-            .join("\n") || undefined,
+          notes:
+            [`Dine-in · ${tableLabel(dineIn.tableName)}`, note.trim()].filter(Boolean).join("\n") ||
+            undefined,
         });
         idempotencyRef.current = null;
         clear();
@@ -294,10 +326,7 @@ function CheckoutContent() {
         tax,
         deliveryFee,
         notes:
-          [
-            fulfillmentType === "pickup" && pickupTime ? `Pickup at ${pickupTime}` : "",
-            note.trim(),
-          ]
+          [fulfillmentType === "pickup" && pickupTime ? `Pickup at ${pickupTime}` : "", note.trim()]
             .filter(Boolean)
             .join("\n") || undefined,
       });
@@ -307,7 +336,9 @@ function CheckoutContent() {
       router.push(`/track/${order.id}`);
     } catch (e) {
       setPaymentDialogOpen(false);
-      toast(e instanceof Error ? e.message : "Payment failed — please try again", { tone: "error" });
+      toast(e instanceof Error ? e.message : "Payment failed — please try again", {
+        tone: "error",
+      });
     } finally {
       setPaying(false);
     }
@@ -346,7 +377,7 @@ function CheckoutContent() {
       {branch && (
         <p className="mt-1 text-muted-foreground">
           {isDineIn
-            ? `Dine-in · Table ${dineIn.tableName} · ${branch.name}`
+            ? `Dine-in · ${tableLabel(dineIn.tableName)} · ${branch.name}`
             : `Ordering from ${branch.name}`}
         </p>
       )}
@@ -363,20 +394,39 @@ function CheckoutContent() {
                 <div className="flex items-center gap-3 rounded-xl border border-brand/30 bg-brand-tint/40 p-4">
                   <UtensilsCrossed className="size-5 shrink-0 text-brand" />
                   <div>
-                    <p className="font-medium text-ink">Table {dineIn.tableName}</p>
+                    <p className="font-medium text-ink">{tableLabel(dineIn.tableName)}</p>
                     <p className="text-sm text-muted-foreground">
                       {branch?.name} · served to your table
                     </p>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="guest-name">Your name (optional)</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="guest-name">Your name</Label>
                   <Input
                     id="guest-name"
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     placeholder="Helps staff bring it to the right person"
+                    aria-invalid={showGuestErrors && !guestName.trim()}
                   />
+                  {showGuestErrors && !guestName.trim() && (
+                    <p className="text-xs text-destructive">Please enter your name.</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="guest-phone">Phone number</Label>
+                  <Input
+                    id="guest-phone"
+                    type="tel"
+                    inputMode="tel"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="So we can reach you about your order"
+                    aria-invalid={showGuestErrors && !guestPhone.trim()}
+                  />
+                  {showGuestErrors && !guestPhone.trim() && (
+                    <p className="text-xs text-destructive">Please enter a phone number.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -384,149 +434,153 @@ function CheckoutContent() {
 
           {!isDineIn && (
             <>
-          {/* Fulfillment type */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">How would you like it?</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              {online?.deliveryAvailable && (
-                <button
-                  type="button"
-                  onClick={() => setFulfillmentType("delivery")}
-                  className={cn(
-                    "flex flex-col items-start rounded-xl border p-4 text-left transition-colors",
-                    fulfillmentType === "delivery"
-                      ? "border-brand bg-brand-tint"
-                      : "border-border hover:bg-secondary",
-                  )}
-                >
-                  <Truck className="mb-2 size-5 text-brand" />
-                  <span className="font-medium">Delivery</span>
-                  <span className="text-sm text-muted-foreground">
-                    ~{online.deliveryEtaMinutes} min · {formatCurrency(online.deliveryFee)} fee
-                  </span>
-                </button>
-              )}
-              {online?.pickupAvailable && (
-                <button
-                  type="button"
-                  onClick={() => setFulfillmentType("pickup")}
-                  className={cn(
-                    "flex flex-col items-start rounded-xl border p-4 text-left transition-colors",
-                    fulfillmentType === "pickup"
-                      ? "border-brand bg-brand-tint"
-                      : "border-border hover:bg-secondary",
-                  )}
-                >
-                  <MapPin className="mb-2 size-5 text-brand" />
-                  <span className="font-medium">Pickup</span>
-                  <span className="text-sm text-muted-foreground">Ready in ~15 min</span>
-                </button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Deliver to — needs an account */}
-          {fulfillmentType === "delivery" && isAuthenticated && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Deliver to</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Map of the selected address — only when it has a pinned location. */}
-                {!showAddressForm &&
-                  selectedAddress?.lat != null &&
-                  selectedAddress?.lng != null && (
-                    <AddressMap lat={selectedAddress.lat} lng={selectedAddress.lng} />
-                  )}
-                {user?.addresses.length === 0 && !showAddressForm && (
-                  <p className="text-sm text-muted-foreground">No saved addresses yet.</p>
-                )}
-                {user?.addresses.map((addr: Address) => (
-                  <div
-                    key={addr.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedAddressId(addr.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") setSelectedAddressId(addr.id);
-                    }}
-                    className={cn(
-                      "w-full cursor-pointer rounded-xl border p-4 text-left text-sm transition-colors",
-                      effectiveAddressId === addr.id
-                        ? "border-brand bg-brand-tint"
-                        : "border-border hover:bg-secondary",
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{addr.label}</p>
-                      {addr.isDefault && (
-                        <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
-                          Default
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-muted-foreground">
-                      {addr.line1}
-                      {addr.line2 ? `, ${addr.line2}` : ""}, {addr.city} {addr.postalCode}
-                    </p>
-                    {!addr.isDefault && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleSetDefault(addr.id);
-                        }}
-                        className="mt-2 text-xs font-medium text-brand hover:underline"
-                      >
-                        Set as default
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {showAddressForm ? (
-                  <AddressForm
-                    saving={savingAddress}
-                    onCancel={() => setShowAddressForm(false)}
-                    onSave={handleSaveAddress}
-                  />
-                ) : (
-                  <Button type="button" variant="outline" onClick={() => setShowAddressForm(true)}>
-                    Add new address
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Pickup time */}
-          {fulfillmentType === "pickup" && online && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Pickup time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {online.pickupSlots.map((slot) => (
+              {/* Fulfillment type */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">How would you like it?</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  {online?.deliveryAvailable && (
                     <button
-                      key={slot}
                       type="button"
-                      onClick={() => setPickupTime(slot)}
+                      onClick={() => setFulfillmentType("delivery")}
                       className={cn(
-                        "rounded-full border px-4 py-2 text-sm font-medium transition-colors",
-                        pickupTime === slot
-                          ? "border-brand bg-brand text-primary-foreground"
+                        "flex flex-col items-start rounded-xl border p-4 text-left transition-colors",
+                        fulfillmentType === "delivery"
+                          ? "border-brand bg-brand-tint"
                           : "border-border hover:bg-secondary",
                       )}
                     >
-                      {slot}
+                      <Truck className="mb-2 size-5 text-brand" />
+                      <span className="font-medium">Delivery</span>
+                      <span className="text-sm text-muted-foreground">
+                        ~{online.deliveryEtaMinutes} min · {formatCurrency(online.deliveryFee)} fee
+                      </span>
                     </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  )}
+                  {online?.pickupAvailable && (
+                    <button
+                      type="button"
+                      onClick={() => setFulfillmentType("pickup")}
+                      className={cn(
+                        "flex flex-col items-start rounded-xl border p-4 text-left transition-colors",
+                        fulfillmentType === "pickup"
+                          ? "border-brand bg-brand-tint"
+                          : "border-border hover:bg-secondary",
+                      )}
+                    >
+                      <MapPin className="mb-2 size-5 text-brand" />
+                      <span className="font-medium">Pickup</span>
+                      <span className="text-sm text-muted-foreground">Ready in ~15 min</span>
+                    </button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Deliver to — needs an account */}
+              {fulfillmentType === "delivery" && isAuthenticated && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Deliver to</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* Map of the selected address — only when it has a pinned location. */}
+                    {!showAddressForm &&
+                      selectedAddress?.lat != null &&
+                      selectedAddress?.lng != null && (
+                        <AddressMap lat={selectedAddress.lat} lng={selectedAddress.lng} />
+                      )}
+                    {user?.addresses.length === 0 && !showAddressForm && (
+                      <p className="text-sm text-muted-foreground">No saved addresses yet.</p>
+                    )}
+                    {user?.addresses.map((addr: Address) => (
+                      <div
+                        key={addr.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedAddressId(addr.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") setSelectedAddressId(addr.id);
+                        }}
+                        className={cn(
+                          "w-full cursor-pointer rounded-xl border p-4 text-left text-sm transition-colors",
+                          effectiveAddressId === addr.id
+                            ? "border-brand bg-brand-tint"
+                            : "border-border hover:bg-secondary",
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{addr.label}</p>
+                          {addr.isDefault && (
+                            <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground">
+                          {addr.line1}
+                          {addr.line2 ? `, ${addr.line2}` : ""}, {addr.city} {addr.postalCode}
+                        </p>
+                        {!addr.isDefault && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleSetDefault(addr.id);
+                            }}
+                            className="mt-2 text-xs font-medium text-brand hover:underline"
+                          >
+                            Set as default
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {showAddressForm ? (
+                      <AddressForm
+                        saving={savingAddress}
+                        onCancel={() => setShowAddressForm(false)}
+                        onSave={handleSaveAddress}
+                      />
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowAddressForm(true)}
+                      >
+                        Add new address
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Pickup time */}
+              {fulfillmentType === "pickup" && online && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Pickup time</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {online.pickupSlots.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => setPickupTime(slot)}
+                          className={cn(
+                            "rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                            pickupTime === slot
+                              ? "border-brand bg-brand text-primary-foreground"
+                              : "border-border hover:bg-secondary",
+                          )}
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
 
@@ -683,9 +737,9 @@ function CheckoutContent() {
                 size="lg"
                 disabled={
                   paying ||
+                  (isDineIn && (!guestName.trim() || !guestPhone.trim())) ||
                   (!isDineIn &&
-                    (!paymentMethodId ||
-                      (fulfillmentType === "delivery" && !effectiveAddressId)))
+                    (!paymentMethodId || (fulfillmentType === "delivery" && !effectiveAddressId)))
                 }
                 onClick={handlePay}
               >

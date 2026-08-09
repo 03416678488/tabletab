@@ -10,12 +10,7 @@ export type OrderChannel = "in-venue" | "online";
 export type FulfillmentType = "dine-in" | "delivery" | "pickup";
 
 export type StaffRole =
-  | "owner"
-  | "multi_branch_manager"
-  | "branch_manager"
-  | "chef"
-  | "waiter"
-  | "delivery";
+  "owner" | "multi_branch_manager" | "branch_manager" | "chef" | "waiter" | "delivery";
 
 export type TableStatus = "available" | "seated" | "needs-service" | "inactive";
 
@@ -117,13 +112,7 @@ export interface MenuModifierGroup {
 }
 
 export type MenuTag =
-  | "popular"
-  | "new"
-  | "vegetarian"
-  | "vegan"
-  | "gluten-free"
-  | "spicy"
-  | "chef-special";
+  "popular" | "new" | "vegetarian" | "vegan" | "gluten-free" | "spicy" | "chef-special";
 
 /** A named priced option (size / variant / add-on). Price adds to the base. */
 export interface MenuOption {
@@ -157,6 +146,7 @@ export interface MenuCategory {
   id: ID;
   name: string;
   description?: string;
+  imageUrl?: string;
   sortOrder: number;
 }
 
@@ -421,12 +411,7 @@ export interface CreateVenueOrderInput {
 }
 
 export type ReservationStatus =
-  | "requested"
-  | "confirmed"
-  | "seated"
-  | "completed"
-  | "no-show"
-  | "cancelled";
+  "requested" | "confirmed" | "seated" | "completed" | "no-show" | "cancelled";
 
 export type ReservationSource = "online" | "phone" | "walk-in";
 

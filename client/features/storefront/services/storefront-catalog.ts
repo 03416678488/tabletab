@@ -62,6 +62,7 @@ interface ApiCategory {
   id: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   sortOrder: number;
 }
 
@@ -155,6 +156,7 @@ export async function fetchStorefrontCategories(): Promise<MenuCategory[]> {
       id: c.id,
       name: c.name,
       description: c.description ?? undefined,
+      imageUrl: c.imageUrl ?? undefined,
       sortOrder: c.sortOrder,
     }))
     .sort((a, b) => a.sortOrder - b.sortOrder);
