@@ -5,6 +5,8 @@
 
 # OS / editor
 .DS_Store
+Thumbs.db
+ehthumbs.db
 *.pem
 .idea/
 .vscode/*
@@ -32,6 +34,11 @@ dist/
 # Testing
 coverage/
 .nyc_output/
+
+# Lint / format caches (from the root Husky + lint-staged tooling)
+.eslintcache
+.prettiercache
+.cache/
 
 # Logs & debug
 *.log
@@ -66,3 +73,6 @@ next-env.d.ts
 # --- api-specific ---
 # Redis config holding real passwords — the .example is committed, the real one is not.
 api/.config/redis.conf
+
+# Postgres config holding real passwords — the .example is committed, the real one is not.
+api/.config/pgpass

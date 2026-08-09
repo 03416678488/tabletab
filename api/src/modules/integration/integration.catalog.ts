@@ -8,11 +8,7 @@
  *   - builtin  → already configured elsewhere in the app (`manageSlug`).
  */
 export type IntegrationCategory =
-  | 'delivery'
-  | 'payments'
-  | 'messaging'
-  | 'accounting'
-  | 'marketing';
+  'delivery' | 'messaging' | 'accounting' | 'marketing';
 
 export type IntegrationStatus = 'available' | 'coming_soon';
 export type IntegrationAuthType = 'api_key' | 'oauth' | 'builtin';
@@ -100,25 +96,17 @@ export const INTEGRATION_CATALOG: Connector[] = [
     key: 'deliveroo',
     name: 'Deliveroo',
     category: 'delivery',
-    description: 'Ingest Deliveroo orders on the KDS and keep the menu in sync.',
+    description:
+      'Ingest Deliveroo orders on the KDS and keep the menu in sync.',
     status: 'available',
     authType: 'api_key',
     fields: AGGREGATOR_FIELDS,
     webhookPath: '/integrations/deliveroo/webhook',
     canPushMenu: true,
   },
-  {
-    key: 'stripe',
-    name: 'Stripe',
-    category: 'payments',
-    description: 'Accept card payments online and at the counter.',
-    status: 'available',
-    authType: 'api_key',
-    fields: [
-      { key: 'publishableKey', label: 'Publishable key', placeholder: 'pk_live_…' },
-      { key: 'secretKey', label: 'Secret key', type: 'password', placeholder: 'sk_live_…' },
-    ],
-  },
+  // Payments are configured in Settings → Payment Gateway (the source of truth
+  // that drives storefront checkout), so they are intentionally NOT marketplace
+  // connectors — that avoids two places to manage the same providers.
   {
     key: 'twilio',
     name: 'Twilio SMS',

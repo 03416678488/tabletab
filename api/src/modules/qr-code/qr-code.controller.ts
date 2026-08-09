@@ -38,20 +38,6 @@ export class QrCodeController {
     return this._qrCodeService.callWaiter(slug);
   }
 
-  /** Public — the table's running order (bill), or null. */
-  @Public()
-  @Get('bill/:slug')
-  bill(@Param('slug') slug: string) {
-    return this._qrCodeService.getBill(slug);
-  }
-
-  /** Public — a guest is ready to pay; alerts branch staff to bring the bill. */
-  @Public()
-  @Post('request-bill/:slug')
-  requestBill(@Param('slug') slug: string) {
-    return this._qrCodeService.requestBill(slug);
-  }
-
   /**
    * Public — place a dine-in order from a scanned table QR. The table + branch
    * are taken from the slug (never the body), and every item is re-priced

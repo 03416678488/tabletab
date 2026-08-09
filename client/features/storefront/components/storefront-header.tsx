@@ -2,18 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Heart, Menu, Search, User } from "lucide-react";
+import { Menu, Search, User } from "lucide-react";
 import { CartMenu } from "@/features/storefront/components/cart-menu";
 import { SearchDialog } from "@/features/storefront/components/search-dialog";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -97,24 +91,39 @@ export function StorefrontHeader() {
                     {l.label}
                   </Link>
                 ))}
-                <Link href="/favorites" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                <Link
+                  href="/favorites"
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary"
+                >
                   My favorites
                 </Link>
                 {isAuthenticated ? (
-                  <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                  <Link
+                    href="/account"
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary"
+                  >
                     My account
                   </Link>
                 ) : (
                   <>
-                    <Link href="/signin" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                    <Link
+                      href="/signin"
+                      className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary"
+                    >
                       Sign in
                     </Link>
-                    <Link href="/signup" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                    <Link
+                      href="/signup"
+                      className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary"
+                    >
                       Create account
                     </Link>
                   </>
                 )}
-                <Link href="/checkout" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary">
+                <Link
+                  href="/checkout"
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-secondary"
+                >
                   Cart ({hydrated ? itemCount : 0})
                 </Link>
               </nav>

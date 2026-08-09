@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -34,11 +34,7 @@ import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefron
 import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
 import { fetchReservationSettings } from "@/features/reserve/services/reservation-settings.service";
 import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
-import type {
-  Branch,
-  BranchReservationSettings,
-  MenuItem,
-} from "@/lib/types";
+import type { Branch, BranchReservationSettings, MenuItem } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 /** Delivery/pickup availability derived from the branch's own settings. */
@@ -79,7 +75,7 @@ export function HomeLanding({
   const branch = useMemo(
     () =>
       branchId
-        ? allBranches.find((b) => b.id === branchId) ?? null
+        ? (allBranches.find((b) => b.id === branchId) ?? null)
         : nearestBranch(allBranches, coords),
     [allBranches, branchId, coords],
   );
@@ -103,8 +99,9 @@ export function HomeLanding({
     }
   }, [availability, fulfillment, branch, setFulfillment]);
 
-  const [reservationSettings, setReservationSettings] =
-    useState<BranchReservationSettings | null>(null);
+  const [reservationSettings, setReservationSettings] = useState<BranchReservationSettings | null>(
+    null,
+  );
   const [reorderItems, setReorderItems] = useState<MenuItem[]>([]);
 
   // Menu content (categories + items) — real catalog, cached (React Query).
@@ -115,7 +112,6 @@ export function HomeLanding({
     [rawCategories],
   );
   const loading = branchesLoading || catsLoading || itemsLoading;
-
 
   // Scroll-spy state for the sticky category nav.
   const [activeCategory, setActiveCategory] = useState<string>("");
@@ -273,47 +269,47 @@ export function HomeLanding({
               />
             </div>
 
-          {/* Branch context */}
-          {showLocation && (
-          <div className="order-1 flex items-center gap-2.5 rounded-full border border-border bg-surface px-3 py-1.5 shadow-[var(--shadow-card)] md:order-2 md:min-w-[19rem]">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
-              <MapPin className="size-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {branch
-                  ? fulfillment === "delivery"
-                    ? "Delivering from"
-                    : fulfillment === "pickup"
-                      ? "Pickup from"
-                      : "Reserve at"
-                  : "Your location"}
-              </p>
-              {loading ? (
-                <Skeleton className="mt-1 h-4 w-40" />
-              ) : branch ? (
-                <p className="truncate text-sm font-semibold text-ink">
-                  {branch.name}
-                  {km != null && km < 50 && (
-                    <span className="ml-1.5 font-normal text-muted-foreground">
-                      · {km < 10 ? km.toFixed(1) : Math.round(km)} km
-                    </span>
+            {/* Branch context */}
+            {showLocation && (
+              <div className="order-1 flex items-center gap-2.5 rounded-full border border-border bg-surface px-3 py-1.5 shadow-[var(--shadow-card)] md:order-2 md:min-w-[19rem]">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
+                  <MapPin className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {branch
+                      ? fulfillment === "delivery"
+                        ? "Delivering from"
+                        : fulfillment === "pickup"
+                          ? "Pickup from"
+                          : "Reserve at"
+                      : "Your location"}
+                  </p>
+                  {loading ? (
+                    <Skeleton className="mt-1 h-4 w-40" />
+                  ) : branch ? (
+                    <p className="truncate text-sm font-semibold text-ink">
+                      {branch.name}
+                      {km != null && km < 50 && (
+                        <span className="ml-1.5 font-normal text-muted-foreground">
+                          · {km < 10 ? km.toFixed(1) : Math.round(km)} km
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="truncate text-sm font-semibold text-ink">Set your location</p>
                   )}
-                </p>
-              ) : (
-                <p className="truncate text-sm font-semibold text-ink">Set your location</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onChangeBranch}
-              className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-tint"
-            >
-              {branch ? "Change" : "Set location"}
-            </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={onChangeBranch}
+                  className="shrink-0 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand-tint"
+                >
+                  {branch ? "Change" : "Set location"}
+                </button>
+              </div>
+            )}
           </div>
-          )}
-        </div>
         </div>
       </div>
 
@@ -329,198 +325,199 @@ export function HomeLanding({
         <LandingSkeleton />
       ) : (
         <>
-      {/* Closed-branch notice */}
-      {branch && !branch.isOpen && (
-        <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-accent-tint px-4 py-3 text-amber-800">
-            <Clock className="mt-0.5 size-5 shrink-0" />
-            <p className="flex-1 text-sm font-medium">
-              {branch.name} is currently closed. You can browse the menu — ordering resumes when we
-              reopen.
-            </p>
-            <button
-              type="button"
-              onClick={onChangeBranch}
-              className="shrink-0 text-sm font-semibold underline"
-            >
-              Switch branch
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Mode-aware status */}
-      {!loading && branch && online && (
-        <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
-          <ModeBanner mode={fulfillment} branch={branch} online={online} />
-        </div>
-      )}
-
-      {publishedBlocks && publishedBlocks.length > 0 ? (
-        // A published custom landing takes over the body.
-        <div className="pt-2">
-          <BlockList blocks={publishedBlocks} />
-        </div>
-      ) : (
-        <>
-          {/* Category carousel — "Cuisines for you" style */}
-          {categories.length > 0 && (
-            <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-              <h2 className="mb-4 font-display text-xl font-bold text-ink sm:text-2xl">
-                Cuisines for you
-              </h2>
-              <div className="relative">
-                {/* Prev / next arrows (desktop) */}
+          {/* Closed-branch notice */}
+          {branch && !branch.isOpen && (
+            <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
+              <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-accent-tint px-4 py-3 text-amber-800">
+                <Clock className="mt-0.5 size-5 shrink-0" />
+                <p className="flex-1 text-sm font-medium">
+                  {branch.name} is currently closed. You can browse the menu — ordering resumes when
+                  we reopen.
+                </p>
                 <button
                   type="button"
-                  onClick={() => scrollCats(-1)}
-                  aria-label="Scroll categories left"
-                  className="absolute -left-3 top-14 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
+                  onClick={onChangeBranch}
+                  className="shrink-0 text-sm font-semibold underline"
                 >
-                  <ChevronLeft className="size-5" />
+                  Switch branch
                 </button>
-                <button
-                  type="button"
-                  onClick={() => scrollCats(1)}
-                  aria-label="Scroll categories right"
-                  className="absolute -right-3 top-14 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
-                >
-                  <ChevronRight className="size-5" />
-                </button>
-
-                <div
-                  ref={catScrollRef}
-                  className="-mx-4 flex gap-4 overflow-x-auto scroll-smooth px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
-                >
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => scrollToCategory(cat.id)}
-                      className="group flex w-24 shrink-0 flex-col items-center gap-2 sm:w-28"
-                    >
-                      <span className="relative aspect-square w-full overflow-hidden rounded-2xl bg-subtle shadow-[var(--shadow-card)] transition-transform group-hover:-translate-y-1 group-active:scale-95">
-                        <Image
-                          src={categoryThumb[cat.id]}
-                          alt={cat.name}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-110"
-                          sizes="112px"
-                        />
-                      </span>
-                      <span className="line-clamp-2 text-center text-sm font-semibold leading-tight text-brand">
-                        {cat.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Order again — returning customers */}
-          {reorderItems.length > 0 && (
-            <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-              <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold text-ink">
-                <RotateCcw className="size-5 text-brand" />
-                Order again
-              </h2>
-              <div className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {reorderItems.map((item) => (
-                  <div key={item.id} className="w-40 shrink-0 snap-start sm:w-48">
-                    <ProductCard item={item} onAdd={handleAdd} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Popular carousel */}
-          {popular.length > 0 && (
-            <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-              <h2 className="mb-3 font-display text-lg font-bold text-ink">Popular right now</h2>
-              <div className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {popular.map((item) => (
-                  <div key={item.id} className="w-40 shrink-0 snap-start sm:w-48">
-                    <ProductCard item={item} onAdd={handleAdd} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Featured highlights carousel */}
-          <FeaturedCarousel />
-
-          {/* Sticky category nav (scroll-spy) — sits below the sticky tabs bar */}
-          {itemsByCategory.some(({ items: ci }) => ci.length > 0) && (
-            <div
-              className="sticky z-20 border-y border-border bg-surface md:bg-surface/95 md:backdrop-blur-md"
-              style={{ top: `calc(4rem + ${stickyHeight}px)` }}
-            >
-              <div className="mx-auto max-w-6xl px-4 sm:px-6">
-                <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-                  {itemsByCategory.map(
-                    ({ category, items: ci }) =>
-                      ci.length > 0 && (
-                        <button
-                          key={category.id}
-                          type="button"
-                          onClick={() => scrollToCategory(category.id)}
-                          className={cn(
-                            "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
-                            activeCategory === category.id
-                              ? "border-brand bg-brand text-primary-foreground"
-                              : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-ink",
-                          )}
-                        >
-                          {category.name}
-                        </button>
-                      ),
-                  )}
-                </div>
               </div>
             </div>
           )}
 
-          {/* Category sections */}
-          {itemsByCategory.map(({ category, items: catItems }) => {
-            if (catItems.length === 0) return null;
-            return (
-              <Fragment key={category.id}>
-                <section
-                  id={`cat-${category.id}`}
-                  ref={(el) => {
-                    sectionRefs.current[category.id] = el;
-                  }}
-                  // content-visibility skips rendering off-screen category
-                  // sections while scrolling a long menu; contain-intrinsic-size
-                  // reserves their space (auto = remember real height after first
-                  // paint) so the scrollbar and category jumps stay accurate.
-                  className="mx-auto max-w-6xl px-4 py-4 sm:px-6 [content-visibility:auto] [contain-intrinsic-size:auto_500px]"
-                  style={{ scrollMarginTop: `calc(7rem + ${stickyHeight}px)` }}
-                >
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h2 className="font-display text-lg font-bold text-ink">{category.name}</h2>
-                    <Link
-                      href="/"
-                      className="inline-flex items-center gap-0.5 text-sm font-medium text-brand hover:underline"
+          {/* Mode-aware status */}
+          {!loading && branch && online && (
+            <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
+              <ModeBanner mode={fulfillment} branch={branch} online={online} />
+            </div>
+          )}
+
+          {publishedBlocks && publishedBlocks.length > 0 ? (
+            // A published custom landing takes over the body.
+            <div className="pt-2">
+              <BlockList blocks={publishedBlocks} />
+            </div>
+          ) : (
+            <>
+              {/* Category carousel — "Cuisines for you" style */}
+              {categories.length > 0 && (
+                <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+                  <h2 className="mb-4 font-display text-xl font-bold text-ink sm:text-2xl">
+                    Cuisines for you
+                  </h2>
+                  <div className="relative">
+                    {/* Prev / next arrows (desktop) */}
+                    <button
+                      type="button"
+                      onClick={() => scrollCats(-1)}
+                      aria-label="Scroll categories left"
+                      className="absolute -left-3 top-14 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
                     >
-                      See all <ChevronRight className="size-4" />
-                    </Link>
+                      <ChevronLeft className="size-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollCats(1)}
+                      aria-label="Scroll categories right"
+                      className="absolute -right-3 top-14 z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-[var(--shadow-elevated)] transition-colors hover:bg-secondary sm:flex"
+                    >
+                      <ChevronRight className="size-5" />
+                    </button>
+
+                    <div
+                      ref={catScrollRef}
+                      className="-mx-4 flex gap-4 overflow-x-auto scroll-smooth px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+                    >
+                      {categories.map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => scrollToCategory(cat.id)}
+                          className="group flex w-24 shrink-0 flex-col items-center gap-2 sm:w-28"
+                        >
+                          <span className="relative aspect-square w-full overflow-hidden rounded-2xl bg-subtle shadow-[var(--shadow-card)] transition-transform group-hover:-translate-y-1 group-active:scale-95">
+                            <Image
+                              src={categoryThumb[cat.id]}
+                              alt={cat.name}
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-110"
+                              sizes="112px"
+                            />
+                          </span>
+                          <span className="line-clamp-2 text-center text-sm font-semibold leading-tight text-brand">
+                            {cat.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-                    {catItems.slice(0, 4).map((item) => (
-                      <ProductCard key={item.id} item={item} onAdd={handleAdd} />
+                </section>
+              )}
+
+              {/* Order again — returning customers */}
+              {reorderItems.length > 0 && (
+                <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+                  <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold text-ink">
+                    <RotateCcw className="size-5 text-brand" />
+                    Order again
+                  </h2>
+                  <div className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {reorderItems.map((item) => (
+                      <div key={item.id} className="w-40 shrink-0 snap-start sm:w-48">
+                        <ProductCard item={item} onAdd={handleAdd} />
+                      </div>
                     ))}
                   </div>
                 </section>
-              </Fragment>
-            );
-          })}
+              )}
 
-        </>
-      )}
+              {/* Popular carousel */}
+              {popular.length > 0 && (
+                <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+                  <h2 className="mb-3 font-display text-lg font-bold text-ink">
+                    Popular right now
+                  </h2>
+                  <div className="flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {popular.map((item) => (
+                      <div key={item.id} className="w-40 shrink-0 snap-start sm:w-48">
+                        <ProductCard item={item} onAdd={handleAdd} />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Featured highlights carousel */}
+              <FeaturedCarousel />
+
+              {/* Sticky category nav (scroll-spy) — sits below the sticky tabs bar */}
+              {itemsByCategory.some(({ items: ci }) => ci.length > 0) && (
+                <div
+                  className="sticky z-20 border-y border-border bg-surface md:bg-surface/95 md:backdrop-blur-md"
+                  style={{ top: `calc(4rem + ${stickyHeight}px)` }}
+                >
+                  <div className="mx-auto max-w-6xl px-4 sm:px-6">
+                    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+                      {itemsByCategory.map(
+                        ({ category, items: ci }) =>
+                          ci.length > 0 && (
+                            <button
+                              key={category.id}
+                              type="button"
+                              onClick={() => scrollToCategory(category.id)}
+                              className={cn(
+                                "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+                                activeCategory === category.id
+                                  ? "border-brand bg-brand text-primary-foreground"
+                                  : "border-border bg-surface text-muted-foreground hover:border-brand/40 hover:text-ink",
+                              )}
+                            >
+                              {category.name}
+                            </button>
+                          ),
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Category sections */}
+              {itemsByCategory.map(({ category, items: catItems }) => {
+                if (catItems.length === 0) return null;
+                return (
+                  <Fragment key={category.id}>
+                    <section
+                      id={`cat-${category.id}`}
+                      ref={(el) => {
+                        sectionRefs.current[category.id] = el;
+                      }}
+                      // content-visibility skips rendering off-screen category
+                      // sections while scrolling a long menu; contain-intrinsic-size
+                      // reserves their space (auto = remember real height after first
+                      // paint) so the scrollbar and category jumps stay accurate.
+                      className="mx-auto max-w-6xl px-4 py-4 sm:px-6 [content-visibility:auto] [contain-intrinsic-size:auto_500px]"
+                      style={{ scrollMarginTop: `calc(7rem + ${stickyHeight}px)` }}
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <h2 className="font-display text-lg font-bold text-ink">{category.name}</h2>
+                        <Link
+                          href="/"
+                          className="inline-flex items-center gap-0.5 text-sm font-medium text-brand hover:underline"
+                        >
+                          See all <ChevronRight className="size-4" />
+                        </Link>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+                        {catItems.slice(0, 4).map((item) => (
+                          <ProductCard key={item.id} item={item} onAdd={handleAdd} />
+                        ))}
+                      </div>
+                    </section>
+                  </Fragment>
+                );
+              })}
+            </>
+          )}
         </>
       )}
     </div>

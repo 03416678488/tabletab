@@ -3,9 +3,11 @@
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TimeSelect } from "@/components/ui/time-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -14,9 +16,20 @@ import { ImagePickerField } from "@/features/media/components/image-picker-field
 import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-group";
 
 export type SettingsField =
-  | { key: string; label: string; type?: "text" | "email" | "url" | "number" | "password" | "time"; full?: boolean }
+  | {
+      key: string;
+      label: string;
+      type?: "text" | "email" | "url" | "number" | "password" | "time";
+      full?: boolean;
+    }
   | { key: string; label: string; type: "textarea"; full?: boolean }
-  | { key: string; label: string; type: "select"; options: { value: string; label: string }[]; full?: boolean }
+  | {
+      key: string;
+      label: string;
+      type: "select";
+      options: { value: string; label: string }[];
+      full?: boolean;
+    }
   | { key: string; label: string; type: "toggle"; full?: boolean }
   | { key: string; label: string; type: "image"; full?: boolean };
 
@@ -27,9 +40,6 @@ interface SettingsFormProps {
   /** Optional non-field content rendered below the fields (e.g. presets). */
   children?: React.ReactNode;
 }
-
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 export function SettingsForm({ group, title, fields, children }: SettingsFormProps) {
   const { values, set, save, loading, saving } = useSettingsGroup(group);
@@ -60,18 +70,16 @@ export function SettingsForm({ group, title, fields, children }: SettingsFormPro
                 className="w-full resize-none rounded-xl border border-input bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30"
               />
             ) : f.type === "select" ? (
-              <select
-                className={SELECT_CLASS}
+              <Dropdown
                 value={values[f.key] ?? ""}
-                onChange={(e) => set(f.key, e.target.value)}
-              >
-                <option value="">—</option>
-                {f.options.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set(f.key, v)}
+                placeholder="—"
+                aria-label={f.label}
+                options={[
+                  { value: "", label: "—" },
+                  ...f.options.map((o) => ({ value: o.value, label: o.label })),
+                ]}
+              />
             ) : f.type === "toggle" ? (
               <div className="flex items-center gap-5 pt-1.5">
                 {["enable", "disable"].map((opt) => (
@@ -88,9 +96,12 @@ export function SettingsForm({ group, title, fields, children }: SettingsFormPro
                 ))}
               </div>
             ) : f.type === "image" ? (
-              <ImagePickerField
+              <ImagePickerField value={values[f.key] ?? ""} onChange={(url) => set(f.key, url)} />
+            ) : f.type === "time" ? (
+              <TimeSelect
+                className="w-full"
                 value={values[f.key] ?? ""}
-                onChange={(url) => set(f.key, url)}
+                onChange={(v) => set(f.key, v)}
               />
             ) : (
               <Input

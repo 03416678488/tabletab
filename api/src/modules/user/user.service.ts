@@ -1,5 +1,9 @@
 import { DataSource, Repository, QueryRunner } from 'typeorm';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import * as bcrypt from 'bcryptjs';
@@ -36,20 +40,40 @@ export class UserService extends AbstractService<User> {
    * Create a user (+ default role). When `dataSource` is a tenant connection the
    * whole transaction — user row and role assignment — runs in that tenant's DB.
    */
+  /** Roles that span all branches and so are NOT tied to a single home branch. */
+  private static readonly CROSS_BRANCH_ROLES = new Set([
+    'Owner',
+    'Multi Branch Manager',
+    'Customer',
+  ]);
+
   async createUser(
     dto: CreateUserDto,
     roleName: string = 'Customer',
     dataSource?: DataSource,
   ): Promise<User> {
+    // Every single-branch employee must be assigned a home branch.
+    if (!UserService.CROSS_BRANCH_ROLES.has(roleName) && !dto.branchId) {
+      throw new BadRequestException('A branch is required for this employee.');
+    }
+
     const build = async (queryRunner: QueryRunner): Promise<string> => {
-      const hashedPassword = await bcrypt.hash(dto.password, AUTH_CONSTANTS.SALT_ROUNDS);
+      const hashedPassword = await bcrypt.hash(
+        dto.password,
+        AUTH_CONSTANTS.SALT_ROUNDS,
+      );
       const user = this._userRepo.create({
         ...dto,
         password: hashedPassword,
         emailVerified: false,
       });
       const savedUser = await queryRunner.manager.save(User, user);
-      await this.assignRoleToUser(queryRunner, savedUser.id, roleName, dataSource);
+      await this.assignRoleToUser(
+        queryRunner,
+        savedUser.id,
+        roleName,
+        dataSource,
+      );
       return savedUser.id;
     };
 
@@ -87,7 +111,10 @@ export class UserService extends AbstractService<User> {
       .getOne();
   }
 
-  async findByEmail(email: string, repo?: Repository<User>): Promise<User | null> {
+  async findByEmail(
+    email: string,
+    repo?: Repository<User>,
+  ): Promise<User | null> {
     return (repo ?? this._userRepo).findOne({
       where: { email },
       select: [
@@ -124,7 +151,10 @@ export class UserService extends AbstractService<User> {
   }
 
   /** True if a user with this phone already exists (in the given/default DB). */
-  async existsByPhone(phoneNumber: string, repo?: Repository<User>): Promise<boolean> {
+  async existsByPhone(
+    phoneNumber: string,
+    repo?: Repository<User>,
+  ): Promise<boolean> {
     const found = await (repo ?? this._userRepo).findOne({
       where: { phoneNumber },
       select: ['id'],
@@ -177,12 +207,19 @@ export class UserService extends AbstractService<User> {
   }
 
   /** Assign (or clear, with null) a user's home branch for notification scoping. */
-  async setBranch(userId: string, branchId: string | null): Promise<{ success: true }> {
+  async setBranch(
+    userId: string,
+    branchId: string | null,
+  ): Promise<{ success: true }> {
     await this._userRepo.update({ id: userId }, { branchId: branchId ?? null });
     return { success: true };
   }
 
-  async findById(id: string, select?: string[], repo?: Repository<User>): Promise<User | null> {
+  async findById(
+    id: string,
+    select?: string[],
+    repo?: Repository<User>,
+  ): Promise<User | null> {
     const r = repo ?? this._userRepo;
     if (select) {
       return r.findOne({
@@ -254,7 +291,10 @@ export class UserService extends AbstractService<User> {
     for (const user of allUsers) {
       if (user.verificationToken) {
         try {
-          const isMatch = await bcrypt.compare(plainToken, user.verificationToken);
+          const isMatch = await bcrypt.compare(
+            plainToken,
+            user.verificationToken,
+          );
           if (isMatch) {
             return user;
           }
@@ -276,7 +316,10 @@ export class UserService extends AbstractService<User> {
     return user?.emailVerified || false;
   }
 
-  async clearResetToken(userId: string, repo?: Repository<User>): Promise<void> {
+  async clearResetToken(
+    userId: string,
+    repo?: Repository<User>,
+  ): Promise<void> {
     await (repo ?? this._userRepo).update(userId, {
       resetToken: null,
       resetTokenExpiry: null,
@@ -293,7 +336,10 @@ export class UserService extends AbstractService<User> {
     });
   }
 
-  async updatePasswordChangedAt(userId: string, repo?: Repository<User>): Promise<void> {
+  async updatePasswordChangedAt(
+    userId: string,
+    repo?: Repository<User>,
+  ): Promise<void> {
     await (repo ?? this._userRepo).update(userId, {
       passwordChangedAt: new Date(),
     });
@@ -311,7 +357,10 @@ export class UserService extends AbstractService<User> {
     });
   }
 
-  async clearVerificationToken(userId: string, repo?: Repository<User>): Promise<void> {
+  async clearVerificationToken(
+    userId: string,
+    repo?: Repository<User>,
+  ): Promise<void> {
     await (repo ?? this._userRepo).update(userId, {
       verificationToken: null,
       verificationTokenExpiry: null,
@@ -385,8 +434,12 @@ export class UserService extends AbstractService<User> {
     roleName: string,
     dataSource?: DataSource,
   ): Promise<void> {
-    const roleRepo = dataSource ? dataSource.getRepository(Role) : this._roleRepo;
-    const permissionRepo = dataSource ? dataSource.getRepository(Permission) : this._permissionRepo;
+    const roleRepo = dataSource
+      ? dataSource.getRepository(Role)
+      : this._roleRepo;
+    const permissionRepo = dataSource
+      ? dataSource.getRepository(Permission)
+      : this._permissionRepo;
 
     const role = await roleRepo.findOne({
       where: { name: roleName },

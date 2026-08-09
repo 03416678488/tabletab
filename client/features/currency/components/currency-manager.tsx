@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Coins, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -42,18 +43,13 @@ import { settingsService } from "@/features/app-settings/services/settings.servi
 import { useClientPagination } from "@/hooks/use-client-pagination";
 import type { Currency } from "@/features/currency/types/currency.types";
 
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
-
 export function CurrencyManager() {
   const { currencies, loading, error, refetch } = useCurrencies();
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return currencies;
-    return currencies.filter((c) =>
-      `${c.name} ${c.code} ${c.symbol}`.toLowerCase().includes(q),
-    );
+    return currencies.filter((c) => `${c.name} ${c.code} ${c.symbol}`.toLowerCase().includes(q));
   }, [currencies, search]);
   const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
     useClientPagination(filtered);
@@ -237,7 +233,11 @@ export function CurrencyManager() {
                       />
                     </TableCell>
                     <TableCell>
-                      <button type="button" onClick={() => toggleActive(c)} aria-label="Toggle active">
+                      <button
+                        type="button"
+                        onClick={() => toggleActive(c)}
+                        aria-label="Toggle active"
+                      >
                         <StatusPill tone={c.isActive ? "green" : "neutral"}>
                           {c.isActive ? "Active" : "Inactive"}
                         </StatusPill>
@@ -268,10 +268,20 @@ export function CurrencyManager() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(c)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Edit"
+                          onClick={() => openEdit(c)}
+                        >
                           <Pencil className="size-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(c)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Delete"
+                          onClick={() => remove(c)}
+                        >
                           <Trash2 className="size-4" />
                         </Button>
                       </div>
@@ -307,19 +317,18 @@ export function CurrencyManager() {
               </Field>
             ) : (
               <Field label="Currency">
-                <select
-                  className={SELECT_CLASS}
+                <Dropdown
                   value={pickCode}
-                  onChange={(e) => setPickCode(e.target.value)}
-                >
-                  <option value="">— Select a currency —</option>
-                  {options.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.name} ({c.code}) {c.symbol}
-                      {FRANKFURTER_CODES.has(c.code) ? "" : " · manual"}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setPickCode(v)}
+                  searchable
+                  placeholder="— Select a currency —"
+                  aria-label="Currency"
+                  options={options.map((c) => ({
+                    value: c.code,
+                    label: `${c.name} (${c.code}) ${c.symbol}`,
+                    sublabel: FRANKFURTER_CODES.has(c.code) ? undefined : "manual rate",
+                  }))}
+                />
               </Field>
             )}
 

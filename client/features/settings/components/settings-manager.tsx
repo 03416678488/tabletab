@@ -10,6 +10,7 @@ import { ReservationSettings } from "@/features/settings/components/reservation-
 import { BranchDialog } from "@/features/settings/components/branch-dialog";
 import { TableQrCard } from "@/features/settings/components/table-qr-card";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -125,23 +126,21 @@ export function SettingsManager() {
                 min={1}
                 max={60}
                 value={tenant.slaWindowMins}
-                onChange={(e) =>
-                  updateTenant({ slaWindowMins: parseInt(e.target.value, 10) || 5 })
-                }
+                onChange={(e) => updateTenant({ slaWindowMins: parseInt(e.target.value, 10) || 5 })}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
-              <select
-                id="currency"
+              <Dropdown
                 value={tenant.currency}
-                onChange={(e) => updateTenant({ currency: e.target.value })}
-                className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
-              >
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
-              </select>
+                onChange={(v) => updateTenant({ currency: v })}
+                aria-label="Currency"
+                options={[
+                  { value: "USD", label: "USD ($)" },
+                  { value: "EUR", label: "EUR (€)" },
+                  { value: "GBP", label: "GBP (£)" },
+                ]}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="tax">Tax rate (%)</Label>
@@ -151,9 +150,7 @@ export function SettingsManager() {
                 min={0}
                 step={0.1}
                 value={tenant.taxRate}
-                onChange={(e) =>
-                  updateTenant({ taxRate: parseFloat(e.target.value) || 0 })
-                }
+                onChange={(e) => updateTenant({ taxRate: parseFloat(e.target.value) || 0 })}
               />
             </div>
             <div className="space-y-2">
@@ -251,11 +248,7 @@ export function SettingsManager() {
                     <Button variant="outline" size="sm" onClick={() => openEditBranch(b)}>
                       Edit
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setQrBranchId(b.id)}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setQrBranchId(b.id)}>
                       Tables & QR
                     </Button>
                   </div>
@@ -271,9 +264,7 @@ export function SettingsManager() {
         <section>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="font-display text-lg font-semibold text-ink">
-                Tables & QR codes
-              </h2>
+              <h2 className="font-display text-lg font-semibold text-ink">Tables & QR codes</h2>
               <p className="text-sm text-muted-foreground">{qrBranch.name}</p>
             </div>
             <div className="flex gap-2">

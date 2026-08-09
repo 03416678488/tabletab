@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Model3dField } from "@/features/menu/components/model-3d-field";
 import type { MenuItemInput } from "@/hooks/use-menu-store";
 import type { MenuCategory, MenuItem, MenuTag } from "@/lib/types";
@@ -54,7 +49,9 @@ export function MenuItemSheet({
   defaultCategoryId,
   onSave,
 }: MenuItemSheetProps) {
-  const [form, setForm] = useState<MenuItemInput>(emptyForm(defaultCategoryId ?? categories[0]?.id ?? ""));
+  const [form, setForm] = useState<MenuItemInput>(
+    emptyForm(defaultCategoryId ?? categories[0]?.id ?? ""),
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -145,18 +142,14 @@ export function MenuItemSheet({
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-cat">Category</Label>
-              <select
-                id="item-cat"
+              <Dropdown
                 value={form.categoryId}
-                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setForm({ ...form, categoryId: v })}
+                searchable
+                placeholder="Select a category…"
+                aria-label="Category"
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+              />
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
+import { TimeSelect } from "@/components/ui/time-select";
 import { cn } from "@/lib/utils";
 import { DAYS, type DayKey, type WeeklyHours } from "@/lib/opening-hours";
 
@@ -35,22 +35,25 @@ export function WeeklyHoursEditor({ value, onChange }: WeeklyHoursEditorProps) {
               Closed
             </label>
 
-            <div className={cn("flex items-center gap-2", day.closed && "pointer-events-none opacity-40")}>
-              <Input
-                type="time"
+            <div
+              className={cn(
+                "flex items-center gap-2",
+                day.closed && "pointer-events-none opacity-40",
+              )}
+            >
+              <TimeSelect
                 aria-label={`${d.label} open`}
-                className="h-9 w-32"
+                className="w-32"
                 value={day.open}
-                onChange={(e) => setDay(d.key, { open: e.target.value })}
+                onChange={(v) => setDay(d.key, { open: v })}
                 disabled={day.closed}
               />
               <span className="text-sm text-muted-foreground">to</span>
-              <Input
-                type="time"
+              <TimeSelect
                 aria-label={`${d.label} close`}
-                className="h-9 w-32"
+                className="w-32"
                 value={day.close}
-                onChange={(e) => setDay(d.key, { close: e.target.value })}
+                onChange={(v) => setDay(d.key, { close: v })}
                 disabled={day.closed}
               />
             </div>

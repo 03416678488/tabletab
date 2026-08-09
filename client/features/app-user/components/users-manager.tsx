@@ -26,8 +26,9 @@ import { appUserService } from "@/features/app-user/services/app-user.service";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useClientPagination } from "@/hooks/use-client-pagination";
 
-/** Roles that span all branches — branch assignment doesn't apply to them. */
-const CROSS_BRANCH_ROLES = new Set(["Owner", "Multi Branch Manager"]);
+/** Roles that span all branches (or none) — a home branch doesn't apply. Every
+ *  other role is a single-branch employee that MUST be assigned a branch. */
+const CROSS_BRANCH_ROLES = new Set(["Owner", "Multi Branch Manager", "Customer"]);
 
 interface UsersManagerProps {
   /** Role name as stored in the DB (e.g. "Waiters"). Omit for all users. */
@@ -65,9 +66,7 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
     const q = search.trim().toLowerCase();
     if (!q) return users;
     return users.filter((u) =>
-      `${u.firstName} ${u.lastName} ${u.email} ${u.phone ?? ""}`
-        .toLowerCase()
-        .includes(q),
+      `${u.firstName} ${u.lastName} ${u.email} ${u.phone ?? ""}`.toLowerCase().includes(q),
     );
   }, [users, search]);
 
@@ -78,9 +77,7 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
     <div className="w-full">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            {title}
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">{title}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {description ?? `${users.length} user${users.length === 1 ? "" : "s"} in this role.`}
           </p>
@@ -157,21 +154,30 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
                   <TableCell>
                     <StatusPill tone="blue">{u.roleName ?? "—"}</StatusPill>
                   </TableCell>
-                  {showBranch && (
-                    <TableCell>
-                      <Dropdown
-                        className="w-44"
-                        aria-label={`Branch for ${u.firstName} ${u.lastName}`}
-                        value={(u.id in branchEdits ? branchEdits[u.id] : u.branchId) ?? ""}
-                        onChange={(v) => void assignBranch(u.id, v)}
-                        searchable={branches.length > 8}
-                        options={[
-                          { value: "", label: "All branches" },
-                          ...branches.map((b) => ({ value: b.id, label: b.name })),
-                        ]}
-                      />
-                    </TableCell>
-                  )}
+                  {showBranch &&
+                    (() => {
+                      const current = (u.id in branchEdits ? branchEdits[u.id] : u.branchId) ?? "";
+                      return (
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Dropdown
+                              className="w-44"
+                              aria-label={`Branch for ${u.firstName} ${u.lastName}`}
+                              value={current}
+                              onChange={(v) => v && void assignBranch(u.id, v)}
+                              searchable={branches.length > 8}
+                              placeholder="Select a branch…"
+                              options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                            />
+                            {!current && (
+                              <span className="whitespace-nowrap text-xs font-medium text-destructive">
+                                Required
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      );
+                    })()}
                   <TableCell>
                     <StatusPill tone={u.isActive ? "green" : "neutral"}>
                       {u.isActive ? "Active" : "Inactive"}

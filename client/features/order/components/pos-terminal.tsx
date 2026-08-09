@@ -26,10 +26,7 @@ import { ApiError } from "@/lib/httpClient";
 
 import { Dropdown } from "@/components/ui/dropdown";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  MENU_ITEMS_ALL_KEY,
-  useAllMenuItems,
-} from "@/features/menu/hooks/use-all-menu-items";
+import { MENU_ITEMS_ALL_KEY, useAllMenuItems } from "@/features/menu/hooks/use-all-menu-items";
 import { useCategories } from "@/features/category/hooks/use-categories";
 import { useTables } from "@/features/table/hooks/use-tables";
 import { useTableStats } from "@/features/order/hooks/use-table-stats";
@@ -41,6 +38,7 @@ import { groupRate } from "@/features/tax/services/tax-group.service";
 import { CustomerSelect } from "@/features/customer/components/customer-select";
 import type { Customer } from "@/features/customer/types/customer.types";
 import { orderService } from "@/features/order/services/order.service";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { useOfflineQueue } from "@/features/offline/hooks/use-offline-queue";
 import { loadMenuSnapshot, saveMenuSnapshot } from "@/features/offline/lib/offline-store";
 import { OfflineBar } from "@/features/offline/components/offline-bar";
@@ -50,20 +48,11 @@ import {
   ItemCustomizeDialog,
   type CustomizedLine,
 } from "@/features/order/components/item-customize-dialog";
-import {
-  PaymentDialog,
-  type PaymentResult,
-} from "@/features/order/components/payment-dialog";
+import { PaymentDialog, type PaymentResult } from "@/features/order/components/payment-dialog";
 import { paymentMethodLabel } from "@/features/order/lib/payment-label";
 import { printReceipt } from "@/features/order/lib/print-receipt";
 import type { MenuItem } from "@/features/menu/types/menu.types";
-import type {
-  CreateOrderInput,
-  OrderType,
-} from "@/features/order/types/order.types";
-
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
+import type { CreateOrderInput, OrderType } from "@/features/order/types/order.types";
 
 type CartLine = CustomizedLine;
 
@@ -93,7 +82,9 @@ export function PosTerminal() {
   // Per-table live order status — used to surface only served tables (ready to
   // pay) in the "load open order" picker.
   const { byTable: tableStats } = useTableStats();
-  const servedTables = tables.filter((t) => tableStats.get(t.id)?.orderStatus === "served");
+  // Any table with a live/open order can be loaded into the POS to add items or
+  // collect payment — `tableStats` only holds tables that have an active order.
+  const openOrderTables = tables.filter((t) => tableStats.has(t.id));
   const { taxes } = useTaxes();
   const { groups: taxGroups } = useTaxGroups();
   const { defaultTax } = useDefaultTax();
@@ -147,6 +138,9 @@ export function PosTerminal() {
   const [taxId, setTaxId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  // Every POS order belongs to a branch: multi-branch roles use the topbar
+  // selection (POS is gated by <RequireBranch>); staff use their home branch.
+  const orderBranchId = useScopedBranchId();
   // When set, the cart is editing an existing order instead of creating one.
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderNumber, setEditingOrderNumber] = useState<string>("");
@@ -245,8 +239,7 @@ export function PosTerminal() {
         .map((l) => (l.key === key ? { ...l, quantity: Math.max(0, l.quantity + delta) } : l))
         .filter((l) => l.quantity > 0),
     );
-  const removeLine = (key: string) =>
-    setCart((prev) => prev.filter((l) => l.key !== key));
+  const removeLine = (key: string) => setCart((prev) => prev.filter((l) => l.key !== key));
   const clearCart = () => {
     setCart([]);
     setTableId("");
@@ -306,8 +299,7 @@ export function PosTerminal() {
     }
   };
 
-  const canPlace =
-    cart.length > 0 && !submitting && (orderType !== "table" || !!tableId);
+  const canPlace = cart.length > 0 && !submitting && (orderType !== "table" || !!tableId);
 
   /** Punch the order. `payment` null = pay later; a value = paid now. */
   const submitOrder = async (payment: PaymentResult | null) => {
@@ -347,6 +339,7 @@ export function PosTerminal() {
         items,
         notes: paymentNote,
         paymentStatus: payment ? "paid" : "unpaid",
+        ...(orderBranchId ? { branchId: orderBranchId } : {}),
         ...(payment ? { paymentMethod: paymentMethodLabel(payment) } : {}),
         ...(discount > 0 ? { discount } : {}),
         ...(tax > 0 ? { tax } : {}),
@@ -378,7 +371,11 @@ export function PosTerminal() {
           notes: paymentNote,
           // Collecting payment on a loaded order (e.g. a served table) closes it out.
           ...(payment
-            ? { status: "completed", paymentStatus: "paid", paymentMethod: paymentMethodLabel(payment) }
+            ? {
+                status: "completed",
+                paymentStatus: "paid",
+                paymentMethod: paymentMethodLabel(payment),
+              }
             : {}),
           ...(orderType === "table" && tableId ? { tableId } : {}),
         });
@@ -391,6 +388,7 @@ export function PosTerminal() {
           items,
           notes: paymentNote,
           paymentStatus: payment ? "paid" : "unpaid",
+          ...(orderBranchId ? { branchId: orderBranchId } : {}),
           ...(payment ? { paymentMethod: paymentMethodLabel(payment) } : {}),
           ...(discount > 0 ? { discount } : {}),
           ...(tax > 0 ? { tax } : {}),
@@ -424,7 +422,11 @@ export function PosTerminal() {
         printReceipt({
           orderNumber,
           businessName,
-          lines: cart.map((l) => ({ name: l.name, qty: l.quantity, price: l.unitPrice * l.quantity })),
+          lines: cart.map((l) => ({
+            name: l.name,
+            qty: l.quantity,
+            price: l.unitPrice * l.quantity,
+          })),
           subtotal,
           discount,
           tax,
@@ -466,377 +468,369 @@ export function PosTerminal() {
       />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-      {/* Menu */}
-      <div className="min-w-0">
-        {/* Search + categories float just below the sticky Topbar (h-16) while the
+        {/* Menu */}
+        <div className="min-w-0">
+          {/* Search + categories float just below the sticky Topbar (h-16) while the
             item grid scrolls under them; bg-subtle matches the page so nothing peeks. */}
-        <div className="sticky top-16 z-20 -mx-1 bg-subtle px-1 pb-2 pt-1">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by Menu Item"
-            className="h-11 rounded-xl pl-11"
-            aria-label="Search menu"
-          />
-        </div>
+          <div className="sticky top-16 z-20 -mx-1 bg-subtle px-1 pb-2 pt-1">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by Menu Item"
+                className="h-11 rounded-xl pl-11"
+                aria-label="Search menu"
+              />
+            </div>
 
-        {/* Category cards — "All Items" stays pinned on the left; the rest
+            {/* Category cards — "All Items" stays pinned on the left; the rest
             drag-to-scroll (mouse) with no visible scrollbar. */}
-        <div className="mt-4 flex items-start gap-2.5">
-          <CategoryCard
-            label="All Items"
-            active={categoryId === "all"}
-            onClick={() => setCategoryId("all")}
-          />
-          <div
-            ref={catDrag.ref}
-            {...catDrag.handlers}
-            className={cn(
-              "no-scrollbar flex min-w-0 flex-1 gap-2.5 overflow-x-auto",
-              catDrag.className,
-            )}
-          >
-            {categoriesLoading
-              ? Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className="size-[68px] shrink-0 rounded-2xl" />
-                ))
-              : categories.map((c) => (
-                  <CategoryCard
-                    key={c.id}
-                    label={c.name}
-                    imageUrl={c.imageUrl}
-                    active={categoryId === c.id}
-                    onClick={() => setCategoryId(c.id)}
-                  />
+            <div className="mt-4 flex items-start gap-2.5">
+              <CategoryCard
+                label="All Items"
+                active={categoryId === "all"}
+                onClick={() => setCategoryId("all")}
+              />
+              <div
+                ref={catDrag.ref}
+                {...catDrag.handlers}
+                className={cn(
+                  "no-scrollbar flex min-w-0 flex-1 gap-2.5 overflow-x-auto",
+                  catDrag.className,
+                )}
+              >
+                {categoriesLoading
+                  ? Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="size-[68px] shrink-0 rounded-2xl" />
+                    ))
+                  : categories.map((c) => (
+                      <CategoryCard
+                        key={c.id}
+                        label={c.name}
+                        imageUrl={c.imageUrl}
+                        active={categoryId === c.id}
+                        onClick={() => setCategoryId(c.id)}
+                      />
+                    ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Items — lazy loaded page by page */}
+          <div className="mt-4">
+            {loading ? (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-64 rounded-2xl" />
                 ))}
+              </div>
+            ) : items.length === 0 ? (
+              <Card className="p-0">
+                <EmptyState
+                  className="py-12"
+                  icon={UtensilsCrossed}
+                  title="No menu items"
+                  description="Add items to your menu to sell them here."
+                />
+              </Card>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
+                {items.map((it) => (
+                  <MenuCard key={it.id} item={it} onAdd={() => setCustomizing(it)} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        </div>
 
-        {/* Items — lazy loaded page by page */}
-        <div className="mt-4">
-          {loading ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-64 rounded-2xl" />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <Card className="p-0">
-              <EmptyState
-                className="py-12"
-                icon={UtensilsCrossed}
-                title="No menu items"
-                description="Add items to your menu to sell them here."
-              />
-            </Card>
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
-              {items.map((it) => (
-                <MenuCard key={it.id} item={it} onAdd={() => setCustomizing(it)} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Cart — sticks below the 64px sticky Topbar (h-16), with a 16px gap.
+        {/* Cart — sticks below the 64px sticky Topbar (h-16), with a 16px gap.
           On lg it's capped to the viewport so only the item list scrolls (below),
           keeping the order-type controls, totals and Pay buttons always visible. */}
-      <Card className="flex h-fit flex-col p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
-        <div className="flex items-center gap-2">
-          <ShoppingCart className="size-4 text-brand" />
-          <h2 className="font-semibold text-ink">Current Order</h2>
-          {cart.length > 0 && (
-            <button
-              type="button"
-              onClick={clearCart}
-              className="ml-auto text-xs text-muted-foreground hover:text-ink"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        {/* Scrollable order body — setup controls + line items scroll together,
-            so the discount/tax/totals and Pay buttons below stay pinned in view. */}
-        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-          {/* Load an existing open order by table to edit it */}
-          <div className="mt-3 space-y-2">
+        <Card className="flex h-fit flex-col p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
           <div className="flex items-center gap-2">
-            <Dropdown
-              className="flex-1"
-              value={loadTableId}
-              onChange={(v) => void loadTableOrder(v)}
-              disabled={loadingOrder}
-              searchable
-              placeholder={
-                servedTables.length
-                  ? "Load a served table to collect payment…"
-                  : "No served tables yet"
-              }
-              aria-label="Load open order by table"
-              options={servedTables.map((t) => {
-                const stat = tableStats.get(t.id);
-                return {
-                  value: t.id,
-                  label: t.name,
-                  sublabel: [t.area?.name, stat ? formatMoney(stat.total) : undefined]
-                    .filter(Boolean)
-                    .join(" · ") || undefined,
-                };
-              })}
-            />
-            {loadingOrder && <Loader2 className="size-4 shrink-0 animate-spin text-brand" />}
-          </div>
-          {editingOrderId && (
-            <div className="flex items-center justify-between rounded-lg border border-brand/30 bg-brand-tint/40 px-3 py-1.5 text-xs">
-              <span className="font-medium text-brand-deep">
-                Editing {editingOrderNumber}
-              </span>
+            <ShoppingCart className="size-4 text-brand" />
+            <h2 className="font-semibold text-ink">Current Order</h2>
+            {cart.length > 0 && (
               <button
                 type="button"
                 onClick={clearCart}
-                className="text-muted-foreground hover:text-ink"
+                className="ml-auto text-xs text-muted-foreground hover:text-ink"
               >
-                New order
+                Clear
               </button>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3">
-          <CustomerSelect value={customer} onChange={setCustomer} />
-        </div>
-
-        <div className="mt-3">
-          <div className="grid grid-cols-3 gap-1 rounded-xl border border-border p-1">
-            {ORDER_TYPES.map((t) => {
-              const active = orderType === t.value;
-              return (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setOrderType(t.value)}
-                  className={cn(
-                    "rounded-lg py-1.5 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-brand text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-secondary hover:text-ink",
-                  )}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
+            )}
           </div>
 
-          {orderType === "table" && (
-            <select
-              className={cn(SELECT_CLASS, "mt-2")}
-              value={tableId}
-              onChange={(e) => setTableId(e.target.value)}
-            >
-              <option value="">— Select a table —</option>
-              {tables.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.area?.name ? ` · ${t.area.name}` : ""}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {orderType === "online" && (
-          <div className="mt-3 space-y-2">
-            <Input
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder={customer?.phone ? `Phone (${customer.phone})` : "Phone"}
-              className="h-9"
-            />
-            <Input
-              value={customerAddress}
-              onChange={(e) => setCustomerAddress(e.target.value)}
-              placeholder={
-                customer?.address ? `Address (${customer.address})` : "Delivery address"
-              }
-              className="h-9"
-            />
-          </div>
-        )}
-
-        <div className="mt-3 border-t border-border pt-3">
-          {cart.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Tap menu items to add them.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {cart.map((l) => (
-                <li key={l.key} className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink">{l.name}</p>
-                    {l.notes && (
-                      <p className="truncate text-xs text-muted-foreground">{l.notes}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {formatMoney(l.unitPrice)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-7"
-                      aria-label="Decrease"
-                      onClick={() => setQty(l.key, -1)}
-                    >
-                      <Minus className="size-3.5" />
-                    </Button>
-                    <span className="w-5 text-center text-sm font-medium">
-                      {l.quantity}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="size-7"
-                      aria-label="Increase"
-                      onClick={() => setQty(l.key, 1)}
-                    >
-                      <Plus className="size-3.5" />
-                    </Button>
-                  </div>
+          {/* Scrollable order body — setup controls + line items scroll together,
+            so the discount/tax/totals and Pay buttons below stay pinned in view. */}
+          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+            {/* Load an existing open order by table to edit it */}
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Dropdown
+                  className="flex-1"
+                  value={loadTableId}
+                  onChange={(v) => void loadTableOrder(v)}
+                  disabled={loadingOrder}
+                  searchable
+                  placeholder={
+                    openOrderTables.length ? "Load an open table order…" : "No open table orders"
+                  }
+                  aria-label="Load open order by table"
+                  options={openOrderTables.map((t) => {
+                    const stat = tableStats.get(t.id);
+                    return {
+                      value: t.id,
+                      label: t.name,
+                      sublabel:
+                        [t.area?.name, stat ? formatMoney(stat.total) : undefined]
+                          .filter(Boolean)
+                          .join(" · ") || undefined,
+                    };
+                  })}
+                />
+                {loadingOrder && <Loader2 className="size-4 shrink-0 animate-spin text-brand" />}
+              </div>
+              {editingOrderId && (
+                <div className="flex items-center justify-between rounded-lg border border-brand/30 bg-brand-tint/40 px-3 py-1.5 text-xs">
+                  <span className="font-medium text-brand-deep">Editing {editingOrderNumber}</span>
                   <button
                     type="button"
-                    aria-label="Remove"
-                    onClick={() => removeLine(l.key)}
-                    className="mt-1 text-muted-foreground hover:text-destructive"
+                    onClick={clearCart}
+                    className="text-muted-foreground hover:text-ink"
                   >
-                    <Trash2 className="size-4" />
+                    New order
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          </div>
-        </div>
-        {/* end scrollable order body */}
-
-        {/* Discount */}
-        <div className="mt-3 flex items-stretch gap-2">
-          <select
-            value={discountKind}
-            onChange={(e) => setDiscountKind(e.target.value as "percentage" | "amount")}
-            className="h-9 shrink-0 appearance-none rounded-lg border border-input bg-white px-2.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand"
-          >
-            <option value="percentage">Percentage</option>
-            <option value="amount">Amount</option>
-          </select>
-          <Input
-            value={discountInput}
-            onChange={(e) => setDiscountInput(e.target.value)}
-            placeholder="Add Discount"
-            inputMode="decimal"
-            className="h-9 flex-1"
-          />
-        </div>
-
-        {/* Tax */}
-        <div className="mt-2">
-          <Dropdown
-            value={taxId}
-            onChange={(v) => {
-              taxTouched.current = true;
-              setTaxId(v);
-            }}
-            placeholder="Add Tax"
-            aria-label="Tax"
-            options={[
-              { value: "", label: "No tax" },
-              ...taxes
-                .filter((t) => t.isActive)
-                .map((t) => ({
-                  value: `t:${t.id}`,
-                  label: `${t.name} · ${t.rate}%`,
-                  sublabel: t.code ?? undefined,
-                })),
-              ...taxGroups
-                .filter((g) => g.isActive)
-                .map((g) => ({
-                  value: `g:${g.id}`,
-                  label: `${g.name} · ${groupRate(g)}%`,
-                  sublabel: "Group",
-                })),
-            ]}
-          />
-        </div>
-
-        <div className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Sub Total</span>
-            <span className="font-medium text-ink">{formatMoney(subtotal)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Discount</span>
-            <span className="font-medium text-ink">{formatMoney(discountAmount)}</span>
-          </div>
-          {selectedTax && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Tax ({selectedTax.label})</span>
-              <span className="font-medium text-ink">{formatMoney(taxAmount)}</span>
+                </div>
+              )}
             </div>
-          )}
-          <div className="flex items-center justify-between border-t border-border pt-1.5">
-            <span className="font-semibold text-ink">Total</span>
-            <span className="text-lg font-bold text-ink">{formatMoney(total)}</span>
+
+            <div className="mt-3">
+              <CustomerSelect value={customer} onChange={setCustomer} />
+            </div>
+
+            <div className="mt-3">
+              <div className="grid grid-cols-3 gap-1 rounded-xl border border-border p-1">
+                {ORDER_TYPES.map((t) => {
+                  const active = orderType === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setOrderType(t.value)}
+                      className={cn(
+                        "rounded-lg py-1.5 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-brand text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-secondary hover:text-ink",
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {orderType === "table" && (
+                <div className="mt-2">
+                  <Dropdown
+                    value={tableId}
+                    onChange={(v) => setTableId(v)}
+                    searchable
+                    placeholder="— Select a table —"
+                    aria-label="Table"
+                    options={tables.map((t) => ({
+                      value: t.id,
+                      label: t.name,
+                      sublabel: t.area?.name || undefined,
+                    }))}
+                  />
+                </div>
+              )}
+            </div>
+
+            {orderType === "online" && (
+              <div className="mt-3 space-y-2">
+                <Input
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder={customer?.phone ? `Phone (${customer.phone})` : "Phone"}
+                  className="h-9"
+                />
+                <Input
+                  value={customerAddress}
+                  onChange={(e) => setCustomerAddress(e.target.value)}
+                  placeholder={
+                    customer?.address ? `Address (${customer.address})` : "Delivery address"
+                  }
+                  className="h-9"
+                />
+              </div>
+            )}
+
+            <div className="mt-3 border-t border-border pt-3">
+              {cart.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  Tap menu items to add them.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {cart.map((l) => (
+                    <li key={l.key} className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink">{l.name}</p>
+                        {l.notes && (
+                          <p className="truncate text-xs text-muted-foreground">{l.notes}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">{formatMoney(l.unitPrice)}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-7"
+                          aria-label="Decrease"
+                          onClick={() => setQty(l.key, -1)}
+                        >
+                          <Minus className="size-3.5" />
+                        </Button>
+                        <span className="w-5 text-center text-sm font-medium">{l.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-7"
+                          aria-label="Increase"
+                          onClick={() => setQty(l.key, 1)}
+                        >
+                          <Plus className="size-3.5" />
+                        </Button>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Remove"
+                        onClick={() => removeLine(l.key)}
+                        className="mt-1 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-        </div>
+          {/* end scrollable order body */}
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+          {/* Discount */}
+          <div className="mt-3 flex items-stretch gap-2">
+            <Dropdown
+              value={discountKind}
+              onChange={(v) => setDiscountKind(v as "percentage" | "amount")}
+              aria-label="Discount type"
+              className="w-36 shrink-0"
+              options={[
+                { value: "percentage", label: "Percentage" },
+                { value: "amount", label: "Amount" },
+              ]}
+            />
+            <Input
+              value={discountInput}
+              onChange={(e) => setDiscountInput(e.target.value)}
+              placeholder="Add Discount"
+              inputMode="decimal"
+              className="h-9 flex-1"
+            />
+          </div>
+
+          {/* Tax */}
+          <div className="mt-2">
+            <Dropdown
+              value={taxId}
+              onChange={(v) => {
+                taxTouched.current = true;
+                setTaxId(v);
+              }}
+              placeholder="Add Tax"
+              aria-label="Tax"
+              options={[
+                { value: "", label: "No tax" },
+                ...taxes
+                  .filter((t) => t.isActive)
+                  .map((t) => ({
+                    value: `t:${t.id}`,
+                    label: `${t.name} · ${t.rate}%`,
+                    sublabel: t.code ?? undefined,
+                  })),
+                ...taxGroups
+                  .filter((g) => g.isActive)
+                  .map((g) => ({
+                    value: `g:${g.id}`,
+                    label: `${g.name} · ${groupRate(g)}%`,
+                    sublabel: "Group",
+                  })),
+              ]}
+            />
+          </div>
+
+          <div className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Sub Total</span>
+              <span className="font-medium text-ink">{formatMoney(subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Discount</span>
+              <span className="font-medium text-ink">{formatMoney(discountAmount)}</span>
+            </div>
+            {selectedTax && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Tax ({selectedTax.label})</span>
+                <span className="font-medium text-ink">{formatMoney(taxAmount)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-border pt-1.5">
+              <span className="font-semibold text-ink">Total</span>
+              <span className="text-lg font-bold text-ink">{formatMoney(total)}</span>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button variant="outline" disabled={!canPlace} onClick={() => void submitOrder(null)}>
+              {submitting && !paymentOpen && <Loader2 className="size-4 animate-spin" />}
+              {editingOrderId ? "Update (Pay Later)" : "Punch (Pay Later)"}
+            </Button>
+            <Button disabled={!canPlace} onClick={() => setPaymentOpen(true)}>
+              {editingOrderId ? "Pay & Update" : "Pay & Punch"}
+            </Button>
+          </div>
           <Button
-            variant="outline"
-            disabled={!canPlace}
-            onClick={() => void submitOrder(null)}
+            variant="ghost"
+            className="mt-2 w-full text-muted-foreground hover:text-destructive"
+            disabled={cart.length === 0 && !editingOrderId}
+            onClick={clearCart}
           >
-            {submitting && !paymentOpen && <Loader2 className="size-4 animate-spin" />}
-            {editingOrderId ? "Update (Pay Later)" : "Punch (Pay Later)"}
+            Cancel
           </Button>
-          <Button disabled={!canPlace} onClick={() => setPaymentOpen(true)}>
-            {editingOrderId ? "Pay & Update" : "Pay & Punch"}
-          </Button>
-        </div>
-        <Button
-          variant="ghost"
-          className="mt-2 w-full text-muted-foreground hover:text-destructive"
-          disabled={cart.length === 0 && !editingOrderId}
-          onClick={clearCart}
-        >
-          Cancel
-        </Button>
-        {orderType === "table" && !tableId && cart.length > 0 && (
-          <p className="mt-1.5 text-center text-xs text-muted-foreground">
-            Select a table to place this order.
-          </p>
-        )}
-      </Card>
+          {orderType === "table" && !tableId && cart.length > 0 && (
+            <p className="mt-1.5 text-center text-xs text-muted-foreground">
+              Select a table to place this order.
+            </p>
+          )}
+        </Card>
 
-      <PaymentDialog
-        open={paymentOpen}
-        total={total}
-        submitting={submitting}
-        onOpenChange={setPaymentOpen}
-        onConfirm={(payment: PaymentResult) => void submitOrder(payment)}
-      />
+        <PaymentDialog
+          open={paymentOpen}
+          total={total}
+          submitting={submitting}
+          onOpenChange={setPaymentOpen}
+          onConfirm={(payment: PaymentResult) => void submitOrder(payment)}
+        />
 
-      <ItemCustomizeDialog
-        item={customizing}
-        onOpenChange={(open) => !open && setCustomizing(null)}
-        onAdd={addLine}
-      />
+        <ItemCustomizeDialog
+          item={customizing}
+          onOpenChange={(open) => !open && setCustomizing(null)}
+          onAdd={addLine}
+        />
       </div>
     </div>
   );

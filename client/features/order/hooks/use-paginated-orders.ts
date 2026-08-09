@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError } from "@/lib/httpClient";
 import { orderService } from "@/features/order/services/order.service";
-import { useActiveBranch, isAllBranches } from "@/features/branch/hooks/use-active-branch";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type {
   Order,
   OrderStatus,
@@ -40,12 +40,11 @@ export function usePaginatedOrders({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Scope to the topbar branch selection ("All branches" → undefined = all).
-  // `crossBranch` overrides it so a deep-linked order is never hidden by the
-  // currently selected branch.
-  const activeBranchId = useActiveBranch((s) => s.activeBranchId);
-  const branchId =
-    crossBranch || !activeBranchId || isAllBranches(activeBranchId) ? undefined : activeBranchId;
+  // Multi-branch roles follow the topbar switcher; single-branch staff use their
+  // home branch (see useScopedBranchId). `crossBranch` overrides both so a
+  // deep-linked order is never hidden by the current scope.
+  const scopedBranchId = useScopedBranchId();
+  const branchId = crossBranch ? undefined : scopedBranchId;
 
   const key = `${orderType ?? ""}|${search ?? ""}|${status ?? ""}|${paymentStatus ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);

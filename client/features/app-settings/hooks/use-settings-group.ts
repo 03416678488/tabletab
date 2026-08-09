@@ -38,6 +38,18 @@ export function useSettingsGroup(group: string) {
     [],
   );
 
+  /** Drop a key so it's excluded from the next save (saveGroup is upsert-only,
+   *  so an omitted key is simply not re-written). */
+  const unset = useCallback(
+    (key: string) =>
+      setValues((v) => {
+        if (!(key in v)) return v;
+        const { [key]: _omit, ...rest } = v;
+        return rest;
+      }),
+    [],
+  );
+
   const save = useCallback(async () => {
     setSaving(true);
     try {
@@ -51,5 +63,5 @@ export function useSettingsGroup(group: string) {
     }
   }, [group, values, refresh]);
 
-  return { values, set, save, loading, saving, error };
+  return { values, set, unset, save, loading, saving, error };
 }

@@ -1,4 +1,11 @@
-import { IsEmail, IsOptional, IsString, IsUrl, Length } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsUrl,
+  IsUUID,
+  Length,
+} from 'class-validator';
 
 export class CreateUserDto {
   @Length(10, 200, {
@@ -24,4 +31,10 @@ export class CreateUserDto {
 
   @IsString()
   phoneNumber: string;
+
+  /** Home branch. Required for single-branch staff (enforced in the service by
+   *  role); omitted for Owner / Multi Branch Manager / Customer. */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }

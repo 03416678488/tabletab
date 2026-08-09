@@ -1,20 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  Clock,
-  Download,
-  Pencil,
-  Plus,
-  Search,
-  SlidersHorizontal,
-  Table2,
-  Trash2,
-  X,
-} from "lucide-react";
+import { CheckCircle2, Clock, Plus, Search, SlidersHorizontal, Table2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,7 +18,6 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
 import { useTables } from "@/features/table/hooks/use-tables";
-import { tableService } from "@/features/table/services/table.service";
 import { TableFormDialog } from "@/features/table/components/table-form-dialog";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useAreas } from "@/features/area/hooks/use-areas";
@@ -37,9 +26,6 @@ import { orderService } from "@/features/order/services/order.service";
 import { ORDER_STATUS_META } from "@/features/order/constants/order.constants";
 import type { TableStat } from "@/features/order/types/order.types";
 import type { DiningTable } from "@/features/table/types/table.types";
-
-const SELECT_CLASS =
-  "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 const ALL = "__all__";
 const NO_AREA = "__no_area__";
@@ -117,7 +103,6 @@ export function TableManager() {
   const { areas } = useAreas();
   const { byTable, refetch: refetchStats } = useTableStats();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<DiningTable | null>(null);
 
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -138,9 +123,7 @@ export function TableManager() {
 
   /** Count per area id (over the search/filter result, so tab counts track filters). */
   const countFor = (areaId: string) =>
-    searched.filter((t) =>
-      areaId === NO_AREA ? !t.areaId : t.areaId === areaId,
-    ).length;
+    searched.filter((t) => (areaId === NO_AREA ? !t.areaId : t.areaId === areaId)).length;
 
   const hasUnassigned = searched.some((t) => !t.areaId);
 
@@ -152,14 +135,7 @@ export function TableManager() {
 
   const activeFilters = (branchId !== "all" ? 1 : 0) + (status !== "all" ? 1 : 0);
 
-  const openCreate = () => {
-    setEditing(null);
-    setDialogOpen(true);
-  };
-  const openEdit = (table: DiningTable) => {
-    setEditing(table);
-    setDialogOpen(true);
-  };
+  const openCreate = () => setDialogOpen(true);
   const clearFilters = () => {
     setBranchId("all");
     setStatus("all");
@@ -167,58 +143,29 @@ export function TableManager() {
 
   const confirm = useConfirm();
 
-  const remove = async (table: DiningTable) => {
-    if (!(await confirm({ title: `Delete "${table.name}"?`, confirmLabel: "Delete" }))) return;
-    try {
-      await tableService.remove(table.id);
-      toast("Table deleted", { tone: "success" });
-      refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete table", {
-        tone: "error",
-      });
-    }
-  };
-
   /** Close a table's session — settle every open order on it and free the table. */
   const closeTable = async (table: DiningTable) => {
     const ok = await confirm({
       title: `Close table "${table.name}"?`,
-      description: "Settles every open order on this table as paid and frees it for the next guests.",
+      description:
+        "Settles every open order on this table as paid and frees it for the next guests.",
       confirmLabel: "Close & settle",
     });
     if (!ok) return;
     try {
       const { closed } = await orderService.closeTable(table.id, true);
-      toast(closed > 0 ? `Table closed — ${closed} order${closed === 1 ? "" : "s"} settled` : "Table already free", {
-        tone: "success",
-      });
+      toast(
+        closed > 0
+          ? `Table closed — ${closed} order${closed === 1 ? "" : "s"} settled`
+          : "Table already free",
+        {
+          tone: "success",
+        },
+      );
       refetchStats();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Failed to close table", { tone: "error" });
     }
-  };
-
-  const exportCsv = () => {
-    const rows = [
-      ["Name", "Area", "Capacity", "Branch", "Status"],
-      ...filtered.map((t) => [
-        t.name,
-        t.area?.name ?? "",
-        String(t.capacity),
-        t.branch?.name ?? "",
-        STATUS_STYLES[statusOf(t, byTable.get(t.id))].label,
-      ]),
-    ];
-    const csv = rows
-      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "tables.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
   };
 
   return (
@@ -226,9 +173,7 @@ export function TableManager() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            Tables
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">Tables</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {tables.length} table{tables.length === 1 ? "" : "s"} · manage your floor.
           </p>
@@ -256,44 +201,39 @@ export function TableManager() {
               </span>
             )}
           </Button>
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download className="size-4" /> Export
-          </Button>
-          <Button onClick={openCreate} size="sm">
-            <Plus className="size-4" /> Add Table
-          </Button>
         </div>
       </div>
 
       {showFilters && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Branch
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              className="w-44"
               value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-            >
-              <option value="all">All</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              onChange={(v) => setBranchId(v)}
+              searchable
+              aria-label="Filter by branch"
+              options={[
+                { value: "all", label: "All" },
+                ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Status
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              className="w-40"
               value={status}
-              onChange={(e) => setStatus(e.target.value as StatusFilter)}
-            >
-              <option value="all">All</option>
-              <option value="active">Available</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
+              onChange={(v) => setStatus(v as StatusFilter)}
+              aria-label="Filter by status"
+              options={[
+                { value: "all", label: "All" },
+                { value: "active", label: "Available" },
+                { value: "inactive", label: "Inactive" },
+              ]}
+            />
+          </div>
           {activeFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="size-4" /> Clear
@@ -311,9 +251,7 @@ export function TableManager() {
         tabs={[
           { key: ALL, label: "All Areas", count: tables.length },
           ...areas.map((a) => ({ key: a.id, label: a.name, count: countFor(a.id) })),
-          ...(hasUnassigned
-            ? [{ key: NO_AREA, label: "No area", count: countFor(NO_AREA) }]
-            : []),
+          ...(hasUnassigned ? [{ key: NO_AREA, label: "No area", count: countFor(NO_AREA) }] : []),
         ]}
       />
 
@@ -366,8 +304,6 @@ export function TableManager() {
                 key={table.id}
                 table={table}
                 stat={byTable.get(table.id)}
-                onEdit={() => openEdit(table)}
-                onDelete={() => remove(table)}
                 onClose={() => closeTable(table)}
               />
             ))}
@@ -378,23 +314,30 @@ export function TableManager() {
       <TableFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        table={editing}
+        table={null}
         onSaved={refetch}
       />
     </div>
   );
 }
 
-
 function TableGlyph({ name, status }: { name: string; status: TableStatus }) {
   const s = STATUS_STYLES[status];
   return (
     <div className="relative size-[74px] shrink-0">
       {/* chairs */}
-      <span className={cn("absolute left-1/2 top-0 h-2 w-6 -translate-x-1/2 rounded-full", s.chair)} />
-      <span className={cn("absolute bottom-0 left-1/2 h-2 w-6 -translate-x-1/2 rounded-full", s.chair)} />
-      <span className={cn("absolute left-0 top-1/2 h-6 w-2 -translate-y-1/2 rounded-full", s.chair)} />
-      <span className={cn("absolute right-0 top-1/2 h-6 w-2 -translate-y-1/2 rounded-full", s.chair)} />
+      <span
+        className={cn("absolute left-1/2 top-0 h-2 w-6 -translate-x-1/2 rounded-full", s.chair)}
+      />
+      <span
+        className={cn("absolute bottom-0 left-1/2 h-2 w-6 -translate-x-1/2 rounded-full", s.chair)}
+      />
+      <span
+        className={cn("absolute left-0 top-1/2 h-6 w-2 -translate-y-1/2 rounded-full", s.chair)}
+      />
+      <span
+        className={cn("absolute right-0 top-1/2 h-6 w-2 -translate-y-1/2 rounded-full", s.chair)}
+      />
       {/* table top */}
       <div
         className={cn(
@@ -411,14 +354,10 @@ function TableGlyph({ name, status }: { name: string; status: TableStatus }) {
 function TableCard({
   table,
   stat,
-  onEdit,
-  onDelete,
   onClose,
 }: {
   table: DiningTable;
   stat?: TableStat;
-  onEdit: () => void;
-  onDelete: () => void;
   onClose: () => void;
 }) {
   const status = statusOf(table, stat);
@@ -431,14 +370,6 @@ function TableCard({
           <TableGlyph name={table.name} status={status} />
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="flex gap-0.5">
-            <Button variant="ghost" size="icon" aria-label="Edit" onClick={onEdit}>
-              <Pencil className="size-4" />
-            </Button>
-            <Button variant="ghost" size="icon" aria-label="Delete" onClick={onDelete}>
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
           <span className="text-sm text-muted-foreground">
             Capacity: <span className="font-medium text-ink">{table.capacity}</span>
           </span>
@@ -452,9 +383,7 @@ function TableCard({
             ? `${stat.orderCount} order${stat.orderCount === 1 ? "" : "s"} · ${stat.itemCount} item${stat.itemCount === 1 ? "" : "s"}`
             : "No orders"}
         </span>
-        <span className="text-sm font-semibold text-ink">
-          {formatMoney(stat?.total ?? 0)}
-        </span>
+        <span className="text-sm font-semibold text-ink">{formatMoney(stat?.total ?? 0)}</span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
         {stat ? (

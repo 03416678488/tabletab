@@ -5,6 +5,8 @@ interface SessionUserFields {
   email: string;
   firstName: string;
   lastName: string;
+  /** Home branch of a single-branch employee; null for cross-branch roles. */
+  branchId: string | null;
   roleNames: string[];
   roles: FormattedRoles;
 }
@@ -22,6 +24,7 @@ declare module "next-auth" {
   interface User {
     firstName?: string;
     lastName?: string;
+    branchId?: string | null;
     roleNames?: string[];
     roles?: FormattedRoles;
     tokens?: {

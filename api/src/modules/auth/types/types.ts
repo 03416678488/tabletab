@@ -4,6 +4,8 @@ export interface BaseUserResponse {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  /** The user's home branch (single-branch staff); null for cross-branch roles. */
+  branchId?: string | null;
   geysers?: any;
   roles?: FormattedRoles;
 }

@@ -23,6 +23,8 @@ export interface LoginResponse {
   firstName: string;
   lastName: string;
   phoneNumber?: string;
+  /** Home branch of a single-branch employee; null for cross-branch roles. */
+  branchId?: string | null;
   roles: FormattedRoles;
   tokens: AuthTokens;
 }
@@ -43,6 +45,8 @@ export interface SessionUser {
   email: string;
   firstName: string;
   lastName: string;
+  /** Home branch of a single-branch employee; null for cross-branch roles. */
+  branchId: string | null;
   /** Role names granted to the user, e.g. ["Admin"]. */
   roleNames: string[];
   /** Full permission map, kept for sidebar/route authorization later. */

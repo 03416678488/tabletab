@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Dropdown } from "@/components/ui/dropdown";
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarCheck, ChevronRight, UtensilsCrossed } from "lucide-react";
@@ -166,7 +167,11 @@ export function MenuSliderRender({ config }: { config: MenuSliderConfig }) {
         showArrows={config.showArrows}
       >
         {selected.map((menu) => (
-          <Link key={menu.id} href={`/menu/${menu.id}`} className="group flex flex-col items-center gap-2">
+          <Link
+            key={menu.id}
+            href={`/menu/${menu.id}`}
+            className="group flex flex-col items-center gap-2"
+          >
             <span className="relative aspect-square w-full overflow-hidden rounded-2xl bg-subtle shadow-[var(--shadow-card)] transition-transform group-hover:-translate-y-1 group-active:scale-95">
               {menu.imageUrl ? (
                 <Image
@@ -223,23 +228,25 @@ export function ReservationRender({ config }: { config: ReservationConfig }) {
         <div className="mx-auto max-w-xl text-center">
           <h2 className="font-display text-2xl font-bold sm:text-3xl">{config.title}</h2>
           {config.subtitle && (
-            <p className={cn("mt-2 text-sm sm:text-base", onLight ? "text-muted-foreground" : "opacity-90")}>
+            <p
+              className={cn(
+                "mt-2 text-sm sm:text-base",
+                onLight ? "text-muted-foreground" : "opacity-90",
+              )}
+            >
               {config.subtitle}
             </p>
           )}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <select
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              aria-label="Choose a location"
-              className="h-12 rounded-full border-0 bg-white px-5 text-sm font-medium text-ink shadow-sm outline-none ring-1 ring-black/5 sm:min-w-[15rem]"
-            >
-              {bookable.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <div className="sm:min-w-[15rem]">
+              <Dropdown
+                value={branchId}
+                onChange={(v) => setBranchId(v)}
+                searchable
+                aria-label="Choose a location"
+                options={bookable.map((b) => ({ value: b.id, label: b.name }))}
+              />
+            </div>
             <Link
               href={branchId ? `/reserve/${branchId}` : "#"}
               className={cn(
@@ -274,9 +281,9 @@ export function ProductCarouselRender({ config }: { config: ProductCarouselConfi
       )}
       {config.layout === "slider" ? (
         <EmblaSlider
-                slideClassName="basis-[calc(50%_-_8px)] sm:basis-[calc(25%_-_12px)]"
-                showArrows={config.showArrows}
-              >
+          slideClassName="basis-[calc(50%_-_8px)] sm:basis-[calc(25%_-_12px)]"
+          showArrows={config.showArrows}
+        >
           {shown.map((item) => (
             <div key={item.id}>
               <ProductCard item={item} />

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { orderService } from "@/features/order/services/order.service";
 import { useTablesStream } from "@/features/table/hooks/use-tables-stream";
-import { useActiveBranch, isAllBranches } from "@/features/branch/hooks/use-active-branch";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type { TableStat } from "@/features/order/types/order.types";
 
 /** Live per-table order aggregation, keyed by tableId for easy lookup. */
@@ -12,9 +12,8 @@ export function useTableStats() {
   const [stats, setStats] = useState<TableStat[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Scope to the topbar branch selection ("All branches" → undefined = all).
-  const activeBranchId = useActiveBranch((s) => s.activeBranchId);
-  const branchId = activeBranchId && !isAllBranches(activeBranchId) ? activeBranchId : undefined;
+  // Multi-branch roles follow the topbar switcher; staff use their home branch.
+  const branchId = useScopedBranchId();
 
   const refetch = useCallback(async () => {
     setLoading(true);

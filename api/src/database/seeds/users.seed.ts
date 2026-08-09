@@ -1,8 +1,22 @@
+interface SeedUser {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
+  isActive: boolean;
+  emailVerified: boolean;
+  role: string;
+  /** Home branch name (branches.seed). Single-branch staff only. */
+  branch?: string;
+}
+
 /**
  * One login per fixed role. The Owner is the top admin (full access); every
- * other login uses the password Passw0rd@123.
+ * other login uses the password Passw0rd@123. Single-branch staff are pinned to
+ * a home branch; Owner / Multi Branch Manager / Customer span all branches.
  */
-export const USERS_SEED = [
+export const USERS_SEED: SeedUser[] = [
   {
     firstName: 'Olivia',
     lastName: 'Owner',
@@ -31,6 +45,7 @@ export const USERS_SEED = [
     phoneNumber: '+1234567912',
     isActive: true,
     emailVerified: true,
+    branch: 'Renala Branch',
     role: 'Branch Manager',
   },
   {
@@ -41,6 +56,7 @@ export const USERS_SEED = [
     phoneNumber: '+1234567905',
     isActive: true,
     emailVerified: true,
+    branch: 'Renala Branch',
     role: 'Chef',
   },
   {
@@ -51,6 +67,7 @@ export const USERS_SEED = [
     phoneNumber: '+1234567904',
     isActive: true,
     emailVerified: true,
+    branch: 'Renala Branch',
     role: 'Waiter',
   },
   {
@@ -61,6 +78,7 @@ export const USERS_SEED = [
     phoneNumber: '+1234567901',
     isActive: true,
     emailVerified: true,
+    branch: 'Renala Branch',
     role: 'Delivery Rider',
   },
   {

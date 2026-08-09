@@ -1,5 +1,10 @@
 import { OssBoard } from "@/features/order/components/oss-board";
+import { RequireBranch } from "@/features/branch/components/require-branch";
 
 export default function OssPage() {
-  return <OssBoard />;
+  return (
+    <RequireBranch feature="The order status screen">
+      <OssBoard />
+    </RequireBranch>
+  );
 }

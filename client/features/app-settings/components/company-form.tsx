@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
+import { Country, State, City } from "country-state-city";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,14 +20,51 @@ const FIELDS: { key: string; label: string; type?: string }[] = [
   { key: "email", label: "Email", type: "email" },
   { key: "phone", label: "Phone" },
   { key: "website", label: "Website" },
-  { key: "city", label: "City" },
-  { key: "state", label: "State" },
-  { key: "country_code", label: "Country Code" },
-  { key: "zip", label: "Zip Code" },
 ];
 
+// Countries are static — compute once. State/city cascade off the selection.
+const COUNTRIES = Country.getAllCountries();
+const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.name, label: c.name }));
+
 export function CompanyForm() {
-  const { values, set, save, loading, saving } = useSettingsGroup("company");
+  const { values, set, unset, save, loading, saving } = useSettingsGroup("company");
+
+  // Retired fields — drop any stale values so a save never re-writes them.
+  useEffect(() => {
+    if ("zip" in values) unset("zip");
+    if ("country_code" in values) unset("country_code");
+  }, [values, unset]);
+
+  const countryName = values.country ?? "";
+  const stateName = values.state ?? "";
+  const cityName = values.city ?? "";
+
+  // Resolve the stored names back to ISO codes to drive the cascade.
+  const countryIso = useMemo(
+    () => COUNTRIES.find((c) => c.name === countryName)?.isoCode,
+    [countryName],
+  );
+  const states = useMemo(
+    () => (countryIso ? State.getStatesOfCountry(countryIso) : []),
+    [countryIso],
+  );
+  const stateIso = useMemo(
+    () => states.find((s) => s.name === stateName)?.isoCode,
+    [states, stateName],
+  );
+  const cities = useMemo(
+    () => (countryIso && stateIso ? City.getCitiesOfState(countryIso, stateIso) : []),
+    [countryIso, stateIso],
+  );
+
+  const stateOptions = useMemo(
+    () => states.map((s) => ({ value: s.name, label: s.name })),
+    [states],
+  );
+  const cityOptions = useMemo(
+    () => cities.map((c) => ({ value: c.name, label: c.name })),
+    [cities],
+  );
 
   const onSave = async () => {
     const ok = await save();
@@ -47,6 +87,51 @@ export function CompanyForm() {
             />
           </div>
         ))}
+
+        {/* Country → State → City (each list depends on the one above it) */}
+        <div className="space-y-1.5">
+          <Label>Country</Label>
+          <Dropdown
+            aria-label="Country"
+            searchable
+            placeholder="Select country"
+            value={countryName}
+            options={COUNTRY_OPTIONS}
+            onChange={(v) => {
+              set("country", v);
+              set("state", "");
+              set("city", "");
+            }}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>State</Label>
+          <Dropdown
+            aria-label="State"
+            searchable
+            disabled={!countryIso}
+            placeholder={countryIso ? "Select state" : "Select a country first"}
+            value={stateName}
+            options={stateOptions}
+            onChange={(v) => {
+              set("state", v);
+              set("city", "");
+            }}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>City</Label>
+          <Dropdown
+            aria-label="City"
+            searchable
+            disabled={!stateIso}
+            placeholder={stateIso ? "Select city" : "Select a state first"}
+            value={cityName}
+            options={cityOptions}
+            onChange={(v) => set("city", v)}
+          />
+        </div>
+
         <div className="space-y-1.5 sm:col-span-2">
           <Label>Address</Label>
           <textarea

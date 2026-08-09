@@ -113,11 +113,6 @@ export function ImageGalleryDialog({
     }
   }, [pathFolders]);
 
-  const currentFolderName =
-    currentFolderId === null
-      ? "Uncategorised"
-      : (folders.find((f) => f.id === currentFolderId)?.name ?? "Folder");
-
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -261,7 +256,11 @@ export function ImageGalleryDialog({
         disabled={savingFolder || !folderName.trim()}
         className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand text-white disabled:opacity-50"
       >
-        {savingFolder ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+        {savingFolder ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <Check className="size-3.5" />
+        )}
       </button>
       <button
         type="button"
@@ -315,14 +314,29 @@ export function ImageGalleryDialog({
                   : "Pick an image or upload a new one."}
               </DialogDescription>
             </div>
-            <Button type="button" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading}>
-              {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
               Upload
             </Button>
           </div>
         </DialogHeader>
 
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onFileChange}
+        />
 
         <div className="flex gap-4">
           {/* Folder tree */}

@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,25 +12,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 
 import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-group";
-import { useLanguages } from "@/features/language/hooks/use-languages";
-
-const SELECT =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 const DATE_FORMATS = ["DD-MM-YYYY", "MM-DD-YYYY", "YYYY-MM-DD", "DD/MM/YYYY"];
 const TIME_FORMATS = ["hh:mm A", "HH:mm"];
 const TOGGLES: { key: string; label: string }[] = [
   { key: "online_payment_gateway", label: "Online Payment Gateway" },
   { key: "language_switch", label: "Language Switch" },
-  { key: "email_verification", label: "Email Verification" },
-  { key: "phone_verification", label: "Phone Verification" },
   { key: "app_debug", label: "App Debug" },
   { key: "guest_login", label: "Guest Login" },
 ];
 
 export function SiteForm() {
-  const { values, set, save, loading, saving } = useSettingsGroup("site");
-  const { languages } = useLanguages();
+  const { values, set, unset, save, loading, saving } = useSettingsGroup("site");
+
+  // Retired fields — drop any stale values so a save never re-writes them.
+  useEffect(() => {
+    if ("email_verification" in values) unset("email_verification");
+    if ("phone_verification" in values) unset("phone_verification");
+    if ("default_language" in values) unset("default_language");
+  }, [values, unset]);
 
   const onSave = async () => {
     const ok = await save();
@@ -42,30 +44,26 @@ export function SiteForm() {
       <h2 className="font-display text-lg font-semibold text-ink">System</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label="Date Format">
-          <select className={SELECT} value={values.date_format ?? ""} onChange={(e) => set("date_format", e.target.value)}>
-            {DATE_FORMATS.map((f) => (
-              <option key={f}>{f}</option>
-            ))}
-          </select>
+          <Dropdown
+            value={values.date_format ?? ""}
+            onChange={(v) => set("date_format", v)}
+            aria-label="Date format"
+            options={DATE_FORMATS.map((f) => ({ value: f, label: f }))}
+          />
         </Field>
         <Field label="Time Format">
-          <select className={SELECT} value={values.time_format ?? ""} onChange={(e) => set("time_format", e.target.value)}>
-            {TIME_FORMATS.map((f) => (
-              <option key={f}>{f}</option>
-            ))}
-          </select>
+          <Dropdown
+            value={values.time_format ?? ""}
+            onChange={(v) => set("time_format", v)}
+            aria-label="Time format"
+            options={TIME_FORMATS.map((f) => ({ value: f, label: f }))}
+          />
         </Field>
         <Field label="Default Timezone">
-          <Input value={values.default_timezone ?? ""} onChange={(e) => set("default_timezone", e.target.value)} />
-        </Field>
-        <Field label="Default Language">
-          <select className={SELECT} value={values.default_language ?? ""} onChange={(e) => set("default_language", e.target.value)}>
-            {languages.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+          <Input
+            value={values.default_timezone ?? ""}
+            onChange={(e) => set("default_timezone", e.target.value)}
+          />
         </Field>
         <Field label="Digit After Decimal (ex: 0.00)">
           <Input

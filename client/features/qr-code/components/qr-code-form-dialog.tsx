@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +20,7 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
 import { useTables } from "@/features/table/hooks/use-tables";
-import {
-  qrCodeSchema,
-  type QrCodeFormValues,
-} from "@/features/qr-code/schemas/qr-code.schema";
+import { qrCodeSchema, type QrCodeFormValues } from "@/features/qr-code/schemas/qr-code.schema";
 import { qrCodeService } from "@/features/qr-code/services/qr-code.service";
 import type { QrCode } from "@/features/qr-code/types/qr-code.types";
 
@@ -34,9 +32,6 @@ interface QrCodeFormDialogProps {
   usedTableIds: string[];
   onSaved: () => void;
 }
-
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function QrCodeFormDialog({
   open,
@@ -50,9 +45,7 @@ export function QrCodeFormDialog({
 
   const options = useMemo(() => {
     const used = new Set(usedTableIds);
-    return tables.filter(
-      (t) => t.id === qrCode?.tableId || !used.has(t.id),
-    );
+    return tables.filter((t) => t.id === qrCode?.tableId || !used.has(t.id));
   }, [tables, usedTableIds, qrCode]);
 
   const form = useForm<QrCodeFormValues>({
@@ -67,6 +60,8 @@ export function QrCodeFormDialog({
     handleSubmit,
     reset,
     setError,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = form;
 
@@ -116,27 +111,22 @@ export function QrCodeFormDialog({
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label>Table</Label>
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              value={watch("tableId") ?? ""}
+              onChange={(v) => setValue("tableId", v, { shouldDirty: true, shouldValidate: true })}
               disabled={isEdit}
-              aria-invalid={!!errors.tableId}
-              {...register("tableId")}
-            >
-              <option value="">— Select a table —</option>
-              {options.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.area?.name ? ` · ${t.area.name}` : ""}
-                </option>
-              ))}
-            </select>
-            {errors.tableId && (
-              <p className="text-xs text-destructive">{errors.tableId.message}</p>
-            )}
+              searchable
+              placeholder="— Select a table —"
+              aria-label="Table"
+              options={options.map((t) => ({
+                value: t.id,
+                label: t.name,
+                sublabel: t.area?.name || undefined,
+              }))}
+            />
+            {errors.tableId && <p className="text-xs text-destructive">{errors.tableId.message}</p>}
             {!isEdit && options.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Every table already has a QR code.
-              </p>
+              <p className="text-xs text-muted-foreground">Every table already has a QR code.</p>
             )}
           </div>
 

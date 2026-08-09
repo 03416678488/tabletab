@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,9 +16,6 @@ import { ApiError } from "@/lib/httpClient";
 import { currencyService } from "@/features/currency/services/currency.service";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
 import type { FxSettings } from "@/features/currency/types/currency.types";
-
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
   const { get, refresh } = useSettings();
@@ -115,18 +113,16 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Provider</Label>
-          <select
-            className={SELECT_CLASS}
+          <Dropdown
             value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-          >
-            {data.providers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-                {p.requiresKey ? " (key required)" : " — free"}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setProvider(v)}
+            aria-label="Provider"
+            options={data.providers.map((p) => ({
+              value: p.id,
+              label: p.label,
+              sublabel: p.requiresKey ? "key required" : "free",
+            }))}
+          />
           {selectedProvider && (
             <p className="text-xs text-muted-foreground">{selectedProvider.note}</p>
           )}
@@ -134,24 +130,16 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
 
         <div className="space-y-1.5">
           <Label>Auto-sync frequency</Label>
-          <select
-            className={SELECT_CLASS}
+          <Dropdown
             value={frequency}
-            onChange={(e) => setFrequency(e.target.value)}
-          >
-            {data.frequencies.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setFrequency(v)}
+            aria-label="Auto-sync frequency"
+            options={data.frequencies.map((f) => ({ value: f.value, label: f.label }))}
+          />
         </div>
 
         <div
-          className={cn(
-            "space-y-1.5 sm:col-span-2",
-            !selectedProvider?.requiresKey && "hidden",
-          )}
+          className={cn("space-y-1.5 sm:col-span-2", !selectedProvider?.requiresKey && "hidden")}
         >
           <Label>API Key ({selectedProvider?.label})</Label>
           <Input
@@ -164,9 +152,9 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
       </div>
 
       <div className="mt-3 rounded-xl border border-border bg-secondary/40 px-3.5 py-2.5 text-xs text-muted-foreground">
-        If the chosen provider can’t serve your base currency, we automatically fall back
-        through the free providers — so rates keep updating even for currencies ECB doesn’t
-        publish (e.g. BDT, NGN).
+        If the chosen provider can’t serve your base currency, we automatically fall back through
+        the free providers — so rates keep updating even for currencies ECB doesn’t publish (e.g.
+        BDT, NGN).
       </div>
 
       <Button className="mt-5" onClick={save} disabled={saving}>

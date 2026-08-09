@@ -40,7 +40,7 @@ export function BranchSwitcher() {
   return (
     <div className="hidden sm:block">
       <Dropdown
-        className="w-52"
+        variant="bare"
         value={activeBranchId ?? ALL_BRANCHES}
         onChange={setActiveBranchId}
         searchable={branches.length > 8}

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   Dialog,
   DialogContent,
@@ -21,15 +22,9 @@ import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useAreas } from "@/features/area/hooks/use-areas";
-import {
-  tableSchema,
-  type TableFormValues,
-} from "@/features/table/schemas/table.schema";
+import { tableSchema, type TableFormValues } from "@/features/table/schemas/table.schema";
 import { tableService } from "@/features/table/services/table.service";
-import type {
-  CreateTableInput,
-  DiningTable,
-} from "@/features/table/types/table.types";
+import type { CreateTableInput, DiningTable } from "@/features/table/types/table.types";
 
 interface TableFormDialogProps {
   open: boolean;
@@ -53,15 +48,7 @@ function toDefaults(table: DiningTable | null): TableFormValues {
   };
 }
 
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
-
-export function TableFormDialog({
-  open,
-  onOpenChange,
-  table,
-  onSaved,
-}: TableFormDialogProps) {
+export function TableFormDialog({ open, onOpenChange, table, onSaved }: TableFormDialogProps) {
   const isEdit = !!table;
   const { branches } = useBranches();
   const { areas } = useAreas();
@@ -75,6 +62,8 @@ export function TableFormDialog({
     handleSubmit,
     reset,
     setError,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = form;
 
@@ -124,9 +113,7 @@ export function TableFormDialog({
             <div className="space-y-1.5">
               <Label>Name</Label>
               <Input {...register("name")} aria-invalid={!!errors.name} placeholder="T1" />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Seats</Label>
@@ -143,25 +130,31 @@ export function TableFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Area</Label>
-            <select className={SELECT_CLASS} {...register("areaId")}>
-              <option value="">— No area —</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+            <Dropdown
+              value={watch("areaId") ?? ""}
+              onChange={(v) => setValue("areaId", v, { shouldDirty: true })}
+              searchable
+              placeholder="— No area —"
+              aria-label="Area"
+              options={[
+                { value: "", label: "— No area —" },
+                ...areas.map((a) => ({ value: a.id, label: a.name })),
+              ]}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Branch</Label>
-            <select className={SELECT_CLASS} {...register("branchId")}>
-              <option value="">— No branch —</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <Dropdown
+              value={watch("branchId") ?? ""}
+              onChange={(v) => setValue("branchId", v, { shouldDirty: true })}
+              searchable
+              placeholder="— No branch —"
+              aria-label="Branch"
+              options={[
+                { value: "", label: "— No branch —" },
+                ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
           </div>
           <label className="flex items-center gap-2 pt-1 text-sm text-ink">
             <input

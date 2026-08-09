@@ -1,9 +1,4 @@
-export type IntegrationCategory =
-  | "delivery"
-  | "payments"
-  | "messaging"
-  | "accounting"
-  | "marketing";
+export type IntegrationCategory = "delivery" | "messaging" | "accounting" | "marketing";
 
 export type IntegrationStatus = "available" | "coming_soon";
 export type IntegrationAuthType = "api_key" | "oauth" | "builtin";

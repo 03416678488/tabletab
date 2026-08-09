@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { UtensilsCrossed } from "lucide-react";
 import { BuffetPickerSheet } from "@/features/order/components/buffet-picker-sheet";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   Sheet,
   SheetContent,
@@ -87,18 +88,17 @@ export function BuffetOrderSheet({ order, open, onOpenChange, onDone }: BuffetOr
               <>
                 <div className="space-y-2">
                   <Label htmlFor="buffet-table">Table</Label>
-                  <select
-                    id="buffet-table"
+                  <Dropdown
                     value={tableId}
-                    onChange={(e) => setTableId(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
-                  >
-                    {activeBranch.tables.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label} · {t.floor}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setTableId(v)}
+                    searchable
+                    aria-label="Table"
+                    options={activeBranch.tables.map((t) => ({
+                      value: t.id,
+                      label: t.label,
+                      sublabel: t.floor,
+                    }))}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="buffet-guest">Guest name</Label>
@@ -118,11 +118,7 @@ export function BuffetOrderSheet({ order, open, onOpenChange, onDone }: BuffetOr
               </p>
             )}
 
-            <Button
-              className="w-full"
-              onClick={() => setPickerOpen(true)}
-              disabled={submitting}
-            >
+            <Button className="w-full" onClick={() => setPickerOpen(true)} disabled={submitting}>
               <UtensilsCrossed className="size-4" />
               {order?.buffet ? "Change buffet" : "Choose buffet package"}
             </Button>

@@ -11,10 +11,12 @@ import { PermissionsEnum } from '@modules/permissions/enums/permissions.enum';
 
 import { PERMISSIONS_SEED, MODULE_RESOURCES } from './permissions.seed';
 import { ROLES_SEED } from './roles.seed';
+import { BRANCHES_SEED } from './branches.seed';
 import { USERS_SEED } from './users.seed';
 import { ROLE_PERMISSIONS_SEED } from './role-permissions.seed';
 import { CodeAttemptLog } from '@modules/user/entities/code-attempt-log.entity';
 import { User } from '@modules/user/entities/users.entity';
+import { Branch } from '@modules/branch/entities/branch.entity';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -32,11 +34,15 @@ const AppDataSource = new DataSource({
     UserRolePermissions,
     RolePermission,
     CodeAttemptLog,
+    Branch,
   ],
   synchronize: false,
 });
 
-function getPermissionKey(resource: string, actions: PermissionsEnum[]): string {
+function getPermissionKey(
+  resource: string,
+  actions: PermissionsEnum[],
+): string {
   return `${resource}:${[...actions].sort().join(',')}`;
 }
 
@@ -54,7 +60,9 @@ async function seed() {
     console.log('🔌 Connecting to database...');
     console.log(`   Host: ${process.env.POSTGRES_HOST || 'tabletap-postgres'}`);
     console.log(`   Port: ${process.env.POSTGRES_PORT || 5435}`);
-    console.log(`   Database: ${process.env.POSTGRES_DATABASE || 'tabletap_db'}`);
+    console.log(
+      `   Database: ${process.env.POSTGRES_DATABASE || 'tabletap_db'}`,
+    );
 
     await AppDataSource.initialize();
     isConnected = true;
@@ -63,7 +71,8 @@ async function seed() {
     const permissionRepo = AppDataSource.getRepository(Permission);
     const roleRepo = AppDataSource.getRepository(Role);
     const userRepo = AppDataSource.getRepository(User);
-    const userRolePermissionsRepo = AppDataSource.getRepository(UserRolePermissions);
+    const userRolePermissionsRepo =
+      AppDataSource.getRepository(UserRolePermissions);
     const rolePermissionRepo = AppDataSource.getRepository(RolePermission);
 
     // Seed Permissions
@@ -77,7 +86,9 @@ async function seed() {
         where: { resource: permData.resource },
       });
 
-      const existingPerm = existingPerms.find((p) => actionsMatch(p.actions, permData.actions));
+      const existingPerm = existingPerms.find((p) =>
+        actionsMatch(p.actions, permData.actions),
+      );
 
       if (!existingPerm) {
         const permission = permissionRepo.create({
@@ -86,10 +97,14 @@ async function seed() {
         });
         const saved = await permissionRepo.save(permission);
         permissionsMap.set(key, saved);
-        console.log(`  ✅ Created: ${permData.resource} [${permData.actions.join(', ')}]`);
+        console.log(
+          `  ✅ Created: ${permData.resource} [${permData.actions.join(', ')}]`,
+        );
       } else {
         permissionsMap.set(key, existingPerm);
-        console.log(`  ⏭️  Exists: ${permData.resource} [${permData.actions.join(', ')}]`);
+        console.log(
+          `  ⏭️  Exists: ${permData.resource} [${permData.actions.join(', ')}]`,
+        );
       }
     }
 
@@ -140,10 +155,32 @@ async function seed() {
       console.log(`  ✅ ${roleName}: ${mappings.length - 1} module(s)`);
     }
 
+    // Seed Branches (needed before users so staff can be assigned a home branch)
+    console.log('\n🏢 Seeding branches...');
+    const branchRepo = AppDataSource.getRepository(Branch);
+    const branchesMap = new Map<string, string>();
+    for (const branchData of BRANCHES_SEED) {
+      let branch = await branchRepo.findOne({
+        where: { name: branchData.name },
+      });
+      if (!branch) {
+        branch = await branchRepo.save(branchRepo.create(branchData));
+        console.log(`  ✅ Created: ${branchData.name}`);
+      } else {
+        console.log(`  ⏭️  Exists: ${branchData.name}`);
+      }
+      branchesMap.set(branchData.name, branch.id);
+    }
+
     // Seed Users
     console.log('\n👤 Seeding users...');
 
     for (const userData of USERS_SEED) {
+      // Single-branch staff get a home branch; Owner/Multi-branch/Customer don't.
+      const wantBranchId = userData.branch
+        ? (branchesMap.get(userData.branch) ?? null)
+        : null;
+
       let user = await userRepo.findOne({
         where: { email: userData.email },
       });
@@ -159,12 +196,22 @@ async function seed() {
           phoneNumber: userData.phoneNumber,
           emailVerified: userData.emailVerified,
           isActive: userData.isActive,
+          branchId: wantBranchId,
         });
 
         user = await userRepo.save(user);
-        console.log(`  ✅ Created: ${userData.email}`);
+        console.log(
+          `  ✅ Created: ${userData.email}${wantBranchId ? ` (→ ${userData.branch})` : ''}`,
+        );
       } else {
-        console.log(`  ⏭️  Exists: ${userData.email}`);
+        // Backfill the home branch on staff seeded before branch assignment existed.
+        if (wantBranchId && user.branchId !== wantBranchId) {
+          user.branchId = wantBranchId;
+          user = await userRepo.save(user);
+          console.log(`  🔗 Assigned ${userData.branch} to ${userData.email}`);
+        } else {
+          console.log(`  ⏭️  Exists: ${userData.email}`);
+        }
       }
 
       // Assign role and permissions
@@ -206,7 +253,9 @@ async function seed() {
             `    🔗 Assigned: ${role.name} -> ${permMapping.resource} [${permMapping.actions.join(', ')}]`,
           );
         } else {
-          console.log(`    ⏭️  Mapping exists: ${role.name} -> ${permMapping.resource}`);
+          console.log(
+            `    ⏭️  Mapping exists: ${role.name} -> ${permMapping.resource}`,
+          );
         }
       }
     }

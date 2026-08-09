@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,18 +76,13 @@ export function ReservationSettings() {
       <CardContent className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="res-branch">Branch</Label>
-          <select
-            id="res-branch"
+          <Dropdown
             value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setBranchId(v)}
+            searchable
+            aria-label="Branch"
+            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+          />
         </div>
 
         {loading || !settings ? (
@@ -143,9 +139,7 @@ export function ReservationSettings() {
                   min={5}
                   max={120}
                   value={settings.reminderLeadMins}
-                  onChange={(e) =>
-                    patch({ reminderLeadMins: parseInt(e.target.value, 10) || 30 })
-                  }
+                  onChange={(e) => patch({ reminderLeadMins: parseInt(e.target.value, 10) || 30 })}
                 />
               </div>
               <div className="space-y-2">
@@ -156,9 +150,7 @@ export function ReservationSettings() {
                   min={5}
                   max={60}
                   value={settings.noShowGraceMins}
-                  onChange={(e) =>
-                    patch({ noShowGraceMins: parseInt(e.target.value, 10) || 15 })
-                  }
+                  onChange={(e) => patch({ noShowGraceMins: parseInt(e.target.value, 10) || 15 })}
                 />
               </div>
               <div className="space-y-2">
@@ -169,9 +161,7 @@ export function ReservationSettings() {
                   min={1}
                   max={90}
                   value={settings.bookingWindowDays}
-                  onChange={(e) =>
-                    patch({ bookingWindowDays: parseInt(e.target.value, 10) || 14 })
-                  }
+                  onChange={(e) => patch({ bookingWindowDays: parseInt(e.target.value, 10) || 14 })}
                 />
               </div>
               <div className="space-y-2">

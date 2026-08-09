@@ -13,13 +13,22 @@ import { STAFF_ROLES } from "@/lib/roles";
 
 export const ALL_ROLES: StaffRole[] = [...STAFF_ROLES];
 /** Management tier: owner + both manager roles. */
-export const MANAGER_ROLES: StaffRole[] = [
-  "owner",
-  "multi_branch_manager",
-  "branch_manager",
-];
+export const MANAGER_ROLES: StaffRole[] = ["owner", "multi_branch_manager", "branch_manager"];
 /** Top-admin only. */
 export const OWNER_ROLES: StaffRole[] = ["owner"];
+
+/**
+ * Roles that operate ACROSS branches and therefore get the topbar branch
+ * switcher. Everyone else is a single-branch operator: their branch-scoped views
+ * (KDS, boards, order lists) are NOT filtered by the topbar selection and they
+ * are never gated by <RequireBranch> — they simply see their branch's work.
+ */
+export const BRANCH_SWITCHER_ROLES: StaffRole[] = ["owner", "multi_branch_manager"];
+
+/** Does this role use the topbar branch switcher (multi-branch operator)? */
+export function usesBranchSwitcher(role: StaffRole | undefined | null): boolean {
+  return !!role && BRANCH_SWITCHER_ROLES.includes(role);
+}
 
 /** Allowed roles per first path segment after `/{role}/`. Covers every route
  *  under `app/(dashboard)/[role]/*`. */
@@ -62,6 +71,8 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   vat: MANAGER_ROLES,
   "vat-groups": MANAGER_ROLES,
   branches: MANAGER_ROLES,
+  events: MANAGER_ROLES,
+  "event-types": MANAGER_ROLES,
   promotions: MANAGER_ROLES,
   campaigns: MANAGER_ROLES,
   marketplace: OWNER_ROLES,
@@ -102,7 +113,5 @@ export function canAccessSlug(role: StaffRole, slug: string): boolean {
  * namespace + that page when permitted, otherwise their dashboard.
  */
 export function resolveAllowedPath(role: StaffRole, slug: string): string {
-  return canAccessSlug(role, slug)
-    ? `/${role}/${slug || "dashboard"}`
-    : homePathForRole(role);
+  return canAccessSlug(role, slug) ? `/${role}/${slug || "dashboard"}` : homePathForRole(role);
 }

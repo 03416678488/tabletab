@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { MapPin, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,9 +29,6 @@ import { usePaginatedBranches } from "@/features/branch/hooks/use-paginated-bran
 import { branchService } from "@/features/branch/services/branch.service";
 import { BranchFormDialog } from "@/features/branch/components/branch-form-dialog";
 import type { Branch } from "@/features/branch/types/branch.types";
-
-const SELECT_CLASS =
-  "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 type StatusFilter = "all" | "open" | "closed";
 
@@ -106,9 +104,7 @@ export function BranchManager() {
     <div className="w-full">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            Branches
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">Branches</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {totalItems} location{totalItems === 1 ? "" : "s"} · manage your restaurant network.
           </p>
@@ -149,33 +145,34 @@ export function BranchManager() {
 
       {showFilters && (
         <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Status
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              className="w-40"
               value={status}
-              onChange={(e) => setStatus(e.target.value as StatusFilter)}
-            >
-              <option value="all">All</option>
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              onChange={(v) => setStatus(v as StatusFilter)}
+              aria-label="Filter by status"
+              options={[
+                { value: "all", label: "All" },
+                { value: "open", label: "Open" },
+                { value: "closed", label: "Closed" },
+              ]}
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             City
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              className="w-44"
               value={city}
-              onChange={(e) => setCity(e.target.value)}
-            >
-              <option value="all">All</option>
-              {cities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={(v) => setCity(v)}
+              searchable
+              aria-label="Filter by city"
+              options={[
+                { value: "all", label: "All" },
+                ...cities.map((c) => ({ value: c, label: c })),
+              ]}
+            />
+          </div>
           {activeFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="size-4" /> Clear

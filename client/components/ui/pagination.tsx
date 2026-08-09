@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { cn } from "@/lib/utils";
 
 interface PaginationProps {
@@ -19,9 +20,6 @@ interface PaginationProps {
 }
 
 const DEFAULT_PER_PAGE_OPTIONS = [10, 15, 25, 50, 100];
-
-const PER_PAGE_SELECT_CLASS =
-  "h-8 appearance-none rounded-lg border border-input bg-white pl-2.5 pr-7 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 /** Windowed page list: 1 … p-1 p p+1 … last (no gaps of exactly 1). */
 function pageWindow(page: number, totalPages: number): (number | "ellipsis")[] {
@@ -59,24 +57,16 @@ export function Pagination({
   }
 
   const sizeSelector = showSizeSelector && (
-    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
       Rows
-      <span className="relative">
-        <select
-          className={PER_PAGE_SELECT_CLASS}
-          value={perPage}
-          onChange={(e) => onPerPageChange!(Number(e.target.value))}
-          aria-label="Rows per page"
-        >
-          {perPageOptions.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        <ChevronRight className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 rotate-90 text-muted-foreground" />
-      </span>
-    </label>
+      <Dropdown
+        value={String(perPage)}
+        onChange={(v) => onPerPageChange!(Number(v))}
+        aria-label="Rows per page"
+        className="w-24"
+        options={perPageOptions.map((n) => ({ value: String(n), label: String(n) }))}
+      />
+    </div>
   );
 
   return (
@@ -88,44 +78,44 @@ export function Pagination({
         )}
       </div>
       {totalPages <= 1 ? null : (
-      <div className="ml-auto flex items-center gap-1">
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Previous page"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        {pageWindow(page, totalPages).map((p, i) =>
-          p === "ellipsis" ? (
-            <span key={`e${i}`} className="px-1.5 text-sm text-muted-foreground">
-              …
-            </span>
-          ) : (
-            <Button
-              key={p}
-              variant={p === page ? "default" : "outline"}
-              size="icon"
-              aria-label={`Page ${p}`}
-              aria-current={p === page ? "page" : undefined}
-              onClick={() => onPageChange(p)}
-            >
-              {p}
-            </Button>
-          ),
-        )}
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Next page"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-        >
-          <ChevronRight className="size-4" />
-        </Button>
-      </div>
+        <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Previous page"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          {pageWindow(page, totalPages).map((p, i) =>
+            p === "ellipsis" ? (
+              <span key={`e${i}`} className="px-1.5 text-sm text-muted-foreground">
+                …
+              </span>
+            ) : (
+              <Button
+                key={p}
+                variant={p === page ? "default" : "outline"}
+                size="icon"
+                aria-label={`Page ${p}`}
+                aria-current={p === page ? "page" : undefined}
+                onClick={() => onPageChange(p)}
+              >
+                {p}
+              </Button>
+            ),
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Next page"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
       )}
     </div>
   );

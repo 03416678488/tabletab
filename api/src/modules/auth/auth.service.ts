@@ -23,7 +23,11 @@ import {
   RegistrationResponse,
 } from './types/types';
 
-import { AuthJwtPayload, RefreshSessionClaims, TenantClaim } from './types/auth-jwtPayload';
+import {
+  AuthJwtPayload,
+  RefreshSessionClaims,
+  TenantClaim,
+} from './types/auth-jwtPayload';
 import { RefreshTokenStoreService } from './services/refresh-token-store.service';
 import refreshJwtConfig from './config/refresh-jwt.config';
 import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
@@ -84,7 +88,10 @@ export class AuthService {
       throw new NotFoundException('No user to impersonate in this tenant');
     }
 
-    const payload = this.buildJwtPayload(user, { id: tenant.id, slug: tenant.slug });
+    const payload = this.buildJwtPayload(user, {
+      id: tenant.id,
+      slug: tenant.slug,
+    });
     const expiresIn = process.env.IMPERSONATION_EXPIRES_IN || '30m';
     const token = this._jwtService.sign(payload, {
       expiresIn: expiresIn as JwtSignOptions['expiresIn'],
@@ -138,13 +145,15 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      branchId: user.branchId ?? null,
       roles: this.getFormattedRoles(await user.userRolePermissions),
     };
   }
 
-  async login(
-    request: { user: BaseUserResponse; tenant?: { id: string; slug: string } | null },
-  ): Promise<LoginResponse> {
+  async login(request: {
+    user: BaseUserResponse;
+    tenant?: { id: string; slug: string } | null;
+  }): Promise<LoginResponse> {
     const { user, tenant } = request;
     // Bind the token to the tenant the login request resolved to (from Host /
     // headers, set by the tenant middleware). Tenant-less logins stay global.
@@ -152,7 +161,10 @@ export class AuthService {
 
     // Each login opens a new refresh-session family, tracked server-side so
     // rotation can detect replayed (stolen) refresh tokens.
-    const session: RefreshSessionClaims = { sid: randomUUID(), jti: randomUUID() };
+    const session: RefreshSessionClaims = {
+      sid: randomUUID(),
+      jti: randomUUID(),
+    };
     const tokens = this.generateTokens(payload, session);
     await this._refreshSessions.create(
       tenant ?? null,
@@ -268,7 +280,10 @@ export class AuthService {
 
     return {
       tokens: {
-        ...this.generateTokens(payload, { sid: session.sid, jti: currentJti ?? nextJti }),
+        ...this.generateTokens(payload, {
+          sid: session.sid,
+          jti: currentJti ?? nextJti,
+        }),
       },
     };
   }
@@ -300,7 +315,9 @@ export class AuthService {
       const code = this.generateNumericCodeSecure(6);
       const codeHash = await bcrypt.hash(code, AUTH_CONSTANTS.SALT_ROUNDS);
       const expiry = new Date();
-      expiry.setMinutes(expiry.getMinutes() + AUTH_CONSTANTS.RESET_CODE_EXPIRY_MINUTES);
+      expiry.setMinutes(
+        expiry.getMinutes() + AUTH_CONSTANTS.RESET_CODE_EXPIRY_MINUTES,
+      );
 
       await this._userService.updateResetToken(user.id, codeHash, expiry, repo);
       await this._userService.updateResetCodeAttempts(user.id, 0, repo);
@@ -363,14 +380,22 @@ export class AuthService {
     repo?: Repository<User>,
   ): Promise<void> {
     const newAttemptCount = (user.resetCodeAttempts || 0) + 1;
-    await this._userService.updateResetCodeAttempts(user.id, newAttemptCount, repo);
+    await this._userService.updateResetCodeAttempts(
+      user.id,
+      newAttemptCount,
+      repo,
+    );
 
     if (newAttemptCount >= AUTH_CONSTANTS.MAX_CODE_ATTEMPTS) {
       const lockedUntil = new Date();
       lockedUntil.setMinutes(
         lockedUntil.getMinutes() + AUTH_CONSTANTS.CODE_LOCKOUT_MINUTES,
       );
-      await this._userService.updateResetCodeLockedUntil(user.id, lockedUntil, repo);
+      await this._userService.updateResetCodeLockedUntil(
+        user.id,
+        lockedUntil,
+        repo,
+      );
       throw new ForbiddenException(AUTH_MESSAGES.RESET_CODE_LOCKED);
     }
   }
@@ -407,7 +432,10 @@ export class AuthService {
 
     await this._userService.updateResetCodeAttempts(user.id, 0, repo);
 
-    const hashedPassword = await bcrypt.hash(dto.newPassword, AUTH_CONSTANTS.SALT_ROUNDS);
+    const hashedPassword = await bcrypt.hash(
+      dto.newPassword,
+      AUTH_CONSTANTS.SALT_ROUNDS,
+    );
 
     await Promise.all([
       this._userService.updatePassword(user.id, hashedPassword, repo),
@@ -416,7 +444,10 @@ export class AuthService {
     ]);
 
     try {
-      await this._mailService.sendPasswordResetSuccessEmail(user.email, user.firstName);
+      await this._mailService.sendPasswordResetSuccessEmail(
+        user.email,
+        user.firstName,
+      );
     } catch (error) {
       console.error('Failed to send reset success email:', error);
     }
@@ -432,17 +463,29 @@ export class AuthService {
     const user = await this._userService.findByEmail(dto.email, repo);
 
     if (user?.id && !user.isDeleted && !user.emailVerified) {
-      if (user.verificationCodeLockedUntil && new Date() < user.verificationCodeLockedUntil) {
-        console.warn(`[SECURITY] Email verification locked for user: ${user.id}`);
+      if (
+        user.verificationCodeLockedUntil &&
+        new Date() < user.verificationCodeLockedUntil
+      ) {
+        console.warn(
+          `[SECURITY] Email verification locked for user: ${user.id}`,
+        );
         return { message: 'If that email exists, we sent a code.' };
       }
 
       const code = this.generateNumericCodeSecure(6);
       const codeHash = await bcrypt.hash(code, AUTH_CONSTANTS.SALT_ROUNDS);
       const expiry = new Date();
-      expiry.setMinutes(expiry.getMinutes() + AUTH_CONSTANTS.VERIFICATION_CODE_EXPIRY_MINUTES);
+      expiry.setMinutes(
+        expiry.getMinutes() + AUTH_CONSTANTS.VERIFICATION_CODE_EXPIRY_MINUTES,
+      );
 
-      await this._userService.setVerificationToken(user.id, codeHash, expiry, repo);
+      await this._userService.setVerificationToken(
+        user.id,
+        codeHash,
+        expiry,
+        repo,
+      );
       await this._userService.updateVerificationCodeAttempts(user.id, 0, repo);
 
       try {
@@ -472,8 +515,13 @@ export class AuthService {
       throw new BadRequestException('Invalid verification code');
     }
 
-    if (user.verificationCodeLockedUntil && new Date() < user.verificationCodeLockedUntil) {
-      throw new ForbiddenException('Too many failed attempts. Account locked for 15 minutes.');
+    if (
+      user.verificationCodeLockedUntil &&
+      new Date() < user.verificationCodeLockedUntil
+    ) {
+      throw new ForbiddenException(
+        'Too many failed attempts. Account locked for 15 minutes.',
+      );
     }
 
     if (user.emailVerified) {
@@ -492,14 +540,24 @@ export class AuthService {
     const isCodeValid = await bcrypt.compare(dto.code, user.verificationToken);
     if (!isCodeValid) {
       const newAttemptCount = (user.verificationCodeAttempts || 0) + 1;
-      await this._userService.updateVerificationCodeAttempts(user.id, newAttemptCount, repo);
+      await this._userService.updateVerificationCodeAttempts(
+        user.id,
+        newAttemptCount,
+        repo,
+      );
 
       if (newAttemptCount >= 5) {
         const lockedUntil = new Date();
         lockedUntil.setMinutes(lockedUntil.getMinutes() + 15);
-        await this._userService.updateVerificationCodeLockedUntil(user.id, lockedUntil, repo);
+        await this._userService.updateVerificationCodeLockedUntil(
+          user.id,
+          lockedUntil,
+          repo,
+        );
 
-        throw new ForbiddenException('Too many failed attempts. Account locked for 15 minutes.');
+        throw new ForbiddenException(
+          'Too many failed attempts. Account locked for 15 minutes.',
+        );
       }
 
       throw new BadRequestException('Invalid verification code');
@@ -509,7 +567,10 @@ export class AuthService {
     await this._userService.verifyEmail(user.id, repo);
 
     try {
-      await this._mailService.sendVerificationSuccessEmail(user.email, user.firstName);
+      await this._mailService.sendVerificationSuccessEmail(
+        user.email,
+        user.firstName,
+      );
     } catch (error) {
       console.error('Failed to send verification success email:', error);
     }
@@ -517,25 +578,41 @@ export class AuthService {
     return { message: 'Email verified successfully' };
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto, dataSource?: DataSource) {
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    dataSource?: DataSource,
+  ) {
     const repo = dataSource?.getRepository(User);
-    const user = await this._userService.findById(userId, ['id', 'password'], repo);
+    const user = await this._userService.findById(
+      userId,
+      ['id', 'password'],
+      repo,
+    );
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
 
     if (!isPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
     }
 
     if (dto.currentPassword === dto.newPassword) {
-      throw new BadRequestException('New password must be different from current password');
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
     }
 
-    const hashedPassword = await bcrypt.hash(dto.newPassword, AUTH_CONSTANTS.SALT_ROUNDS);
+    const hashedPassword = await bcrypt.hash(
+      dto.newPassword,
+      AUTH_CONSTANTS.SALT_ROUNDS,
+    );
 
     await Promise.all([
       this._userService.updatePassword(userId, hashedPassword, repo),
@@ -575,13 +652,21 @@ export class AuthService {
     };
   }
 
-  private generateTokens(payload: AuthJwtPayload, session: RefreshSessionClaims) {
+  private generateTokens(
+    payload: AuthJwtPayload,
+    session: RefreshSessionClaims,
+  ) {
     const now = new Date();
-    const jwtExpiresIn = this._configService.get<string>('JWT_EXPIRES_IN', '15m');
+    const jwtExpiresIn = this._configService.get<string>(
+      'JWT_EXPIRES_IN',
+      '15m',
+    );
     // Report the same expiry the refresh token is actually signed with.
     const refreshExpiresIn = this._refreshTokenConfig.expiresIn;
 
-    const tokenExpiresAt = new Date(now.getTime() + this.parseDurationToMs(jwtExpiresIn));
+    const tokenExpiresAt = new Date(
+      now.getTime() + this.parseDurationToMs(jwtExpiresIn),
+    );
     const refreshTokenExpiresAt = new Date(
       now.getTime() + this.parseDurationToMs(refreshExpiresIn),
     );
@@ -599,7 +684,9 @@ export class AuthService {
   }
 
   private refreshTtlSeconds(): number {
-    return Math.floor(this.parseDurationToMs(this._refreshTokenConfig.expiresIn) / 1000);
+    return Math.floor(
+      this.parseDurationToMs(this._refreshTokenConfig.expiresIn) / 1000,
+    );
   }
 
   private parseDurationToMs(duration: string): number {
@@ -637,7 +724,10 @@ export class AuthService {
     }
   }
 
-  async isPhoneNumberExist(phoneNumber: string, dataSource?: DataSource): Promise<void> {
+  async isPhoneNumberExist(
+    phoneNumber: string,
+    dataSource?: DataSource,
+  ): Promise<void> {
     const existing = await this._userService.existsByPhone(
       phoneNumber,
       dataSource?.getRepository(User),
@@ -648,7 +738,9 @@ export class AuthService {
     }
   }
 
-  private formatRoles(userRolePermissions: UserRolePermissions[]): FormattedRoles {
+  private formatRoles(
+    userRolePermissions: UserRolePermissions[],
+  ): FormattedRoles {
     if (!userRolePermissions) return {};
 
     return userRolePermissions.reduce((roles, { role, permission }) => {

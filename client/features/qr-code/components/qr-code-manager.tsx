@@ -8,6 +8,7 @@ import {
   Download,
   Pencil,
   Plus,
+  Printer,
   QrCode as QrCodeIcon,
   Search,
   Trash2,
@@ -19,6 +20,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/lib/utils";
@@ -40,10 +42,7 @@ export function QrCodeManager() {
   const [search, setSearch] = useState("");
   const [area, setArea] = useState<string>(ALL);
 
-  const usedTableIds = useMemo(
-    () => qrCodes.map((q) => q.tableId),
-    [qrCodes],
-  );
+  const usedTableIds = useMemo(() => qrCodes.map((q) => q.tableId), [qrCodes]);
 
   const areaTabs = useMemo(() => {
     const names = new Set<string>();
@@ -58,12 +57,7 @@ export function QrCodeManager() {
     return qrCodes.filter((qr) => {
       const areaName = qr.table?.area?.name ?? "No area";
       if (area !== ALL && areaName !== area) return false;
-      if (
-        q &&
-        !`${qr.table?.name ?? ""} ${areaName} ${qr.slug}`
-          .toLowerCase()
-          .includes(q)
-      ) {
+      if (q && !`${qr.table?.name ?? ""} ${areaName} ${qr.slug}`.toLowerCase().includes(q)) {
         return false;
       }
       return true;
@@ -113,12 +107,9 @@ export function QrCodeManager() {
     <div className="w-full">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            QR Codes
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">QR Codes</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {qrCodes.length} code{qrCodes.length === 1 ? "" : "s"} · one scannable
-            code per table.
+            {qrCodes.length} code{qrCodes.length === 1 ? "" : "s"} · one scannable code per table.
           </p>
         </div>
         <Button onClick={openCreate} size="sm">
@@ -140,21 +131,16 @@ export function QrCodeManager() {
       </div>
 
       {areaTabs.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          <AreaTab
-            label="All Areas"
-            active={area === ALL}
-            onClick={() => setArea(ALL)}
-          />
-          {areaTabs.map((name) => (
-            <AreaTab
-              key={name}
-              label={name}
-              active={area === name}
-              onClick={() => setArea(name)}
-            />
-          ))}
-        </div>
+        <SegmentedTabs
+          className="mt-4"
+          aria-label="Filter by area"
+          value={area}
+          onChange={setArea}
+          tabs={[
+            { key: ALL, label: "All Areas" },
+            ...areaTabs.map((name) => ({ key: name, label: name })),
+          ]}
+        />
       )}
 
       <div className="mt-4">
@@ -235,31 +221,6 @@ export function QrCodeManager() {
   );
 }
 
-function AreaTab({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-        active
-          ? "border-brand bg-brand text-white"
-          : "border-border bg-white text-muted-foreground hover:text-ink",
-      )}
-    >
-      {label}
-    </button>
-  );
-}
-
 function QrCard({
   qr,
   onEdit,
@@ -294,6 +255,35 @@ function QrCard({
     }
   };
 
+  /** Open a print-ready page (QR + table info) and trigger the print dialog. */
+  const print = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL("image/png");
+    const win = window.open("", "_blank", "width=460,height=680");
+    if (!win) {
+      toast("Allow pop-ups to print", { tone: "error" });
+      return;
+    }
+    const esc = (s: string) => s.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
+    const tableName = esc(qr.table?.name ?? "");
+    const sub = esc([qr.table?.area?.name, qr.table?.branch?.name].filter(Boolean).join(" · "));
+    win.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><title>QR ${tableName}</title>` +
+        `<style>*{margin:0;box-sizing:border-box}` +
+        `body{font-family:system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;text-align:center;color:#111}` +
+        `img{width:300px;height:300px}h1{font-size:30px;margin-top:20px}` +
+        `p{color:#666;margin-top:6px;font-size:15px}.hint{margin-top:14px;font-size:13px;color:#999}` +
+        `@media print{@page{margin:12mm}}</style></head><body>` +
+        `<img src="${dataUrl}" alt="QR code"/>` +
+        `<h1>${tableName}</h1>${sub ? `<p>${sub}</p>` : ""}` +
+        `<p class="hint">Scan to view the menu &amp; order</p>` +
+        `<script>window.onload=function(){window.focus();window.print();};</script>` +
+        `</body></html>`,
+    );
+    win.document.close();
+  };
+
   return (
     <Card className="flex flex-col items-center gap-3 p-4 text-center">
       <div className="flex w-full items-center justify-between">
@@ -301,6 +291,9 @@ function QrCard({
           {qr.isActive ? "Active" : "Inactive"}
         </StatusPill>
         <div className="flex gap-0.5">
+          <Button variant="ghost" size="icon" aria-label="Print" onClick={print}>
+            <Printer className="size-4" />
+          </Button>
           <Button variant="ghost" size="icon" aria-label="Edit" onClick={onEdit}>
             <Pencil className="size-4" />
           </Button>
@@ -316,19 +309,11 @@ function QrCard({
           !qr.isActive && "opacity-50",
         )}
       >
-        <QRCodeCanvas
-          value={url}
-          size={132}
-          level="M"
-          marginSize={2}
-          ref={canvasRef}
-        />
+        <QRCodeCanvas value={url} size={132} level="M" marginSize={2} ref={canvasRef} />
       </div>
 
       <div className="min-w-0">
-        <p className="truncate font-semibold text-ink">
-          {qr.table?.name ?? "—"}
-        </p>
+        <p className="truncate font-semibold text-ink">{qr.table?.name ?? "—"}</p>
         <p className="truncate text-xs text-muted-foreground">
           {qr.table?.area?.name ?? "No area"}
           {qr.table?.branch?.name ? ` · ${qr.table.branch.name}` : ""}

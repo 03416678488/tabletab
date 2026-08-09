@@ -5,6 +5,7 @@ import { Pencil, Plus, Search, SlidersHorizontal, Trash2, UtensilsCrossed, X } f
 
 import { AppImage } from "@/components/ui/app-image";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -29,9 +30,6 @@ import { menuService } from "@/features/menu/services/menu.service";
 import { MenuFormDialog } from "@/features/menu/components/menu-form-dialog";
 import { useCategories } from "@/features/category/hooks/use-categories";
 import type { MenuItem } from "@/features/menu/types/menu.types";
-
-const SELECT_CLASS =
-  "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 type AvailFilter = "all" | "available" | "unavailable";
 
@@ -95,9 +93,7 @@ export function MenuManager() {
     <div className="w-full">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            Menu
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">Menu</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {totalItems} item{totalItems === 1 ? "" : "s"} · manage your dishes.
           </p>
@@ -137,33 +133,34 @@ export function MenuManager() {
 
       {showFilters && (
         <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Category
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              className="w-44"
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              <option value="all">All</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              onChange={(v) => setCategoryId(v)}
+              searchable
+              aria-label="Filter by category"
+              options={[
+                { value: "all", label: "All" },
+                ...categories.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Availability
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              className="w-40"
               value={avail}
-              onChange={(e) => setAvail(e.target.value as AvailFilter)}
-            >
-              <option value="all">All</option>
-              <option value="available">Available</option>
-              <option value="unavailable">Unavailable</option>
-            </select>
-          </label>
+              onChange={(v) => setAvail(v as AvailFilter)}
+              aria-label="Filter by availability"
+              options={[
+                { value: "all", label: "All" },
+                { value: "available", label: "Available" },
+                { value: "unavailable", label: "Unavailable" },
+              ]}
+            />
+          </div>
           {activeFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <X className="size-4" /> Clear
@@ -271,7 +268,15 @@ export function MenuManager() {
       </Card>
 
       {!loading && !error && items.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} totalItems={totalItems} onPageChange={goToPage} perPage={perPage} onPerPageChange={setPerPage} className="mt-4" />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
       )}
 
       <MenuFormDialog

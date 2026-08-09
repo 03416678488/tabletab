@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, LocateFixed } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   Dialog,
   DialogContent,
@@ -21,33 +22,19 @@ import { WeeklyHoursEditor } from "@/components/ui/weekly-hours-editor";
 import { WeeklyHoursBadges } from "@/components/ui/weekly-hours-badges";
 import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm, httpClient } from "@/lib/httpClient";
-import {
-  coerceWeek,
-  emptyWeek,
-  flatToWeekly,
-  type WeeklyHours,
-} from "@/lib/opening-hours";
+import { coerceWeek, emptyWeek, flatToWeekly, type WeeklyHours } from "@/lib/opening-hours";
 import { ImagePickerField } from "@/features/media/components/image-picker-field";
 
 // Leaflet touches `window`, so the map is loaded client-side only.
-const BranchMapPicker = dynamic(
-  () => import("@/features/branch/components/branch-map-picker"),
-  {
-    ssr: false,
-    loading: () => <div className="h-56 w-full animate-pulse rounded-xl bg-secondary" />,
-  },
-);
+const BranchMapPicker = dynamic(() => import("@/features/branch/components/branch-map-picker"), {
+  ssr: false,
+  loading: () => <div className="h-56 w-full animate-pulse rounded-xl bg-secondary" />,
+});
 
-import {
-  branchSchema,
-  type BranchFormValues,
-} from "@/features/branch/schemas/branch.schema";
+import { branchSchema, type BranchFormValues } from "@/features/branch/schemas/branch.schema";
 import { BRANCH_DEFAULT_CITY } from "@/features/branch/constants/branch.constants";
 import { branchService } from "@/features/branch/services/branch.service";
-import type {
-  Branch,
-  CreateBranchInput,
-} from "@/features/branch/types/branch.types";
+import type { Branch, CreateBranchInput } from "@/features/branch/types/branch.types";
 
 interface BranchFormDialogProps {
   open: boolean;
@@ -87,12 +74,7 @@ function toDefaults(branch: Branch | null): BranchFormValues {
   };
 }
 
-export function BranchFormDialog({
-  open,
-  onOpenChange,
-  branch,
-  onSaved,
-}: BranchFormDialogProps) {
+export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: BranchFormDialogProps) {
   const isEdit = !!branch;
   const form = useForm<BranchFormValues>({
     resolver: zodResolver(branchSchema),
@@ -186,12 +168,7 @@ export function BranchFormDialog({
       onOpenChange(false);
       onSaved();
     } catch (err) {
-      applyApiErrorToForm(err, setError, "name", [
-        "name",
-        "address",
-        "city",
-        "phone",
-      ]);
+      applyApiErrorToForm(err, setError, "name", ["name", "address", "city", "phone"]);
       if (!(err instanceof ApiError)) {
         toast("Something went wrong", { tone: "error" });
       }
@@ -204,9 +181,7 @@ export function BranchFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit branch" : "Add branch"}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? "Update this branch's details."
-              : "Create a new branch location."}
+            {isEdit ? "Update this branch's details." : "Create a new branch location."}
           </DialogDescription>
         </DialogHeader>
 
@@ -335,21 +310,21 @@ export function BranchFormDialog({
           </div>
 
           <Field label="Dine-in (QR) payment">
-            <select
-              {...register("dineInPaymentMode")}
-              className="h-10 w-full appearance-none rounded-lg border border-input bg-white px-3 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30"
-            >
-              <option value="pay_after">Pay after — order goes to the kitchen, settle at the table</option>
-              <option value="pay_first">Pay first — guest pays online before the order is sent (needs online payment)</option>
-            </select>
+            <Dropdown
+              value={(watch("dineInPaymentMode") as string) ?? "pay_after"}
+              onChange={(v) =>
+                setValue("dineInPaymentMode", v as "pay_after" | "pay_first", { shouldDirty: true })
+              }
+              aria-label="Dine-in payment mode"
+              options={[
+                { value: "pay_after", label: "Pay after — settle at the table" },
+                { value: "pay_first", label: "Pay first — guest pays online first" },
+              ]}
+            />
           </Field>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -387,11 +362,7 @@ const Toggle = function Toggle({
 }: { label: string } & React.ComponentProps<"input">) {
   return (
     <label className="flex items-center gap-2 text-sm text-ink">
-      <input
-        type="checkbox"
-        className="size-4 rounded border-border accent-brand"
-        {...props}
-      />
+      <input type="checkbox" className="size-4 rounded border-border accent-brand" {...props} />
       {label}
     </label>
   );

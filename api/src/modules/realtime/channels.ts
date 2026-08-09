@@ -13,10 +13,12 @@ export const notifChannel = (userId: string): string => `notif:${userId}`;
  * Tenant-scoped kitchen/pickup board. `default` covers the dev / tenant-less DB
  * (both storefront orders and staff resolve to the same key there).
  */
-export const boardChannel = (tenantId?: string | null): string => `board:${tenantId ?? 'default'}`;
+export const boardChannel = (tenantId?: string | null): string =>
+  `board:${tenantId ?? 'default'}`;
 
 /** Tenant menu changes (availability / price / add / remove). Public per tenant. */
-export const menuChannel = (tenantId?: string | null): string => `menu:${tenantId ?? 'default'}`;
+export const menuChannel = (tenantId?: string | null): string =>
+  `menu:${tenantId ?? 'default'}`;
 
 /**
  * Tenant branch changes — open/closed, online ordering, delivery/pickup flags,
@@ -43,3 +45,10 @@ export const reservationsChannel = (tenantId?: string | null): string =>
 /** Tenant service-request queue — guests calling a waiter / asking for the bill. Staff. */
 export const serviceChannel = (tenantId?: string | null): string =>
   `service:${tenantId ?? 'default'}`;
+
+/** One guest tracking one event booking (capability by UUID). */
+export const eventChannel = (eventId: string): string => `event:${eventId}`;
+
+/** Tenant event book — new + changed event bookings for the manager view. Staff. */
+export const eventsChannel = (tenantId?: string | null): string =>
+  `events:${tenantId ?? 'default'}`;

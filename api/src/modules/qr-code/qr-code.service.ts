@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -55,7 +59,10 @@ export class QrCodeService extends AbstractService<QrCode> {
    * `paymentStatus` forced to `unpaid`. A duplicate `idempotencyKey` returns the
    * original order instead of creating a second one.
    */
-  async createTableOrder(slug: string, dto: CreateTableOrderDto): Promise<Order> {
+  async createTableOrder(
+    slug: string,
+    dto: CreateTableOrderDto,
+  ): Promise<Order> {
     const key = dto.idempotencyKey?.trim();
     if (key) {
       const hit = recentSubmits.get(key);
@@ -67,7 +74,9 @@ export class QrCodeService extends AbstractService<QrCode> {
     const qr = await this.resolveBySlug(slug);
     const table = qr.table;
     if (!table || table.isActive === false) {
-      throw new BadRequestException('This table is not available for ordering right now.');
+      throw new BadRequestException(
+        'This table is not available for ordering right now.',
+      );
     }
     if (table.branch && table.branch.isOpen === false) {
       throw new BadRequestException('This location is currently closed.');
@@ -97,15 +106,11 @@ export class QrCodeService extends AbstractService<QrCode> {
     return order;
   }
 
-  /** The table's full running bill — every active round merged into one session
-   *  (so a second-round "water bottle" shows on the same bill). Null when empty. */
-  async getBill(slug: string) {
-    const qr = await this.resolveBySlug(slug);
-    return this._orders.getTableSessionBill(qr.tableId);
-  }
-
   /** Queue a service request from the table — lands live on the staff board + bell. */
-  private async requestService(slug: string, type: 'waiter' | 'bill'): Promise<void> {
+  private async requestService(
+    slug: string,
+    type: 'waiter' | 'bill',
+  ): Promise<void> {
     const qr = await this.resolveBySlug(slug);
     await this._serviceRequests.create({
       type,
@@ -118,13 +123,9 @@ export class QrCodeService extends AbstractService<QrCode> {
   /** A guest tapped "Call waiter" — queue it for staff. */
   async callWaiter(slug: string): Promise<{ message: string }> {
     await this.requestService(slug, 'waiter');
-    return { message: 'A waiter has been notified — someone will be with you shortly.' };
-  }
-
-  /** A guest is ready to pay — queue a bill request for staff. */
-  async requestBill(slug: string): Promise<{ message: string }> {
-    await this.requestService(slug, 'bill');
-    return { message: 'Staff have been notified — someone will bring your bill.' };
+    return {
+      message: 'A waiter has been notified — someone will be with you shortly.',
+    };
   }
 
   getAll(query: GetQrCodeQueryDto): Promise<Paginated<QrCode>> {
@@ -150,7 +151,9 @@ export class QrCodeService extends AbstractService<QrCode> {
       relations: ['table', 'table.area', 'table.branch'],
     });
     if (!qr) {
-      throw new NotFoundException('This QR code is not active or no longer exists.');
+      throw new NotFoundException(
+        'This QR code is not active or no longer exists.',
+      );
     }
     return qr;
   }

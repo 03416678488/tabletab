@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ChevronRight, ReceiptText, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -34,9 +35,6 @@ import {
 import { PaymentDialog, type PaymentResult } from "@/features/order/components/payment-dialog";
 import { paymentMethodLabel } from "@/features/order/lib/payment-label";
 import type { Order, OrderStatus, OrderType } from "@/features/order/types/order.types";
-
-const FILTER_SELECT_CLASS =
-  "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
@@ -143,7 +141,8 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
   };
 
   const remove = async (order: Order) => {
-    if (!(await confirm({ title: `Delete order ${order.orderNumber}?`, confirmLabel: "Delete" }))) return;
+    if (!(await confirm({ title: `Delete order ${order.orderNumber}?`, confirmLabel: "Delete" })))
+      return;
     setBusyId(order.id);
     try {
       await orderService.remove(order.id);
@@ -160,9 +159,7 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
     <div className="w-full">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            {title}
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">{title}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {totalItems} order{totalItems === 1 ? "" : "s"} · {subtitle}
           </p>
@@ -195,33 +192,37 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
 
       {showFilters && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Status
-            <select
-              className={FILTER_SELECT_CLASS}
+            <Dropdown
+              className="w-44"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as OrderStatus | "all")}
-            >
-              <option value="all">All</option>
-              {(Object.keys(ORDER_STATUS_META) as OrderStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {ORDER_STATUS_META[s].label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              onChange={(v) => setStatusFilter(v as OrderStatus | "all")}
+              searchable
+              aria-label="Filter by status"
+              options={[
+                { value: "all", label: "All" },
+                ...(Object.keys(ORDER_STATUS_META) as OrderStatus[]).map((s) => ({
+                  value: s,
+                  label: ORDER_STATUS_META[s].label,
+                })),
+              ]}
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Payment
-            <select
-              className={FILTER_SELECT_CLASS}
+            <Dropdown
+              className="w-40"
               value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value as "all" | "paid" | "unpaid")}
-            >
-              <option value="all">All</option>
-              <option value="paid">Paid</option>
-              <option value="unpaid">Unpaid</option>
-            </select>
-          </label>
+              onChange={(v) => setPaymentFilter(v as "all" | "paid" | "unpaid")}
+              aria-label="Filter by payment"
+              options={[
+                { value: "all", label: "All" },
+                { value: "paid", label: "Paid" },
+                { value: "unpaid", label: "Unpaid" },
+              ]}
+            />
+          </div>
           {activeFilters > 0 && (
             <Button
               variant="ghost"
@@ -298,12 +299,8 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
                       <TableCell className="text-muted-foreground">
                         {order.table?.name ?? order.customerName ?? "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {itemCount(order)}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatMoney(order.total)}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{itemCount(order)}</TableCell>
+                      <TableCell className="font-medium">{formatMoney(order.total)}</TableCell>
                       <TableCell>
                         <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
                       </TableCell>

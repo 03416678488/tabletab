@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Monitor, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,9 +36,6 @@ import { kioskMachineService } from "@/features/kiosk-machine/services/kiosk-mac
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useClientPagination } from "@/hooks/use-client-pagination";
 import type { KioskMachine } from "@/features/kiosk-machine/types/kiosk-machine.types";
-
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 const empty = { machineId: "", userName: "", username: "", branchId: "", isActive: true };
 
@@ -115,7 +113,8 @@ export function KioskMachineManager() {
   const confirm = useConfirm();
 
   const remove = async (m: KioskMachine) => {
-    if (!(await confirm({ title: `Delete machine ${m.machineId}?`, confirmLabel: "Delete" }))) return;
+    if (!(await confirm({ title: `Delete machine ${m.machineId}?`, confirmLabel: "Delete" })))
+      return;
     try {
       await kioskMachineService.remove(m.id);
       toast("Kiosk machine deleted", { tone: "success" });
@@ -188,10 +187,23 @@ export function KioskMachineManager() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => { setEditing(m); setOpen(true); }}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Edit"
+                        onClick={() => {
+                          setEditing(m);
+                          setOpen(true);
+                        }}
+                      >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(m)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        onClick={() => remove(m)}
+                      >
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
@@ -222,29 +234,50 @@ export function KioskMachineManager() {
           </DialogHeader>
           <div className="space-y-3">
             <Field label="Machine ID">
-              <Input value={form.machineId} onChange={(e) => setForm({ ...form, machineId: e.target.value })} />
+              <Input
+                value={form.machineId}
+                onChange={(e) => setForm({ ...form, machineId: e.target.value })}
+              />
             </Field>
             <Field label="Branch">
-              <select className={SELECT_CLASS} value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>
-                <option value="">— No branch —</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+              <Dropdown
+                value={form.branchId}
+                onChange={(v) => setForm({ ...form, branchId: v })}
+                searchable
+                placeholder="— No branch —"
+                aria-label="Branch"
+                options={[
+                  { value: "", label: "— No branch —" },
+                  ...branches.map((b) => ({ value: b.id, label: b.name })),
+                ]}
+              />
             </Field>
             <Field label="User (display name)">
-              <Input value={form.userName} onChange={(e) => setForm({ ...form, userName: e.target.value })} />
+              <Input
+                value={form.userName}
+                onChange={(e) => setForm({ ...form, userName: e.target.value })}
+              />
             </Field>
             <Field label="Username">
-              <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+              <Input
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+              />
             </Field>
             <label className="flex items-center gap-2 text-sm text-ink">
-              <input type="checkbox" className="size-4 rounded border-border accent-brand" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+              <input
+                type="checkbox"
+                className="size-4 rounded border-border accent-brand"
+                checked={form.isActive}
+                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+              />
               Active
             </label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
             <Button disabled={saving || !form.machineId || !form.username} onClick={save}>
               {saving && <Loader2 className="size-4 animate-spin" />} Save
             </Button>

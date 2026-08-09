@@ -1,0 +1,14 @@
+{
+  "name": "tabletap-repo",
+  "private": true,
+  "description": "Repo-root tooling: Husky git hooks + lint-staged that enforce ESLint/Prettier standards across the api and client projects on every commit.",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm run lint --prefix client && npm run lint --prefix api",
+    "format": "npm run format --prefix client && npm run format --prefix api"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  }
+}

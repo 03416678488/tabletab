@@ -6,7 +6,6 @@ import {
   Bike,
   Calculator,
   CheckCircle2,
-  CreditCard,
   Loader2,
   Megaphone,
   MessageCircle,
@@ -53,7 +52,6 @@ const apiBase = () => process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 const CATEGORY_ICON: Record<IntegrationCategory, LucideIcon> = {
   delivery: Bike,
-  payments: CreditCard,
   messaging: MessageCircle,
   accounting: Calculator,
   marketing: Megaphone,
@@ -62,7 +60,6 @@ const CATEGORY_ICON: Record<IntegrationCategory, LucideIcon> = {
 const TABS = [
   { key: "all", label: "All" },
   { key: "delivery", label: "Delivery" },
-  { key: "payments", label: "Payments" },
   { key: "messaging", label: "Messaging" },
   { key: "accounting", label: "Accounting" },
   { key: "marketing", label: "Marketing" },
@@ -152,7 +149,7 @@ export function MarketplaceManager() {
           <Plug className="size-5 text-brand" /> Marketplace
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Connect third-party tools — delivery apps, payments, messaging and more.
+          Connect third-party tools — delivery apps, messaging, accounting and more.
           {connectedCount > 0 && ` · ${connectedCount} connected`}
         </p>
       </div>
@@ -172,7 +169,12 @@ export function MarketplaceManager() {
           ))}
         </div>
       ) : shown.length === 0 ? (
-        <EmptyState className="mt-5 py-12" icon={Plug} title="Nothing here" description="No integrations in this category yet." />
+        <EmptyState
+          className="mt-5 py-12"
+          icon={Plug}
+          title="Nothing here"
+          description="No integrations in this category yet."
+        />
       ) : (
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {shown.map((item) => {

@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  useFieldArray,
-  useForm,
-  type UseFormRegister,
-} from "react-hook-form";
+import { useFieldArray, useForm, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   Sheet,
   SheetContent,
@@ -28,10 +25,7 @@ import { useCategories } from "@/features/category/hooks/use-categories";
 import { useFoodTypes } from "@/features/food-type/hooks/use-food-types";
 import { useMenus } from "@/features/menu-list/hooks/use-menus";
 import { ImagesField } from "@/features/media/components/images-field";
-import {
-  menuItemSchema,
-  type MenuItemFormValues,
-} from "@/features/menu/schemas/menu.schema";
+import { menuItemSchema, type MenuItemFormValues } from "@/features/menu/schemas/menu.schema";
 import { menuService } from "@/features/menu/services/menu.service";
 import type {
   CreateMenuItemInput,
@@ -46,9 +40,6 @@ interface MenuFormDialogProps {
   item: MenuItem | null;
   onSaved: () => void;
 }
-
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3.5 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 function toNumber(value: unknown): number {
   const n = Number(value);
@@ -72,16 +63,9 @@ function toDefaults(item: MenuItem | null): MenuItemFormValues {
 }
 
 const cleanRows = (rows: MenuOptionRow[]): MenuOptionRow[] =>
-  rows
-    .filter((r) => r.name.trim())
-    .map((r) => ({ name: r.name.trim(), price: toNumber(r.price) }));
+  rows.filter((r) => r.name.trim()).map((r) => ({ name: r.name.trim(), price: toNumber(r.price) }));
 
-export function MenuFormDialog({
-  open,
-  onOpenChange,
-  item,
-  onSaved,
-}: MenuFormDialogProps) {
+export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDialogProps) {
   const isEdit = !!item;
   const { categories } = useCategories();
   const { foodTypes } = useFoodTypes();
@@ -115,11 +99,9 @@ export function MenuFormDialog({
 
   const toggle = (field: "foodTypeIds" | "menuIds", id: string) => {
     const current = field === "foodTypeIds" ? foodTypeIds : menuIds;
-    setValue(
-      field,
-      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
-      { shouldDirty: true },
-    );
+    setValue(field, current.includes(id) ? current.filter((x) => x !== id) : [...current, id], {
+      shouldDirty: true,
+    });
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -157,123 +139,117 @@ export function MenuFormDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="w-full gap-0 p-0 sm:max-w-3xl"
-      >
+      <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-3xl">
         <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle>{isEdit ? "Edit menu item" : "Add menu item"}</SheetTitle>
-          <SheetDescription>
-            Details, classification, and options for this dish.
-          </SheetDescription>
+          <SheetDescription>Details, classification, and options for this dish.</SheetDescription>
         </SheetHeader>
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto px-5 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
             <div className="space-y-7">
-            {/* Details */}
-            <Section title="Details">
-              <div className="space-y-1.5">
-                <Label>Name</Label>
-                <Input {...register("name")} aria-invalid={!!errors.name} />
-                {errors.name && (
-                  <p className="text-xs text-destructive">{errors.name.message}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Description</Label>
-                <Input {...register("description")} placeholder="Optional" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+              {/* Details */}
+              <Section title="Details">
                 <div className="space-y-1.5">
-                  <Label>Base price</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    {...register("price", { setValueAs: toNumber })}
-                    aria-invalid={!!errors.price}
+                  <Label>Name</Label>
+                  <Input {...register("name")} aria-invalid={!!errors.name} />
+                  {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Description</Label>
+                  <Input {...register("description")} placeholder="Optional" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Base price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      {...register("price", { setValueAs: toNumber })}
+                      aria-invalid={!!errors.price}
+                    />
+                    {errors.price && (
+                      <p className="text-xs text-destructive">{errors.price.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Category</Label>
+                    <Dropdown
+                      value={watch("categoryId") ?? ""}
+                      onChange={(v) => setValue("categoryId", v, { shouldDirty: true })}
+                      searchable
+                      placeholder="— None —"
+                      aria-label="Category"
+                      options={[
+                        { value: "", label: "— None —" },
+                        ...categories.map((c) => ({ value: c.id, label: c.name })),
+                      ]}
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-border accent-brand"
+                    {...register("isAvailable")}
                   />
-                  {errors.price && (
-                    <p className="text-xs text-destructive">{errors.price.message}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Category</Label>
-                  <select className={SELECT_CLASS} {...register("categoryId")}>
-                    <option value="">— None —</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border-border accent-brand"
-                  {...register("isAvailable")}
+                  Available
+                </label>
+              </Section>
+
+              {/* Classification */}
+              <Section title="Classification">
+                <ChipSelect
+                  label="Menu"
+                  options={menus}
+                  value={menuIds}
+                  onToggle={(id) => toggle("menuIds", id)}
+                  empty="No menus yet — create one under Menu → Menu."
                 />
-                Available
-              </label>
-            </Section>
+                <ChipSelect
+                  label="Food types"
+                  options={foodTypes}
+                  value={foodTypeIds}
+                  onToggle={(id) => toggle("foodTypeIds", id)}
+                  empty="No food types yet — create some under Menu → Food Types."
+                />
+              </Section>
 
-            {/* Classification */}
-            <Section title="Classification">
-              <ChipSelect
-                label="Menu"
-                options={menus}
-                value={menuIds}
-                onToggle={(id) => toggle("menuIds", id)}
-                empty="No menus yet — create one under Menu → Menu."
+              {/* Options */}
+              <OptionListEditor
+                title="Sizes"
+                addLabel="Add size"
+                namePrefix="sizes"
+                fields={sizes.fields}
+                append={() => sizes.append({ name: "", price: 0 })}
+                remove={sizes.remove}
+                register={register}
               />
-              <ChipSelect
-                label="Food types"
-                options={foodTypes}
-                value={foodTypeIds}
-                onToggle={(id) => toggle("foodTypeIds", id)}
-                empty="No food types yet — create some under Menu → Food Types."
+              <OptionListEditor
+                title="Variants"
+                addLabel="Add variant"
+                namePrefix="variants"
+                fields={variants.fields}
+                append={() => variants.append({ name: "", price: 0 })}
+                remove={variants.remove}
+                register={register}
               />
-            </Section>
-
-            {/* Options */}
-            <OptionListEditor
-              title="Sizes"
-              addLabel="Add size"
-              namePrefix="sizes"
-              fields={sizes.fields}
-              append={() => sizes.append({ name: "", price: 0 })}
-              remove={sizes.remove}
-              register={register}
-            />
-            <OptionListEditor
-              title="Variants"
-              addLabel="Add variant"
-              namePrefix="variants"
-              fields={variants.fields}
-              append={() => variants.append({ name: "", price: 0 })}
-              remove={variants.remove}
-              register={register}
-            />
-            <OptionListEditor
-              title="Add-ons"
-              addLabel="Add add-on"
-              namePrefix="addOns"
-              fields={addOns.fields}
-              append={() => addOns.append({ name: "", price: 0 })}
-              remove={addOns.remove}
-              register={register}
-            />
+              <OptionListEditor
+                title="Add-ons"
+                addLabel="Add add-on"
+                namePrefix="addOns"
+                fields={addOns.fields}
+                append={() => addOns.append({ name: "", price: 0 })}
+                remove={addOns.remove}
+                register={register}
+              />
             </div>
 
             {/* Right column: images */}
             <div className="lg:border-l lg:border-border lg:pl-6">
               <ImagesField
                 value={watch("images")}
-                onChange={(urls) =>
-                  setValue("images", urls, { shouldDirty: true })
-                }
+                onChange={(urls) => setValue("images", urls, { shouldDirty: true })}
               />
             </div>
           </div>
@@ -293,13 +269,7 @@ export function MenuFormDialog({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
       <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

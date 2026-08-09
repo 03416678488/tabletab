@@ -23,7 +23,6 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/features/i18n/i18n-provider";
-import { LanguageSwitcher } from "@/features/i18n/language-switcher";
 import { CompanyForm } from "@/features/app-settings/components/company-form";
 import { SiteForm } from "@/features/app-settings/components/site-form";
 import { SettingsForm } from "@/features/app-settings/components/settings-form";
@@ -60,7 +59,12 @@ const SECTIONS: { key: SectionKey; i18n: string; label: string; icon: typeof Bui
   { key: "company", i18n: "settings.company", label: "Business Info", icon: Building2 },
   { key: "site", i18n: "settings.site", label: "System", icon: SlidersHorizontal },
   { key: "opening_times", i18n: "settings.opening_times", label: "Opening Times", icon: Clock },
-  { key: "reservation", i18n: "settings.reservation", label: "Reservation Time", icon: CalendarClock },
+  {
+    key: "reservation",
+    i18n: "settings.reservation",
+    label: "Reservation Time",
+    icon: CalendarClock,
+  },
   { key: "kiosk", i18n: "settings.kiosk", label: "Kiosk Machines", icon: Monitor },
   { key: "mail", i18n: "settings.mail", label: "Mail", icon: Mail },
   { key: "order", i18n: "settings.order", label: "Order Setup", icon: ShoppingCart },
@@ -87,7 +91,6 @@ export function SettingsShell() {
         <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
           {t("settings.title", "Settings")}
         </h1>
-        <LanguageSwitcher />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[220px_1fr]">

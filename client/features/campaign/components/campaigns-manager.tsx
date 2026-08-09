@@ -44,7 +44,7 @@ export function CampaignsManager() {
   const [search, setSearch] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
 
-  const { campaigns, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch } =
+  const { campaigns, loading, error, page, perPage, setPerPage, totalPages, goToPage, refetch } =
     usePaginatedCampaigns({ search });
   const confirm = useConfirm();
 
@@ -140,7 +140,9 @@ export function CampaignsManager() {
               className="py-12"
               icon={Megaphone}
               title={search ? "No matches" : "No campaigns yet"}
-              description={search ? "Try a different search." : "Create your first WhatsApp campaign."}
+              description={
+                search ? "Try a different search." : "Create your first WhatsApp campaign."
+              }
               action={
                 search ? undefined : (
                   <Button onClick={openCreate}>
@@ -196,10 +198,20 @@ export function CampaignsManager() {
                             <Send className="size-4" />
                             {sendingId === c.id ? "Sending…" : "Send"}
                           </Button>
-                          <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(c)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Edit"
+                            onClick={() => openEdit(c)}
+                          >
                             <Pencil className="size-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(c)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Delete"
+                            onClick={() => remove(c)}
+                          >
                             <Trash2 className="size-4" />
                           </Button>
                         </div>
@@ -213,9 +225,14 @@ export function CampaignsManager() {
         </Card>
 
         {!loading && !error && campaigns.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} onPageChange={goToPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage} className="mt-4" />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            perPage={perPage}
+            onPerPageChange={setPerPage}
+            className="mt-4"
+          />
         )}
       </div>
 

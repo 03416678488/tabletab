@@ -4,16 +4,7 @@ import { use, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Loader2,
-  QrCode,
-  UtensilsCrossed,
-  ShoppingBag,
-  BellRing,
-  Receipt,
-  Check,
-  ChevronRight,
-} from "lucide-react";
+import { Loader2, QrCode, UtensilsCrossed, BellRing, Check, ChevronRight } from "lucide-react";
 import {
   resolveQrSlug,
   callWaiter,
@@ -21,7 +12,6 @@ import {
 } from "@/features/storefront/services/qr-ordering";
 import { toast } from "@/hooks/use-toast";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
-import { branchOnlineConfig } from "@/features/storefront/services/storefront-branches";
 import { useDineIn } from "@/hooks/use-dine-in";
 import { useCart } from "@/hooks/use-cart";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
@@ -36,17 +26,11 @@ import { SuccessDialog } from "@/components/ui/success-dialog";
  * a choice of what to do (instead of silently dropping them into the menu).
  * Options are added incrementally — dine-in first.
  */
-export default function QrLandingPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
+export default function QrLandingPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
   const router = useRouter();
   const startDineIn = useDineIn((s) => s.start);
-  const clearDineIn = useDineIn((s) => s.clear);
   const setCartBranch = useCart((s) => s.setBranch);
-  const setFulfillmentType = useCart((s) => s.setFulfillmentType);
   const clearCart = useCart((s) => s.clear);
   const { branches } = useStorefrontBranches();
 
@@ -56,8 +40,7 @@ export default function QrLandingPage({
   const tenant = useTenant();
   const branding = resolveBranding(tenant.branding);
   const businessName = get("company", "name") || tenant.name || "Restaurant";
-  const logoSrc =
-    branding.logoDataUrl ?? (get("theme", "logo") || branding.logoUrl || undefined);
+  const logoSrc = branding.logoDataUrl ?? (get("theme", "logo") || branding.logoUrl || undefined);
 
   const [resolved, setResolved] = useState<ResolvedQr | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,13 +68,6 @@ export default function QrLandingPage({
     () => resolved?.branchName ?? branches.find((b) => b.id === branchId)?.name ?? "Restaurant",
     [resolved, branches, branchId],
   );
-
-  // Only offer takeaway if the branch actually has pickup enabled (show it
-  // optimistically until the branch config loads).
-  const pickupAvailable = useMemo(() => {
-    const branch = branches.find((b) => b.id === branchId);
-    return branch ? branchOnlineConfig(branch).pickupAvailable : true;
-  }, [branches, branchId]);
 
   /** Start a dine-in session for this table and open the menu. */
   const startDineInOrder = () => {
@@ -129,15 +105,6 @@ export default function QrLandingPage({
     } finally {
       setCalling(false);
     }
-  };
-
-  /** Order for takeaway/pickup — not tied to the table (no dine-in session). */
-  const startTakeaway = () => {
-    if (!branchId) return;
-    clearDineIn(); // takeaway isn't served to the table
-    setCartBranch(branchId);
-    setFulfillmentType("pickup");
-    router.push(`/order/${branchId}`);
   };
 
   if (error) {
@@ -213,24 +180,6 @@ export default function QrLandingPage({
           <ChevronRight className="size-5 shrink-0" />
         </button>
 
-        {/* Takeaway / pickup */}
-        {pickupAvailable && (
-          <button
-            type="button"
-            onClick={startTakeaway}
-            className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-ink shadow-[var(--shadow-card)] transition-colors hover:bg-secondary"
-          >
-            <ShoppingBag className="size-6 shrink-0 text-brand" />
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold">Takeaway</span>
-              <span className="block text-sm text-muted-foreground">
-                Order to collect — pick it up at the counter
-              </span>
-            </span>
-            <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-          </button>
-        )}
-
         {/* Call waiter */}
         <button
           type="button"
@@ -256,21 +205,6 @@ export default function QrLandingPage({
             </span>
           </span>
         </button>
-
-        {/* View / pay bill */}
-        <Link
-          href={`/t/${token}/bill`}
-          className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-ink shadow-[var(--shadow-card)] transition-colors hover:bg-secondary"
-        >
-          <Receipt className="size-6 shrink-0 text-brand" />
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold">View bill</span>
-            <span className="block text-sm text-muted-foreground">
-              See your running order and pay
-            </span>
-          </span>
-          <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-        </Link>
       </div>
 
       {/* Waiter-called confirmation — a clear, dismissible modal instead of a
@@ -283,8 +217,8 @@ export default function QrLandingPage({
         description={
           <>
             Someone from {businessName} will come to{" "}
-            <span className="font-medium text-ink">Table {resolved.tableName}</span>{" "}
-            shortly. Hang tight!
+            <span className="font-medium text-ink">Table {resolved.tableName}</span> shortly. Hang
+            tight!
           </>
         }
       />

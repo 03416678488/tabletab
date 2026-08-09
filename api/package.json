@@ -27,7 +27,6 @@
     "db:rollback": "npx ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/config/migration.config.ts",
     "migration:create": "node src/cor/scripts/create-migration.js",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "prepare": "husky",
     "format:all": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" && eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
@@ -121,11 +120,5 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  },
-  "lint-staged": {
-    "*.ts": [
-      "prettier --write",
-      "eslint --fix"
-    ]
   }
 }

@@ -1,14 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { Menu, PanelLeft, PanelLeftClose, ReceiptText, Table2 } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Menu, PanelLeft, PanelLeftClose } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
@@ -16,7 +9,7 @@ import { SidebarNav } from "@/features/dashboard/components/sidebar-nav";
 import { BranchSwitcher } from "@/features/branch/components/branch-switcher";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { ProfileMenu } from "@/features/dashboard/components/profile-menu";
-import { hrefFor, roleHomePath } from "@/lib/nav";
+import { roleHomePath } from "@/lib/nav";
 import { useSession } from "@/hooks/use-session";
 
 interface TopbarProps {
@@ -29,8 +22,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
 
   // Only roles that span multiple branches switch branches. Single-branch roles
   // (branch manager, waiter, chef, delivery) don't see the switcher.
-  const canSwitchBranch =
-    user.role === "owner" || user.role === "multi_branch_manager";
+  const canSwitchBranch = user.role === "owner" || user.role === "multi_branch_manager";
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur lg:px-6">

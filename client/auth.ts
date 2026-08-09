@@ -1,12 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
-import {
-  AuthRequestError,
-  login,
-  logout,
-  refresh,
-} from "@/features/auth/services/auth.service";
+import { AuthRequestError, login, logout, refresh } from "@/features/auth/services/auth.service";
 import { AUTH_ROUTES } from "@/features/auth/constants/auth.constants";
 
 /** Refresh the access token slightly before it actually expires. */
@@ -37,6 +32,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: data.email,
             firstName: data.firstName,
             lastName: data.lastName,
+            branchId: data.branchId ?? null,
             roleNames: Object.keys(data.roles ?? {}),
             roles: data.roles ?? {},
             tokens: data.tokens,
@@ -73,6 +69,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const u = user as typeof user & {
           firstName: string;
           lastName: string;
+          branchId: string | null;
           roleNames: string[];
           roles: Record<string, Record<string, string[]>>;
           tokens: {
@@ -85,14 +82,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.accessToken = u.tokens.token;
         token.refreshToken = u.tokens.refreshToken;
         token.accessTokenExpires = new Date(u.tokens.tokenExpiresAt).getTime();
-        token.refreshTokenExpires = new Date(
-          u.tokens.refreshTokenExpiresAt,
-        ).getTime();
+        token.refreshTokenExpires = new Date(u.tokens.refreshTokenExpiresAt).getTime();
         token.user = {
           id: u.id as string,
           email: u.email as string,
           firstName: u.firstName,
           lastName: u.lastName,
+          branchId: u.branchId ?? null,
           roleNames: u.roleNames,
           roles: u.roles,
         };
@@ -101,18 +97,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // 2) Access token still valid → reuse it.
-      if (
-        token.accessTokenExpires &&
-        Date.now() < token.accessTokenExpires - EXPIRY_SKEW_MS
-      ) {
+      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires - EXPIRY_SKEW_MS) {
         return token;
       }
 
       // 3) Refresh token itself expired → force re-login.
-      if (
-        token.refreshTokenExpires &&
-        Date.now() >= token.refreshTokenExpires
-      ) {
+      if (token.refreshTokenExpires && Date.now() >= token.refreshTokenExpires) {
         token.error = "RefreshTokenExpired";
         return token;
       }
@@ -127,9 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.accessToken = tokens.token;
         token.refreshToken = tokens.refreshToken;
         token.accessTokenExpires = new Date(tokens.tokenExpiresAt).getTime();
-        token.refreshTokenExpires = new Date(
-          tokens.refreshTokenExpiresAt,
-        ).getTime();
+        token.refreshTokenExpires = new Date(tokens.refreshTokenExpiresAt).getTime();
         delete token.error;
       } catch {
         token.error = "RefreshAccessTokenError";

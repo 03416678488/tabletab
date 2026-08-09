@@ -6,6 +6,7 @@ import { Pencil, Plus, Salad, Search, SlidersHorizontal, Trash2, X } from "lucid
 import { AppImage } from "@/components/ui/app-image";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -29,9 +30,6 @@ import { foodTypeService } from "@/features/food-type/services/food-type.service
 import { FoodTypeFormDialog } from "@/features/food-type/components/food-type-form-dialog";
 import type { FoodType } from "@/features/food-type/types/food-type.types";
 
-const SELECT_CLASS =
-  "h-9 appearance-none rounded-lg border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
-
 type StatusFilter = "all" | "active" | "inactive";
 
 export function FoodTypeManager() {
@@ -44,8 +42,18 @@ export function FoodTypeManager() {
 
   // Search + status are applied server-side; the list is paginated.
   const isActive = status === "all" ? undefined : status === "active";
-  const { foodTypes, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch } =
-    usePaginatedFoodTypes({ search, isActive });
+  const {
+    foodTypes,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedFoodTypes({ search, isActive });
 
   const activeFilters = status !== "all" ? 1 : 0;
   const filtersActive = Boolean(search.trim()) || status !== "all";
@@ -79,9 +87,7 @@ export function FoodTypeManager() {
     <div className="w-full">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            Food Types
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">Food Types</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {totalItems} type{totalItems === 1 ? "" : "s"} · tag your dishes.
           </p>
@@ -121,18 +127,20 @@ export function FoodTypeManager() {
 
       {showFilters && (
         <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Status
-            <select
-              className={SELECT_CLASS}
+            <Dropdown
+              className="w-40"
               value={status}
-              onChange={(e) => setStatus(e.target.value as StatusFilter)}
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
+              onChange={(v) => setStatus(v as StatusFilter)}
+              aria-label="Filter by status"
+              options={[
+                { value: "all", label: "All" },
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+              ]}
+            />
+          </div>
           {activeFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={() => setStatus("all")}>
               <X className="size-4" /> Clear
@@ -204,9 +212,7 @@ export function FoodTypeManager() {
                   <TableCell className="text-muted-foreground">
                     {foodType.description || "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {foodType.sortOrder}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{foodType.sortOrder}</TableCell>
                   <TableCell>
                     <StatusPill tone={foodType.isActive ? "green" : "neutral"}>
                       {foodType.isActive ? "Active" : "Inactive"}

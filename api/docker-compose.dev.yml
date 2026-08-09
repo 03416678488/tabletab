@@ -118,13 +118,13 @@ services:
     volumes:
       - tabletap_pgadmin_data:/var/lib/pgadmin
       - ./.config/pgadmin/servers.json:/pgadmin4/servers.json:ro
-      - ./.config/pgadmin/pgpass:/pgpass.src:ro
+      - ./.config/pgpass:/pgpass.src:ro
     # pgAdmin ignores a passfile unless it is 0600 — a macOS bind mount can't be,
     # so copy it into the writable data dir with the right perms before boot.
     entrypoint:
       - /bin/sh
       - -c
-      - "cp -f /pgpass.src /var/lib/pgadmin/pgpass && chmod 600 /var/lib/pgadmin/pgpass && chown 5050:5050 /var/lib/pgadmin/pgpass && exec /entrypoint.sh"
+      - "cp -f /pgpass.src /var/lib/pgpass && chmod 600 /var/lib/pgpass && chown 5050:5050 /var/lib/pgpass && exec /entrypoint.sh"
     networks:
       - tabletap-backend
 

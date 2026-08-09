@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   Dialog,
   DialogContent,
@@ -24,10 +25,7 @@ import {
   type PromotionFormValues,
 } from "@/features/promotion/schemas/promotion.schema";
 import { promotionService } from "@/features/promotion/services/promotion.service";
-import type {
-  CreatePromotionInput,
-  Promotion,
-} from "@/features/promotion/types/promotion.types";
+import type { CreatePromotionInput, Promotion } from "@/features/promotion/types/promotion.types";
 
 interface PromotionFormDialogProps {
   open: boolean;
@@ -35,9 +33,6 @@ interface PromotionFormDialogProps {
   promotion: Promotion | null;
   onSaved: () => void;
 }
-
-const SELECT_CLASS =
-  "h-10 w-full appearance-none rounded-xl border border-input bg-white px-3 pr-8 text-sm text-ink shadow-sm outline-none focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30";
 
 function toOptionalNumber(value: unknown): number | undefined {
   if (value === "" || value === null || value === undefined) return undefined;
@@ -179,10 +174,17 @@ export function PromotionFormDialog({
           <div className="grid grid-cols-2 gap-3 rounded-xl border border-border p-3">
             <div className="space-y-1.5">
               <Label>Discount type</Label>
-              <select className={SELECT_CLASS} {...register("discountType")}>
-                <option value="percentage">Percentage (%)</option>
-                <option value="fixed">Fixed amount</option>
-              </select>
+              <Dropdown
+                value={discountType}
+                onChange={(v) =>
+                  setValue("discountType", v as "percentage" | "fixed", { shouldDirty: true })
+                }
+                aria-label="Discount type"
+                options={[
+                  { value: "percentage", label: "Percentage (%)" },
+                  { value: "fixed", label: "Fixed amount" },
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{discountType === "percentage" ? "Percent off" : "Amount off"}</Label>

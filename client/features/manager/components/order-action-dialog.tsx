@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -92,10 +93,7 @@ export function OrderActionDialog({
   };
 
   const waiters = staff.filter(
-    (s) =>
-      s.role === "waiter" ||
-      s.role === "branch_manager" ||
-      s.role === "multi_branch_manager",
+    (s) => s.role === "waiter" || s.role === "branch_manager" || s.role === "multi_branch_manager",
   );
 
   return (
@@ -141,19 +139,18 @@ export function OrderActionDialog({
           {action === "reassign" && (
             <div className="space-y-2">
               <Label htmlFor="staff">Assign to</Label>
-              <select
-                id="staff"
+              <Dropdown
                 value={staffId}
-                onChange={(e) => setStaffId(e.target.value)}
-                className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
-              >
-                <option value="">Select staff…</option>
-                {waiters.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.role})
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setStaffId(v)}
+                searchable
+                placeholder="Select staff…"
+                aria-label="Assign to"
+                options={waiters.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  sublabel: s.role,
+                }))}
+              />
             </div>
           )}
 
