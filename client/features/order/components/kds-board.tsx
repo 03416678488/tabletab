@@ -6,6 +6,7 @@ import { ChefHat, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/lib/datetime";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
@@ -187,13 +188,7 @@ export function KdsBoard() {
           <SoundToggle />
           <Button variant="outline" size="sm" onClick={() => void refetch()}>
             <RefreshCw className="size-4" /> Refresh
-            <span className="ml-1 text-xs text-muted-foreground">
-              {new Date(lastUpdated).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
-            </span>
+            <span className="ml-1 text-xs text-muted-foreground">{formatTime(lastUpdated)}</span>
           </Button>
         </div>
       </div>
@@ -243,9 +238,7 @@ export function KdsBoard() {
                     // its fulfillment type (served / out-for-delivery / picked up).
                     const next = nextStatus(order.status, order.orderType);
                     const action =
-                      col.status === "ready" && next
-                        ? ORDER_STATUS_META[next].label
-                        : col.action;
+                      col.status === "ready" && next ? ORDER_STATUS_META[next].label : col.action;
                     return (
                       <Ticket
                         key={order.id}
@@ -340,9 +333,7 @@ function Ticket({
               <span className="font-semibold text-brand">{it.quantity}×</span>
               <span className="min-w-0 flex-1 text-ink">{it.name}</span>
             </div>
-            {it.notes && (
-              <p className="ml-6 text-xs italic text-muted-foreground">{it.notes}</p>
-            )}
+            {it.notes && <p className="ml-6 text-xs italic text-muted-foreground">{it.notes}</p>}
           </li>
         ))}
       </ul>

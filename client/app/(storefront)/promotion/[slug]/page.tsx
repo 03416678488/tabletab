@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 import { cn, formatCurrency } from "@/lib/utils";
+import { formatDate } from "@/lib/datetime";
 import {
   fetchPromotionBySlug,
   isPromotionLive,
@@ -51,13 +52,7 @@ export default function PromotionPage({ params }: { params: Promise<{ slug: stri
   }
 
   const live = isPromotionLive(promotion);
-  const endsLabel = promotion.endsAt
-    ? new Date(promotion.endsAt).toLocaleDateString(undefined, {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
+  const endsLabel = promotion.endsAt ? formatDate(promotion.endsAt) : null;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
@@ -159,7 +154,12 @@ function CodeChip({ code }: { code: string }) {
       aria-label={`Copy code ${code}`}
     >
       <span className="font-display text-xl font-bold tracking-wider text-brand-deep">{code}</span>
-      <span className={cn("flex items-center gap-1 text-xs font-medium", copied ? "text-emerald-600" : "text-brand")}>
+      <span
+        className={cn(
+          "flex items-center gap-1 text-xs font-medium",
+          copied ? "text-emerald-600" : "text-brand",
+        )}
+      >
         {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
         {copied ? "Copied" : "Copy"}
       </span>

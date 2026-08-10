@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   ForbiddenException,
   Get,
   type MessageEvent,
@@ -25,7 +24,10 @@ import { sseFromChannel } from '@modules/realtime/sse.util';
 import { OrderService } from './order.service';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
-import { assertOrderUpdateAllowed, canChangePaymentStatus } from './order-status.policy';
+import {
+  assertOrderUpdateAllowed,
+  canChangePaymentStatus,
+} from './order-status.policy';
 
 @Controller('orders')
 export class OrderController {
@@ -43,7 +45,9 @@ export class OrderController {
    * so `board/stream` isn't captured as an order id.
    */
   @Sse('board/stream')
-  streamBoard(@CurrentTenant() tenant: TenantRecord | null): Observable<MessageEvent> {
+  streamBoard(
+    @CurrentTenant() tenant: TenantRecord | null,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, boardChannel(tenant?.id));
   }
 
@@ -54,7 +58,9 @@ export class OrderController {
    */
   @Public()
   @Sse(':id/stream')
-  streamOrder(@Param('id', ParseUUIDPipe) id: string): Observable<MessageEvent> {
+  streamOrder(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, orderChannel(id));
   }
 
@@ -71,8 +77,11 @@ export class OrderController {
   }
 
   @Get('board')
-  getBoard(@Query('branchId', new ParseUUIDPipe({ optional: true })) branchId?: string) {
-    return this._orderService.getBoard(branchId);
+  getBoard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('branchId', new ParseUUIDPipe({ optional: true })) branchId?: string,
+  ) {
+    return this._orderService.getBoard(branchId, user);
   }
 
   /** The active/open order for a table (POS load-to-edit), or null. */
@@ -158,10 +167,5 @@ export class OrderController {
       assertOrderUpdateAllowed(user?.roleNames ?? [], dto);
     }
     return this._orderService.updateOrder(id, dto);
-  }
-
-  @Delete(':id')
-  delete(@Param('id', ParseUUIDPipe) id: string) {
-    return this._orderService.deleteOrder(id);
   }
 }

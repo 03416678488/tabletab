@@ -15,12 +15,20 @@ const TONE_META: Record<ToastTone, { icon: React.ElementType; className: string 
   info: { icon: Info, className: "text-sky-600" },
 };
 
-function ToastItem({ id, title, description, tone, duration }: {
+function ToastItem({
+  id,
+  title,
+  description,
+  tone,
+  duration,
+  detail,
+}: {
   id: string;
   title: string;
   description?: string;
   tone: ToastTone;
   duration: number;
+  detail?: string;
 }) {
   const dismiss = useToastStore((s) => s.dismiss);
   const meta = TONE_META[tone];
@@ -44,8 +52,11 @@ function ToastItem({ id, title, description, tone, duration }: {
       <Icon className={cn("mt-0.5 size-5 shrink-0", meta.className)} aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-ink">{title}</p>
-        {description && (
-          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+        {detail && (
+          <p className="mt-1.5 max-h-24 overflow-auto rounded-md bg-ink/90 px-2 py-1 font-mono text-[11px] leading-snug text-red-200">
+            {detail}
+          </p>
         )}
       </div>
       <button

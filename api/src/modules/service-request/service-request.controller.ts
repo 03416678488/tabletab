@@ -1,8 +1,18 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post, Sse, type MessageEvent } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Sse,
+  type MessageEvent,
+} from '@nestjs/common';
 import { type Observable } from 'rxjs';
 
 import { CurrentTenant } from '@modules/tenancy/current-tenant.decorator';
 import { TenantRecord } from '@modules/tenancy/tenancy.types';
+import { CurrentUser } from '@cor/decorators/auth/current-user.decorator';
+import { AuthenticatedUser } from '@modules/auth/strategies/jwt.strategy';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { serviceChannel } from '@modules/realtime/channels';
 import { sseFromChannel } from '@modules/realtime/sse.util';
@@ -22,13 +32,15 @@ export class ServiceRequestController {
    * headers). Declared before `:id` so `stream` isn't captured as an id.
    */
   @Sse('stream')
-  stream(@CurrentTenant() tenant: TenantRecord | null): Observable<MessageEvent> {
+  stream(
+    @CurrentTenant() tenant: TenantRecord | null,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, serviceChannel(tenant?.id));
   }
 
   @Get()
-  listOpen() {
-    return this._service.listOpen();
+  listOpen(@CurrentUser() user: AuthenticatedUser) {
+    return this._service.listOpen(user);
   }
 
   @Post(':id/resolve')

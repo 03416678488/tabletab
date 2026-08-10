@@ -1,22 +1,14 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { setCurrencyConfig } from "@/lib/currency";
+import { setDateTimeConfig } from "@/lib/datetime";
+import { setAppDebug } from "@/lib/app-flags";
 import { brandingCssVars, resolveBranding } from "@/lib/theme";
 import { settingsService } from "@/features/app-settings/services/settings.service";
-import type {
-  CurrencyRow,
-  SettingsGroups,
-} from "@/features/app-settings/types/settings.types";
+import type { CurrencyRow, SettingsGroups } from "@/features/app-settings/types/settings.types";
 
 interface SettingsContextValue {
   settings: SettingsGroups;
@@ -38,6 +30,16 @@ function applyCurrency(settings: SettingsGroups, currencies: CurrencyRow[]) {
     symbol: match?.symbol ?? "$",
     position: site.currency_position === "right" ? "right" : "left",
     decimals: Number(site.digit_after_decimal ?? 2) || 0,
+  });
+}
+
+/** Applies the configured date/time format + timezone to formatDate/formatTime. */
+function applyDateTime(settings: SettingsGroups) {
+  const site = settings.site ?? {};
+  setDateTimeConfig({
+    dateFormat: site.date_format || "DD-MM-YYYY",
+    timeFormat: site.time_format || "hh:mm A",
+    timezone: site.default_timezone || undefined,
   });
 }
 
@@ -90,13 +92,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [s, c] = await Promise.all([
-        settingsService.getPublic(),
-        settingsService.currencies(),
-      ]);
+      const [s, c] = await Promise.all([settingsService.getPublic(), settingsService.currencies()]);
       setSettings(s);
       setCurrencies(c);
       applyCurrency(s, c);
+      applyDateTime(s);
+      setAppDebug((s.site?.app_debug ?? "disable") === "enable");
       applyTheme(s);
       applyFavicon(s);
       applyTitle(s);
@@ -119,10 +120,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     applyFavicon(settings);
   }, [pathname, settings]);
 
-  const get = useCallback(
-    (group: string, key: string) => settings[group]?.[key] ?? "",
-    [settings],
-  );
+  const get = useCallback((group: string, key: string) => settings[group]?.[key] ?? "", [settings]);
 
   const value = useMemo(
     () => ({ settings, currencies, loading, get, refresh }),

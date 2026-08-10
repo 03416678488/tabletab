@@ -15,6 +15,7 @@ import { GetPermissionQueryDto } from './dto/get-permission-query.dto';
 import { PermissionsValidatorService } from './services/permission-validator.service';
 import { toLowerCase } from '@cor/helpers';
 import { PermissionsEnum } from './enums/permissions.enum';
+import { TransactionService } from '@services/transaction.service';
 
 @Injectable()
 export class PermissionsService extends AbstractService<Permission> {
@@ -23,6 +24,7 @@ export class PermissionsService extends AbstractService<Permission> {
     protected readonly permissionRepo: Repository<Permission>,
     protected readonly paginationProvider: PaginationProvider,
     private readonly validatorService: PermissionsValidatorService,
+    private readonly transactionService: TransactionService,
   ) {
     super(permissionRepo, paginationProvider);
   }
@@ -50,7 +52,9 @@ export class PermissionsService extends AbstractService<Permission> {
     });
 
     if (!permission) {
-      throw new NotFoundException(`Permission with resource "${resource}" not found`);
+      throw new NotFoundException(
+        `Permission with resource "${resource}" not found`,
+      );
     }
 
     return permission;
@@ -86,7 +90,9 @@ export class PermissionsService extends AbstractService<Permission> {
       .getMany();
   }
 
-  async createPermission(permissionData: CreatePermissionDto): Promise<Permission> {
+  async createPermission(
+    permissionData: CreatePermissionDto,
+  ): Promise<Permission> {
     try {
       await this.validatorService.validateCreatePermission(permissionData);
 
@@ -103,11 +109,15 @@ export class PermissionsService extends AbstractService<Permission> {
       if (error instanceof ConflictException) {
         throw error;
       }
-      throw new BadRequestException(`Failed to create permission: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create permission: ${error.message}`,
+      );
     }
   }
 
-  async createBulkPermissions(permissionsData: CreatePermissionDto[]): Promise<Permission[]> {
+  async createBulkPermissions(
+    permissionsData: CreatePermissionDto[],
+  ): Promise<Permission[]> {
     if (!permissionsData || permissionsData.length === 0) {
       throw new BadRequestException('Permissions array cannot be empty');
     }
@@ -125,7 +135,10 @@ export class PermissionsService extends AbstractService<Permission> {
     return await this.permissionRepo.save(permissions);
   }
 
-  async updatePermission(id: number, updateData: UpdatePermissionDto): Promise<Permission> {
+  async updatePermission(
+    id: number,
+    updateData: UpdatePermissionDto,
+  ): Promise<Permission> {
     try {
       await this.validatorService.validateUpdatePermission(id, updateData);
 
@@ -140,10 +153,15 @@ export class PermissionsService extends AbstractService<Permission> {
 
       return await this.getPermissionById(id);
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ConflictException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
-      throw new BadRequestException(`Failed to update permission: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to update permission: ${error.message}`,
+      );
     }
   }
 
@@ -158,16 +176,22 @@ export class PermissionsService extends AbstractService<Permission> {
       await this.validatorService.validateUpdatePermission(id, data);
     }
 
-    const updatedPermissions: Permission[] = [];
-    for (const { id, data } of updates) {
-      const normalizedData = {
-        ...data,
-        ...(data.resource && {
-          resource: toLowerCase(data.resource),
-        }),
-      };
+    // Atomic: apply every permission update together, or none — a partial bulk
+    // update would leave the permission set inconsistent.
+    await this.transactionService.execute(async (queryRunner) => {
+      for (const { id, data } of updates) {
+        const normalizedData = {
+          ...data,
+          ...(data.resource && {
+            resource: toLowerCase(data.resource),
+          }),
+        };
+        await queryRunner.manager.update(Permission, id, normalizedData);
+      }
+    });
 
-      await this.permissionRepo.update(id, normalizedData);
+    const updatedPermissions: Permission[] = [];
+    for (const { id } of updates) {
       updatedPermissions.push(await this.getPermissionById(id));
     }
 
@@ -183,7 +207,11 @@ export class PermissionsService extends AbstractService<Permission> {
 
     const actionLower = toLowerCase(action) as PermissionsEnum;
 
-    if (permission.actions.some((a) => toLowerCase(a) === toLowerCase(actionLower))) {
+    if (
+      permission.actions.some(
+        (a) => toLowerCase(a) === toLowerCase(actionLower),
+      )
+    ) {
       throw new ConflictException('Action already exists');
     }
 
@@ -193,17 +221,26 @@ export class PermissionsService extends AbstractService<Permission> {
     return permission;
   }
 
-  async removeActionFromPermission(id: number, action: string): Promise<Permission> {
+  async removeActionFromPermission(
+    id: number,
+    action: string,
+  ): Promise<Permission> {
     const permission = await this.getPermissionById(id);
 
-    const actionIndex = permission.actions.findIndex((a) => toLowerCase(a) === toLowerCase(action));
+    const actionIndex = permission.actions.findIndex(
+      (a) => toLowerCase(a) === toLowerCase(action),
+    );
 
     if (actionIndex === -1) {
-      throw new NotFoundException(`Action "${action}" not found for this permission`);
+      throw new NotFoundException(
+        `Action "${action}" not found for this permission`,
+      );
     }
 
     if (permission.actions.length === 1) {
-      throw new BadRequestException('Cannot remove the only action from a permission');
+      throw new BadRequestException(
+        'Cannot remove the only action from a permission',
+      );
     }
 
     permission.actions.splice(actionIndex, 1);
@@ -222,10 +259,15 @@ export class PermissionsService extends AbstractService<Permission> {
         throw new NotFoundException(`Permission with ID ${id} not found`);
       }
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ConflictException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
-      throw new BadRequestException(`Failed to delete permission: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to delete permission: ${error.message}`,
+      );
     }
   }
 
@@ -280,7 +322,9 @@ export class PermissionsService extends AbstractService<Permission> {
     });
   }
 
-  async importPermissions(permissions: CreatePermissionDto[]): Promise<Permission[]> {
+  async importPermissions(
+    permissions: CreatePermissionDto[],
+  ): Promise<Permission[]> {
     return await this.createBulkPermissions(permissions);
   }
 }

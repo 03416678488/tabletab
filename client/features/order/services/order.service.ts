@@ -59,12 +59,6 @@ export const orderService = {
       .then((res) => res.data);
   },
 
-  remove(id: string) {
-    return httpClient
-      .delete<{ message: string }>(ORDER_ENDPOINTS.byId(id), { auth: true })
-      .then((res) => res.data);
-  },
-
   /** Close a table's session — settle every active order on it and free it.
    *  `markPaid` true (default) settles as paid; false records a walkout/comp. */
   closeTable(tableId: string, markPaid = true) {

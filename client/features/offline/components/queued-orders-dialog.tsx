@@ -3,16 +3,12 @@
 import { AlertTriangle, Clock, RefreshCw, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { formatMoney } from "@/lib/currency";
+import { formatTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import type { CreateOrderInput } from "@/features/order/types/order.types";
 import type { QueuedOrder } from "@/features/offline/lib/offline-store";
@@ -26,7 +22,7 @@ function timeLabel(iso: string): string {
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
   if (s < 60) return "just now";
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return formatTime(iso);
 }
 
 export function QueuedOrdersDialog({
@@ -82,7 +78,12 @@ export function QueuedOrdersDialog({
 
         <div className="mt-2 max-h-[24rem] overflow-y-auto">
           {queue.length === 0 ? (
-            <EmptyState className="py-10" icon={Clock} title="No queued orders" description="Offline orders show up here until they sync." />
+            <EmptyState
+              className="py-10"
+              icon={Clock}
+              title="No queued orders"
+              description="Offline orders show up here until they sync."
+            />
           ) : (
             <ul className="divide-y divide-border">
               {queue.map((o) => {

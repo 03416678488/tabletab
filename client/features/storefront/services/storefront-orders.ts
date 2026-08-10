@@ -13,6 +13,7 @@ interface ApiOrder {
   orderNumber: string;
   orderType: string;
   status: string;
+  cancellationReason: string | null;
   branchId: string | null;
   customerId: string | null;
   customerName: string | null;
@@ -56,6 +57,8 @@ export interface StorefrontOrder extends Order {
   isDineIn?: boolean;
   /** Table name for dine-in orders (e.g. "T2-MH"). */
   tableName?: string;
+  /** Why the order was cancelled (shown on the tracking page). */
+  cancellationReason?: string;
 }
 
 /** Backend statuses map onto the storefront's status vocabulary. */
@@ -145,6 +148,7 @@ function toOrder(o: ApiOrder): StorefrontOrder {
     branchName: o.branch?.name ?? undefined,
     deliveryEtaMinutes: o.branch?.deliveryEtaMinutes ?? undefined,
     note: parseCustomerNote(o.notes),
+    cancellationReason: o.cancellationReason ?? undefined,
   };
 }
 

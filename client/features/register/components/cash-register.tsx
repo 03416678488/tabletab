@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
+import { formatDateTime } from "@/lib/datetime";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
@@ -123,7 +124,7 @@ export function CashRegister() {
               <StatusPill tone="green">Open</StatusPill>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Opened {new Date(session.openedAt).toLocaleString()}
+              Opened {formatDateTime(session.openedAt)}
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -131,8 +132,15 @@ export function CashRegister() {
               <Stat label="Cash sales" value={formatMoney(summary?.cashSales ?? 0)} />
               <Stat label="Cash in" value={formatMoney(summary?.cashIn ?? 0)} />
               <Stat label="Cash out" value={formatMoney(summary?.cashOut ?? 0)} />
-              <Stat label="Card / MFS" value={formatMoney((summary?.cardSales ?? 0) + (summary?.mfsSales ?? 0))} />
-              <Stat label="Expected cash" value={formatMoney(summary?.expectedCash ?? 0)} tone="brand" />
+              <Stat
+                label="Card / MFS"
+                value={formatMoney((summary?.cardSales ?? 0) + (summary?.mfsSales ?? 0))}
+              />
+              <Stat
+                label="Expected cash"
+                value={formatMoney(summary?.expectedCash ?? 0)}
+                tone="brand"
+              />
             </div>
 
             {/* Cash in / out */}
@@ -250,10 +258,10 @@ export function CashRegister() {
                   .map((s) => (
                     <TableRow key={s.id}>
                       <TableCell className="text-muted-foreground">
-                        {new Date(s.openedAt).toLocaleString()}
+                        {formatDateTime(s.openedAt)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {s.closedAt ? new Date(s.closedAt).toLocaleString() : "—"}
+                        {s.closedAt ? formatDateTime(s.closedAt) : "—"}
                       </TableCell>
                       <TableCell>{formatMoney(s.openingBalance)}</TableCell>
                       <TableCell>{formatMoney(s.expectedBalance ?? 0)}</TableCell>
@@ -275,15 +283,7 @@ export function CashRegister() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "brand";
-}) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "brand" }) {
   return (
     <div className="rounded-xl border border-border bg-secondary/30 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>

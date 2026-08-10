@@ -27,6 +27,10 @@ export class ServiceRequest extends AbstractEntity {
   @Column({ type: 'uuid', nullable: true })
   branchId: string | null;
 
+  /** The on-shift waiter this request was assigned to (null = broadcast fallback). */
+  @Column({ type: 'uuid', nullable: true })
+  assignedUserId: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   resolvedAt: Date | null;
 }

@@ -5,6 +5,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { ElapsedTimer } from "@/features/ops/components/elapsed-timer";
 import { formatBuffetSummary } from "@/lib/buffet-utils";
 import { orderTableLabel } from "@/lib/order-display";
+import { formatTime } from "@/lib/datetime";
 import type { Branch, Order } from "@/lib/types";
 import { isSlaBreached } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -64,11 +65,7 @@ export function KitchenOrderCard({
             dark
             className="border-amber-500/50 bg-amber-950/80 text-amber-200"
           >
-            Prepare at{" "}
-            {new Date(order.fireAt).toLocaleTimeString(undefined, {
-              hour: "numeric",
-              minute: "2-digit",
-            })}
+            Prepare at {formatTime(order.fireAt)}
             {minsUntilFire != null && minsUntilFire > 0 && ` · in ${minsUntilFire} min`}
           </StatusPill>
         </div>
@@ -119,37 +116,32 @@ export function KitchenOrderCard({
       )}
 
       {order.items.length > 0 && (
-      <ul className="mt-3 space-y-2 border-t border-kitchen-line pt-3">
-        {buffetMode && (
-          <li className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            À la carte extras
-          </li>
-        )}
-        {order.items.map((item, i) => (
-          <li key={i} className="text-sm text-slate-200">
-            <span className="font-semibold text-white">{item.quantity}×</span> {item.name}
-            {item.modifiers.length > 0 && (
-              <span className="block text-xs text-slate-400">
-                {item.modifiers.map((m) => m.label).join(", ")}
-              </span>
-            )}
-            {item.notes && (
-              <span className="mt-0.5 block text-xs font-medium text-amber-300">
-                Note: {item.notes}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+        <ul className="mt-3 space-y-2 border-t border-kitchen-line pt-3">
+          {buffetMode && (
+            <li className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              À la carte extras
+            </li>
+          )}
+          {order.items.map((item, i) => (
+            <li key={i} className="text-sm text-slate-200">
+              <span className="font-semibold text-white">{item.quantity}×</span> {item.name}
+              {item.modifiers.length > 0 && (
+                <span className="block text-xs text-slate-400">
+                  {item.modifiers.map((m) => m.label).join(", ")}
+                </span>
+              )}
+              {item.notes && (
+                <span className="mt-0.5 block text-xs font-medium text-amber-300">
+                  Note: {item.notes}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
       {column === "new" && onAcknowledge && !scheduled && (
-        <Button
-          className="mt-4 w-full"
-          size="sm"
-          disabled={busy}
-          onClick={onAcknowledge}
-        >
+        <Button className="mt-4 w-full" size="sm" disabled={busy} onClick={onAcknowledge}>
           Acknowledge → Preparing
         </Button>
       )}

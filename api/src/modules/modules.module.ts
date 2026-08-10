@@ -30,6 +30,7 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
 import { DashboardModule } from '@modules/dashboard/dashboard.module';
 import { TimeSlotModule } from '@modules/time-slot/time-slot.module';
 import { RegisterModule } from '@modules/register/register.module';
+import { ShiftModule } from '@modules/shift/shift.module';
 import { TransactionModule } from '@modules/transaction/transaction.module';
 import { ReportModule } from '@modules/report/report.module';
 import { IncomeModule } from '@modules/income/income.module';
@@ -78,6 +79,7 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     DashboardModule,
     TimeSlotModule,
     RegisterModule,
+    ShiftModule,
     TransactionModule,
     ReportModule,
     IncomeModule,

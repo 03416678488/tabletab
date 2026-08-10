@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
+import { formatDateTime } from "@/lib/datetime";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useSession } from "@/hooks/use-session";
 
@@ -212,7 +213,7 @@ export function MarketplaceManager() {
                   )}
                   {item.connected && item.lastSyncAt && (
                     <p className="mt-1.5 text-xs text-muted-foreground">
-                      Menu synced {new Date(item.lastSyncAt).toLocaleString()}
+                      Menu synced {formatDateTime(item.lastSyncAt)}
                     </p>
                   )}
                 </div>

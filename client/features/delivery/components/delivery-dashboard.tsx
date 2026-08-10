@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatCurrency } from "@/lib/utils";
+import { formatTime } from "@/lib/datetime";
 import { StatTile } from "@/features/dashboard/components/stat-tile";
 import { useDeliveryQueue } from "@/features/delivery/hooks/use-delivery-queue";
 
@@ -43,7 +44,12 @@ export function DeliveryDashboard() {
       {/* Today's record */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile icon={PackageCheck} label="Delivered today" value={deliveredToday} tone="green" />
-        <StatTile icon={Wallet} label="Collected today" value={formatCurrency(collectedToday)} tone="green" />
+        <StatTile
+          icon={Wallet}
+          label="Collected today"
+          value={formatCurrency(collectedToday)}
+          tone="green"
+        />
         <StatTile icon={Truck} label="Out for delivery" value={outForDelivery.length} tone="blue" />
         <StatTile icon={Package} label="Ready to pick up" value={ready.length} tone="brand" />
       </div>
@@ -96,10 +102,7 @@ export function DeliveryDashboard() {
                     {o.paymentStatus === "paid" ? "Paid" : "Unpaid"}
                   </StatusPill>
                   <span className="hidden text-xs text-muted-foreground sm:inline">
-                    {new Date(o.updatedAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatTime(o.updatedAt)}
                   </span>
                 </div>
               </div>

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { SessionSync } from "@/features/dashboard/components/session-sync";
 import { SettingsProvider } from "@/features/app-settings/components/settings-provider";
+import { DebugBadge } from "@/features/app-settings/components/debug-badge";
 import { I18nProvider } from "@/features/i18n/i18n-provider";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { ServiceWorkerRegister } from "@/features/offline/components/service-worker-register";
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <I18nProvider>
             <ConfirmProvider>{children}</ConfirmProvider>
           </I18nProvider>
+          <DebugBadge />
         </SettingsProvider>
       </SessionProvider>
     </QueryClientProvider>

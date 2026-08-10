@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { UtensilsCrossed } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/lib/datetime";
 import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { useNewArrivals } from "@/features/order/hooks/use-new-arrivals";
 import { SoundToggle } from "@/features/order/components/sound-toggle";
@@ -51,21 +52,15 @@ export function OssBoard() {
             <UtensilsCrossed className="size-6" />
           </span>
           <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
-              Order Status
-            </h1>
+            <h1 className="font-display text-2xl font-bold tracking-tight">Order Status</h1>
             <p className="text-sm text-white/60">Watch for your number below</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <SoundToggle variant="dark" />
           <div className="text-right">
-            <p className="font-display text-3xl font-bold tabular-nums">
-              {clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </p>
-            <p className="text-xs text-white/50">
-              {loading ? "Loading…" : "Live"}
-            </p>
+            <p className="font-display text-3xl font-bold tabular-nums">{formatTime(clock)}</p>
+            <p className="text-xs text-white/50">{loading ? "Loading…" : "Live"}</p>
           </div>
         </div>
       </header>

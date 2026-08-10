@@ -1,0 +1,1 @@
+npm run db:reset-password -- owner@example.com Owner@123

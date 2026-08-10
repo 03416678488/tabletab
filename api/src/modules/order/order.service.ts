@@ -1,10 +1,16 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { FindOptionsWhere, In, IsNull, Repository } from 'typeorm';
+
+import { TransactionService } from '@services/transaction.service';
 
 import { TenantRequest } from '@modules/tenancy/tenancy.types';
-import { boardChannel, orderChannel, tablesChannel } from '@modules/realtime/channels';
+import {
+  boardChannel,
+  orderChannel,
+  tablesChannel,
+} from '@modules/realtime/channels';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
@@ -20,6 +26,7 @@ import { CreateOrderDto, UpdateOrderDto, GetOrderQueryDto } from './dto';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { NotificationService } from '@modules/notification/notification.service';
 import { OrderStatusSyncService } from './services/order-status-sync.service';
+import { StaffAssignmentService } from './services/staff-assignment.service';
 import { PromotionService } from '@modules/promotion/promotion.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -34,7 +41,12 @@ const ACTIVE_STATUSES: OrderStatus[] = [
 ];
 
 /** Statuses the kitchen (KDS) and pickup (OSS) boards care about. */
-const BOARD_STATUSES: OrderStatus[] = ['placed', 'confirmed', 'preparing', 'ready'];
+const BOARD_STATUSES: OrderStatus[] = [
+  'placed',
+  'confirmed',
+  'preparing',
+  'ready',
+];
 
 export interface TableSessionRound {
   id: string;
@@ -61,7 +73,12 @@ export interface TableSessionBill {
   orderCount: number;
   rounds: TableSessionRound[];
   /** Line items merged across rounds (same name + unit price folded together). */
-  items: { name: string; quantity: number; unitPrice: number; lineTotal: number }[];
+  items: {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+  }[];
   subtotal: number;
   tax: number;
   total: number;
@@ -98,13 +115,18 @@ export class OrderService extends AbstractService<Order> {
     private readonly _promotions: PromotionService,
     private readonly _notifications: NotificationService,
     private readonly _statusSync: OrderStatusSyncService,
+    private readonly _assignment: StaffAssignmentService,
+    private readonly _transactionService: TransactionService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
   }
 
   /** Push a minimal status event to the order's tracking channel (post-commit). */
-  private emitOrder(order: Order, type: 'order.created' | 'order.updated'): void {
+  private emitOrder(
+    order: Order,
+    type: 'order.created' | 'order.updated',
+  ): void {
     this._realtime.publish(orderChannel(order.id), type, {
       id: order.id,
       orderNumber: order.orderNumber,
@@ -118,59 +140,112 @@ export class OrderService extends AbstractService<Order> {
    * tenant so one restaurant's boards never wake up for another's orders.
    */
   private emitBoard(order: Order): void {
-    this._realtime.publish(boardChannel(this._req.tenant?.id), 'board.changed', {
-      orderId: order.id,
-      status: order.status,
-    });
+    this._realtime.publish(
+      boardChannel(this._req.tenant?.id),
+      'board.changed',
+      {
+        orderId: order.id,
+        status: order.status,
+      },
+    );
     // A table order shifts floor occupancy — nudge the floor views too.
     if (order.tableId) {
-      this._realtime.publish(tablesChannel(this._req.tenant?.id), 'tables.changed', {
-        tableId: order.tableId,
-      });
+      this._realtime.publish(
+        tablesChannel(this._req.tenant?.id),
+        'tables.changed',
+        {
+          tableId: order.tableId,
+        },
+      );
     }
   }
 
   /**
-   * Fan a bell notification out to the relevant staff roles (best-effort — a
-   * notification failure must never break the order flow). Phase 1: new orders
-   * and ready-to-serve; targeting is by role (branch scoping comes later).
+   * Route an order event to ONE assigned staff member (best-effort — a
+   * notification failure must never break the order flow):
+   *  - `placed`  → the branch's on-shift chef prepares it.
+   *  - `ready`   → an on-shift waiter (dine-in/pickup) or rider (delivery) takes it.
+   * The chosen person is recorded on the order and notified alone. When nobody of
+   * that role is on shift we fall back to a role + manager broadcast so the work
+   * is never dropped.
    */
   private async notify(order: Order, kind: 'placed' | 'ready'): Promise<void> {
     const where = order.table?.name ?? order.customerName ?? order.orderType;
     const summary = `${order.items?.length ?? 0} item${order.items?.length === 1 ? '' : 's'} · ${where}`;
+    const branchId = order.branchId ?? null;
+    const data = {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      orderType: order.orderType,
+      status: order.status,
+    };
     try {
-      const data = {
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        orderType: order.orderType,
-        status: order.status,
-      };
       if (kind === 'placed') {
-        await this._notifications.notifyRoles(
-          ['Owner', 'Multi Branch Manager', 'Branch Manager', 'Chef', 'Waiter'],
-          {
+        await this.routeToAssignee({
+          role: 'Chef',
+          column: 'assignedChefId',
+          orderId: order.id,
+          branchId,
+          payload: {
             category: 'orders',
             type: 'order.placed',
             title: `New order ${order.orderNumber}`,
             body: summary,
             data,
             priority: 'normal',
-            branchId: order.branchId ?? null,
+            branchId,
           },
-        );
+        });
       } else {
-        await this._notifications.notifyRoles(['Waiter', 'Delivery Rider'], {
-          category: 'orders',
-          type: 'order.ready',
-          title: `Order ${order.orderNumber} is ready`,
-          body: summary,
-          data,
-          priority: 'high',
-          branchId: order.branchId ?? null,
+        // A delivery order (non-dine-in with an address) goes to a rider; every
+        // other ready order goes to a waiter.
+        const isDelivery =
+          order.orderType !== 'table' && !!order.customerAddress;
+        await this.routeToAssignee({
+          role: isDelivery ? 'Delivery Rider' : 'Waiter',
+          column: isDelivery ? 'assignedRiderId' : 'assignedWaiterId',
+          orderId: order.id,
+          branchId,
+          payload: {
+            category: 'orders',
+            type: 'order.ready',
+            title: `Order ${order.orderNumber} is ready`,
+            body: summary,
+            data,
+            priority: 'high',
+            branchId,
+          },
         });
       }
     } catch (err) {
-      console.warn('[notify] order notification failed', (err as Error).message);
+      console.warn(
+        '[notify] order notification failed',
+        (err as Error).message,
+      );
+    }
+  }
+
+  /** Assign the work to one on-shift person and notify only them; if nobody of
+   *  that role is on shift, broadcast to the role + managers instead. */
+  private async routeToAssignee(opts: {
+    role: 'Chef' | 'Waiter' | 'Delivery Rider';
+    column: 'assignedChefId' | 'assignedWaiterId' | 'assignedRiderId';
+    orderId: string;
+    branchId: string | null;
+    payload: Parameters<NotificationService['notifyUsers']>[1];
+  }): Promise<void> {
+    const assignee = await this._assignment.pickAssignee(
+      opts.role,
+      opts.branchId,
+    );
+    if (assignee) {
+      await this.repository.update(opts.orderId, { [opts.column]: assignee });
+      await this._notifications.notifyUsers([assignee], opts.payload);
+    } else {
+      await this._notifications.notifyRoles(
+        [opts.role, 'Branch Manager', 'Multi Branch Manager', 'Owner'],
+        opts.payload,
+      );
     }
   }
 
@@ -191,12 +266,51 @@ export class OrderService extends AbstractService<Order> {
   }
 
   /** Live kitchen/pickup board — active orders oldest-first, with everything needed to render a ticket. */
-  getBoard(branchId?: string): Promise<Order[]> {
+  getBoard(branchId?: string, user?: AuthenticatedUser): Promise<Order[]> {
+    const base: FindOptionsWhere<Order> = {
+      status: In(BOARD_STATUSES),
+      ...(branchId ? { branchId } : {}),
+    };
+    // Non-managers only see their own assigned work plus anything still
+    // unassigned (the fallback pool); managers/owner see the whole board.
+    const scope = this.assigneeScope(user);
+    const where = scope
+      ? [
+          { ...base, [scope.column]: scope.userId },
+          { ...base, [scope.column]: IsNull() },
+        ]
+      : base;
     return this.repository.find({
-      where: { status: In(BOARD_STATUSES), ...(branchId ? { branchId } : {}) },
+      where,
       relations: ['table', 'table.area', 'branch', 'customer', 'items'],
       order: { createdAt: 'ASC' },
     });
+  }
+
+  /**
+   * Which assignment column (if any) a user's board is filtered by. Managers,
+   * owners and super admins see everything (null); a chef/waiter/rider is scoped
+   * to the orders assigned to them.
+   */
+  private assigneeScope(user?: AuthenticatedUser): {
+    column: 'assignedChefId' | 'assignedWaiterId' | 'assignedRiderId';
+    userId: string;
+  } | null {
+    if (!user || user.isSuperAdmin) return null;
+    const roles = new Set(user.roleNames ?? []);
+    if (
+      roles.has('Owner') ||
+      roles.has('Multi Branch Manager') ||
+      roles.has('Branch Manager')
+    ) {
+      return null;
+    }
+    if (roles.has('Chef')) return { column: 'assignedChefId', userId: user.id };
+    if (roles.has('Waiter'))
+      return { column: 'assignedWaiterId', userId: user.id };
+    if (roles.has('Delivery Rider'))
+      return { column: 'assignedRiderId', userId: user.id };
+    return null;
   }
 
   /**
@@ -216,9 +330,13 @@ export class OrderService extends AbstractService<Order> {
     if (trusted) return dto.items;
 
     const ids = [
-      ...new Set(dto.items.map((i) => i.menuItemId).filter((v): v is string => !!v)),
+      ...new Set(
+        dto.items.map((i) => i.menuItemId).filter((v): v is string => !!v),
+      ),
     ];
-    const menu = ids.length ? await this._menuItems.find({ where: { id: In(ids) } }) : [];
+    const menu = ids.length
+      ? await this._menuItems.find({ where: { id: In(ids) } })
+      : [];
     const byId = new Map(menu.map((m) => [m.id, m]));
 
     return dto.items.map((it) => {
@@ -227,10 +345,15 @@ export class OrderService extends AbstractService<Order> {
       }
       const mi = byId.get(it.menuItemId);
       if (!mi) throw new BadRequestException(`Menu item not found: ${it.name}`);
-      if (!mi.isAvailable) throw new BadRequestException(`"${mi.name}" is sold out.`);
+      if (!mi.isAvailable)
+        throw new BadRequestException(`"${mi.name}" is sold out.`);
 
       const base = mi.price ?? 0;
-      const options = [...(mi.sizes ?? []), ...(mi.variants ?? []), ...(mi.addOns ?? [])];
+      const options = [
+        ...(mi.sizes ?? []),
+        ...(mi.variants ?? []),
+        ...(mi.addOns ?? []),
+      ];
       const maxPremium = options.reduce((s, o) => s + (o.price ?? 0), 0);
       const claimedPremium = round2((it.unitPrice ?? base) - base);
       const premium = Math.min(Math.max(claimedPremium, 0), maxPremium);
@@ -257,7 +380,11 @@ export class OrderService extends AbstractService<Order> {
     // against the computed subtotal and apply the discount ourselves — the
     // client's amount is never trusted. (Manual POS discounts, sent as
     // `dto.discount` with no code, pass through untouched via the helper.)
-    let redeem: { promotionId: string; code: string | null; discountAmount: number } | null = null;
+    let redeem: {
+      promotionId: string;
+      code: string | null;
+      discountAmount: number;
+    } | null = null;
     if (dto.promotionCode) {
       const subtotal = payload.subtotal ?? 0;
       const result = await this._promotions.validateCode({
@@ -267,7 +394,9 @@ export class OrderService extends AbstractService<Order> {
       });
       const discount = result.valid ? result.discountAmount : 0;
       payload.discount = discount;
-      payload.total = round2(subtotal + (payload.tax ?? 0) + (payload.deliveryFee ?? 0) - discount);
+      payload.total = round2(
+        subtotal + (payload.tax ?? 0) + (payload.deliveryFee ?? 0) - discount,
+      );
       if (result.valid && result.promotion) {
         payload.promotionId = result.promotion.id;
         payload.promotionCode = result.promotion.code;
@@ -309,7 +438,10 @@ export class OrderService extends AbstractService<Order> {
     if (existing.status !== 'pending_payment') {
       return this.getById(id);
     }
-    await this.repository.update(id, { status: 'placed', paymentStatus: 'paid' });
+    await this.repository.update(id, {
+      status: 'placed',
+      paymentStatus: 'paid',
+    });
     const order = await this.getById(id);
     this.emitOrder(order, 'order.updated');
     this.emitBoard(order);
@@ -321,18 +453,29 @@ export class OrderService extends AbstractService<Order> {
     const existing = await this._validator.ensureExists(id);
 
     const patch: Partial<Order> = {};
-    if (dto.status !== undefined) patch.status = dto.status;
-    if (dto.paymentStatus !== undefined) patch.paymentStatus = dto.paymentStatus;
-    if (dto.paymentMethod !== undefined) patch.paymentMethod = dto.paymentMethod || null;
+    if (dto.status !== undefined) {
+      patch.status = dto.status;
+      // Keep the cancellation reason only while the order is cancelled; a
+      // status change away from `cancelled` clears it.
+      patch.cancellationReason =
+        dto.status === 'cancelled' ? (dto.cancellationReason ?? null) : null;
+    } else if (dto.cancellationReason !== undefined) {
+      patch.cancellationReason = dto.cancellationReason || null;
+    }
+    if (dto.paymentStatus !== undefined)
+      patch.paymentStatus = dto.paymentStatus;
+    if (dto.paymentMethod !== undefined)
+      patch.paymentMethod = dto.paymentMethod || null;
     if (dto.customerName !== undefined) patch.customerName = dto.customerName;
-    if (dto.customerPhone !== undefined) patch.customerPhone = dto.customerPhone;
-    if (dto.customerAddress !== undefined) patch.customerAddress = dto.customerAddress;
+    if (dto.customerPhone !== undefined)
+      patch.customerPhone = dto.customerPhone;
+    if (dto.customerAddress !== undefined)
+      patch.customerAddress = dto.customerAddress;
     if (dto.notes !== undefined) patch.notes = dto.notes;
     if (dto.tableId !== undefined) patch.tableId = dto.tableId || null;
 
     if (dto.items) {
-      // Replace the line items and recompute money.
-      await this._itemRepo.delete({ orderId: id });
+      // Recompute money for the replacement line items (no writes yet).
       const rows = dto.items.map((it) =>
         this._itemRepo.create({
           orderId: id,
@@ -344,8 +487,6 @@ export class OrderService extends AbstractService<Order> {
           notes: it.notes ?? null,
         }),
       );
-      if (rows.length) await this._itemRepo.save(rows);
-
       const subtotal = round2(rows.reduce((s, r) => s + (r.lineTotal ?? 0), 0));
       const tax = round2(dto.tax ?? existing.tax);
       const discount = round2(dto.discount ?? existing.discount);
@@ -353,6 +494,14 @@ export class OrderService extends AbstractService<Order> {
       patch.tax = tax;
       patch.discount = discount;
       patch.total = round2(subtotal + tax - discount);
+
+      // Atomic: drop the old items, insert the new ones, and apply the order
+      // patch together — a failure mid-way must not leave a half-replaced order.
+      await this._transactionService.execute(async (queryRunner) => {
+        await queryRunner.manager.delete(OrderItem, { orderId: id });
+        if (rows.length) await queryRunner.manager.save(OrderItem, rows);
+        await queryRunner.manager.update(Order, id, patch);
+      });
     } else {
       if (dto.tax !== undefined) patch.tax = round2(dto.tax);
       if (dto.discount !== undefined) {
@@ -361,9 +510,8 @@ export class OrderService extends AbstractService<Order> {
           existing.subtotal + (patch.tax ?? existing.tax) - patch.discount,
         );
       }
+      if (Object.keys(patch).length) await this.repository.update(id, patch);
     }
-
-    if (Object.keys(patch).length) await this.repository.update(id, patch);
     const order = await this.getById(id);
     if (dto.status !== undefined) {
       this.emitOrder(order, 'order.updated');
@@ -421,7 +569,10 @@ export class OrderService extends AbstractService<Order> {
     }));
 
     // Merge identical lines (same name + unit price) across every round.
-    const merged = new Map<string, { name: string; quantity: number; unitPrice: number; lineTotal: number }>();
+    const merged = new Map<
+      string,
+      { name: string; quantity: number; unitPrice: number; lineTotal: number }
+    >();
     for (const o of orders) {
       for (const it of o.items ?? []) {
         const key = `${it.name}|${it.unitPrice}`;
@@ -444,10 +595,13 @@ export class OrderService extends AbstractService<Order> {
     const tax = round2(orders.reduce((s, o) => s + o.tax, 0));
     const total = round2(orders.reduce((s, o) => s + o.total, 0));
     const amountPaid = round2(
-      orders.filter((o) => o.paymentStatus === 'paid').reduce((s, o) => s + o.total, 0),
+      orders
+        .filter((o) => o.paymentStatus === 'paid')
+        .reduce((s, o) => s + o.total, 0),
     );
     const amountDue = round2(total - amountPaid);
-    const paymentStatus = amountDue <= 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid';
+    const paymentStatus =
+      amountDue <= 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid';
 
     return {
       tableId,
@@ -478,23 +632,32 @@ export class OrderService extends AbstractService<Order> {
       where: { tableId, status: In(ACTIVE_STATUSES) },
     });
     let total = 0;
-    for (const o of orders) {
-      await this.repository.update(o.id, {
-        status: 'completed',
-        ...(markPaid ? { paymentStatus: 'paid' } : {}),
+    // Atomic: either every round on the table settles, or none does — a partial
+    // close would leave the bill inconsistent.
+    if (orders.length > 0) {
+      await this._transactionService.execute(async (queryRunner) => {
+        for (const o of orders) {
+          await queryRunner.manager.update(Order, o.id, {
+            status: 'completed',
+            ...(markPaid ? { paymentStatus: 'paid' } : {}),
+          });
+          total = round2(total + o.total);
+        }
       });
-      total = round2(total + o.total);
     }
     if (orders.length > 0) {
-      this._realtime.publish(boardChannel(this._req.tenant?.id), 'board.changed', { tableId });
-      this._realtime.publish(tablesChannel(this._req.tenant?.id), 'tables.changed', { tableId });
+      this._realtime.publish(
+        boardChannel(this._req.tenant?.id),
+        'board.changed',
+        { tableId },
+      );
+      this._realtime.publish(
+        tablesChannel(this._req.tenant?.id),
+        'tables.changed',
+        { tableId },
+      );
     }
     return { closed: orders.length, total };
-  }
-
-  async deleteOrder(id: string) {
-    await this._validator.ensureExists(id);
-    return this.delete(id);
   }
 
   /** Live per-table aggregation used by the Tables board (occupied / KOT / totals). */
@@ -509,7 +672,10 @@ export class OrderService extends AbstractService<Order> {
     for (const order of orders) {
       if (!order.tableId) continue;
       const existing = byTable.get(order.tableId);
-      const itemCount = (order.items ?? []).reduce((n, it) => n + it.quantity, 0);
+      const itemCount = (order.items ?? []).reduce(
+        (n, it) => n + it.quantity,
+        0,
+      );
       const isKot = order.status === 'preparing';
 
       if (!existing) {

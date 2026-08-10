@@ -1,4 +1,11 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+} from 'typeorm';
 import { AbstractEntity } from '@cor/abstract/entity/abstract-entity.abstract';
 import { Table } from '@modules/table/entities/table.entity';
 import { Branch } from '@modules/branch/entities/branch.entity';
@@ -39,6 +46,10 @@ export class Order extends AbstractEntity {
   @Column({ type: 'varchar', default: 'placed' })
   status: OrderStatus;
 
+  /** Why the order was cancelled — required when moving to `cancelled`. */
+  @Column({ type: 'varchar', nullable: true })
+  cancellationReason: string | null;
+
   /** Origin channel, e.g. "foodpanda" — null for in-house orders. */
   @Column({ type: 'varchar', nullable: true })
   source: string | null;
@@ -60,6 +71,18 @@ export class Order extends AbstractEntity {
   @ManyToOne(() => Branch, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'branchId' })
   branch: Branch;
+
+  /** Assigned kitchen staff — set when the order is placed (on-shift chef). */
+  @Column({ type: 'uuid', nullable: true })
+  assignedChefId: string | null;
+
+  /** Assigned waiter — set when a dine-in/pickup order is ready. */
+  @Column({ type: 'uuid', nullable: true })
+  assignedWaiterId: string | null;
+
+  /** Assigned delivery rider — set when a delivery order is ready. */
+  @Column({ type: 'uuid', nullable: true })
+  assignedRiderId: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   customerId: string | null;

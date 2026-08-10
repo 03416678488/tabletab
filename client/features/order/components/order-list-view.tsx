@@ -2,14 +2,30 @@
 
 import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronRight, ReceiptText, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import {
+  Ban,
+  ChevronRight,
+  Eye,
+  Loader2,
+  ReceiptText,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
-import { useConfirm } from "@/components/ui/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import {
@@ -23,6 +39,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 import { formatMoney } from "@/lib/currency";
+import { formatDateTime } from "@/lib/datetime";
 
 import { Pagination } from "@/components/ui/pagination";
 import { usePaginatedOrders } from "@/features/order/hooks/use-paginated-orders";
@@ -92,6 +109,12 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
   });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Order | null>(null);
+  // Cancel-with-reason dialog: which order, the typed reason, and a validation flag.
+  const [cancelFor, setCancelFor] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState(false);
+  // Read-only "view details" dialog.
+  const [detailFor, setDetailFor] = useState<Order | null>(null);
   // Synchronous guard so a click can't fire again before the refetch lands.
   const inFlight = useRef<Set<string>>(new Set());
 
@@ -129,27 +152,29 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
       paymentMethod: paymentMethodLabel(result),
     });
   };
-  const confirm = useConfirm();
-
-  const cancel = async (order: Order) => {
-    const ok = await confirm({
-      title: `Cancel order ${order.orderNumber}?`,
-      confirmLabel: "Cancel order",
-    });
-    if (!ok) return;
-    void patch(order, { status: "cancelled" });
+  // Open the cancel dialog (a reason is required before the order is cancelled).
+  const openCancel = (order: Order) => {
+    setCancelFor(order);
+    setCancelReason("");
+    setCancelError(false);
   };
 
-  const remove = async (order: Order) => {
-    if (!(await confirm({ title: `Delete order ${order.orderNumber}?`, confirmLabel: "Delete" })))
+  const confirmCancel = async () => {
+    const order = cancelFor;
+    const reason = cancelReason.trim();
+    if (!order) return;
+    if (!reason) {
+      setCancelError(true);
       return;
+    }
     setBusyId(order.id);
     try {
-      await orderService.remove(order.id);
-      toast("Order deleted", { tone: "success" });
+      await orderService.update(order.id, { status: "cancelled", cancellationReason: reason });
+      toast("Order cancelled", { tone: "success" });
+      setCancelFor(null);
       refetch();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
+      toast(err instanceof ApiError ? err.message : "Cancel failed", { tone: "error" });
     } finally {
       setBusyId(null);
     }
@@ -317,6 +342,14 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="View order details"
+                            onClick={() => setDetailFor(order)}
+                          >
+                            <Eye className="size-4" />
+                          </Button>
                           {next && (
                             <Button
                               variant="outline"
@@ -333,23 +366,15 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
                           {!done && (
                             <Button
                               variant="ghost"
-                              size="icon"
+                              size="sm"
                               aria-label="Cancel order"
                               disabled={busyId === order.id}
-                              onClick={() => cancel(order)}
+                              onClick={() => openCancel(order)}
                             >
                               <X className="size-4" />
+                              Cancel
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Delete order"
-                            disabled={busyId === order.id}
-                            onClick={() => remove(order)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -379,6 +404,166 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
         onOpenChange={(open) => !open && setPayFor(null)}
         onConfirm={(result) => payFor && settleAndComplete(payFor, result)}
       />
+
+      <Dialog open={!!cancelFor} onOpenChange={(open) => !open && setCancelFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel order {cancelFor?.orderNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="cancel-reason">Reason for cancellation</Label>
+            <textarea
+              id="cancel-reason"
+              value={cancelReason}
+              onChange={(e) => {
+                setCancelReason(e.target.value);
+                if (cancelError) setCancelError(false);
+              }}
+              rows={3}
+              autoFocus
+              placeholder="e.g. Customer changed their mind, item unavailable…"
+              aria-invalid={cancelError}
+              className="flex w-full rounded-xl border border-input bg-white px-3.5 py-2 text-sm text-ink shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20"
+            />
+            {cancelError && (
+              <p className="text-xs text-destructive">A reason is required to cancel this order.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelFor(null)} disabled={!!busyId}>
+              Keep order
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void confirmCancel()}
+              disabled={busyId === cancelFor?.id}
+            >
+              {busyId === cancelFor?.id && <Loader2 className="size-4 animate-spin" />}
+              Cancel order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detailFor} onOpenChange={(open) => !open && setDetailFor(null)}>
+        <DialogContent className="max-w-lg">
+          {detailFor && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
+                  Order {detailFor.orderNumber}
+                  <StatusPill tone={ORDER_STATUS_META[detailFor.status].tone}>
+                    {ORDER_STATUS_META[detailFor.status].label}
+                  </StatusPill>
+                  <StatusPill
+                    tone={detailFor.paymentStatus === "paid" ? "green" : "amber"}
+                    dot={false}
+                  >
+                    {detailFor.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                  </StatusPill>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="max-h-[70vh] space-y-4 overflow-y-auto">
+                {detailFor.status === "cancelled" && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+                    <Ban className="mt-0.5 size-4 shrink-0 text-destructive" />
+                    <div>
+                      <p className="text-sm font-semibold text-destructive">Cancelled</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {detailFor.cancellationReason || "No reason provided."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <Detail label="Type" value={ORDER_TYPE_META[detailFor.orderType].label} />
+                  <Detail
+                    label={detailFor.table ? "Table" : "Customer"}
+                    value={detailFor.table?.name ?? detailFor.customerName ?? "—"}
+                  />
+                  {detailFor.customerPhone && (
+                    <Detail label="Phone" value={detailFor.customerPhone} />
+                  )}
+                  {detailFor.paymentMethod && (
+                    <Detail label="Payment" value={detailFor.paymentMethod} />
+                  )}
+                  <Detail label="Placed" value={formatDateTime(detailFor.createdAt)} />
+                  {detailFor.branch?.name && (
+                    <Detail label="Branch" value={detailFor.branch.name} />
+                  )}
+                </dl>
+
+                <div className="rounded-xl border border-border">
+                  <p className="border-b border-border px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Items
+                  </p>
+                  <ul className="divide-y divide-border">
+                    {detailFor.items.map((it) => (
+                      <li
+                        key={it.id}
+                        className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                      >
+                        <span className="min-w-0 truncate text-ink">
+                          <span className="text-muted-foreground">{it.quantity}×</span> {it.name}
+                        </span>
+                        <span className="shrink-0 font-medium text-ink">
+                          {formatMoney(it.lineTotal)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <dl className="space-y-1 border-t border-border px-3 py-2 text-sm">
+                    <Row label="Subtotal" value={formatMoney(detailFor.subtotal)} />
+                    {detailFor.tax > 0 && <Row label="Tax" value={formatMoney(detailFor.tax)} />}
+                    {detailFor.discount > 0 && (
+                      <Row label="Discount" value={`−${formatMoney(detailFor.discount)}`} />
+                    )}
+                    <div className="flex justify-between pt-1 text-base font-semibold text-ink">
+                      <span>Total</span>
+                      <span>{formatMoney(detailFor.total)}</span>
+                    </div>
+                  </dl>
+                </div>
+
+                {detailFor.notes && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Note
+                    </p>
+                    <p className="mt-1 whitespace-pre-line text-sm text-ink">{detailFor.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailFor(null)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="font-medium text-ink">{value}</dd>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between text-muted-foreground">
+      <span>{label}</span>
+      <span>{value}</span>
     </div>
   );
 }

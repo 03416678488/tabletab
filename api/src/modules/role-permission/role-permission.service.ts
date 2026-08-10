@@ -6,6 +6,7 @@ import { ErrorProvider } from '@modules/common/error/error.provider';
 import { Role } from '@modules/role/entities/role.entity';
 import { PermissionsEnum } from '@modules/permissions/enums/permissions.enum';
 
+import { TransactionService } from '@services/transaction.service';
 import { RolePermission } from './entities/role-permission.entity';
 import {
   ALL_ACTIONS,
@@ -36,6 +37,7 @@ export class RolePermissionService {
     @InjectRepository(Role)
     private readonly _roleRepo: Repository<Role>,
     private readonly _errors: ErrorProvider,
+    private readonly _transactionService: TransactionService,
   ) {}
 
   /** Everything the permissions UI needs in one call. */
@@ -103,14 +105,18 @@ export class RolePermissionService {
 
     const sanitized = this.sanitize(grants);
 
-    await this._repo.delete({ roleId });
-
     const rows = Object.entries(sanitized)
       .filter(([, actions]) => actions.length > 0)
       .map(([resource, actions]) =>
         this._repo.create({ roleId, resource, actions }),
       );
-    if (rows.length) await this._repo.save(rows);
+
+    // Atomic: clear the role's old grants and write the new set together — a
+    // partial replace would leave the role with a broken permission set.
+    await this._transactionService.execute(async (queryRunner) => {
+      await queryRunner.manager.delete(RolePermission, { roleId });
+      if (rows.length) await queryRunner.manager.save(RolePermission, rows);
+    });
 
     return sanitized;
   }

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { isAppDebug } from "@/lib/app-flags";
+
 /**
  * Catastrophic root error boundary — replaces the root layout when even it fails
  * to render, so it must ship its own <html>/<body> and can't rely on the app's
@@ -30,8 +32,7 @@ export default function GlobalError({
           justifyContent: "center",
           padding: "1rem",
           textAlign: "center",
-          fontFamily:
-            "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+          fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
           background: "#f7f7f6",
           color: "#1a1a1a",
         }}
@@ -58,9 +59,30 @@ export default function GlobalError({
           A critical error occurred. Please try reloading the page.
         </p>
         {error.digest && (
-          <p style={{ marginTop: 8, fontSize: 12, color: "#9ca3af" }}>
-            Reference: {error.digest}
-          </p>
+          <p style={{ marginTop: 8, fontSize: 12, color: "#9ca3af" }}>Reference: {error.digest}</p>
+        )}
+        {/* App Debug (Settings → System): show the real error + stack. */}
+        {isAppDebug() && (
+          <pre
+            style={{
+              marginTop: 16,
+              maxWidth: 640,
+              maxHeight: 260,
+              overflow: "auto",
+              textAlign: "left",
+              padding: "0.75rem 1rem",
+              borderRadius: 10,
+              background: "#1a1a1a",
+              color: "#fca5a5",
+              fontSize: 12,
+              lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {error.message}
+            {error.stack ? `\n\n${error.stack}` : ""}
+          </pre>
         )}
         <button
           type="button"

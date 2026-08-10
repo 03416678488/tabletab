@@ -8,6 +8,7 @@ import { Logo } from "@/components/brand/logo";
 import { SidebarNav } from "@/features/dashboard/components/sidebar-nav";
 import { BranchSwitcher } from "@/features/branch/components/branch-switcher";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { ShiftToggle } from "@/features/shift/components/shift-toggle";
 import { ProfileMenu } from "@/features/dashboard/components/profile-menu";
 import { roleHomePath } from "@/lib/nav";
 import { useSession } from "@/hooks/use-session";
@@ -23,6 +24,10 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
   // Only roles that span multiple branches switch branches. Single-branch roles
   // (branch manager, waiter, chef, delivery) don't see the switcher.
   const canSwitchBranch = user.role === "owner" || user.role === "multi_branch_manager";
+
+  // Only staff who get assigned work clock in/out (chef, waiter, rider).
+  const showShiftToggle =
+    user.role === "chef" || user.role === "waiter" || user.role === "delivery";
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur lg:px-6">
@@ -59,6 +64,7 @@ export function Topbar({ collapsed, onToggleSidebar }: TopbarProps) {
       {canSwitchBranch && <BranchSwitcher />}
 
       <div className="ml-auto flex items-center gap-2">
+        {showShiftToggle && <ShiftToggle />}
         <NotificationBell />
 
         <ProfileMenu />

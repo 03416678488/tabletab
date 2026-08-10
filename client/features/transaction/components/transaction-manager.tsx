@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/currency";
+import { formatDateTime } from "@/lib/datetime";
 
 import { usePaginatedTransactions } from "@/features/transaction/hooks/use-paginated-transactions";
 import type {
@@ -25,7 +26,10 @@ import type {
   TransactionType,
 } from "@/features/transaction/types/transaction.types";
 
-const TYPE_META: Record<TransactionType, { label: string; tone: "green" | "red" | "blue" | "amber"; sign: string }> = {
+const TYPE_META: Record<
+  TransactionType,
+  { label: string; tone: "green" | "red" | "blue" | "amber"; sign: string }
+> = {
   sale: { label: "Sale", tone: "green", sign: "+" },
   refund: { label: "Refund", tone: "red", sign: "−" },
   cash_in: { label: "Cash In", tone: "blue", sign: "+" },
@@ -106,9 +110,20 @@ export function TransactionManager() {
             ))}
           </div>
         ) : error ? (
-          <EmptyState className="py-12" icon={ArrowLeftRight} title="Couldn't load" description={error} action={<button onClick={refetch}>Retry</button>} />
+          <EmptyState
+            className="py-12"
+            icon={ArrowLeftRight}
+            title="Couldn't load"
+            description={error}
+            action={<button onClick={refetch}>Retry</button>}
+          />
         ) : transactions.length === 0 ? (
-          <EmptyState className="py-12" icon={ArrowLeftRight} title="No transactions" description="Payments and cash movements appear here." />
+          <EmptyState
+            className="py-12"
+            icon={ArrowLeftRight}
+            title="No transactions"
+            description="Payments and cash movements appear here."
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -130,7 +145,9 @@ export function TransactionManager() {
                       <TableCell>
                         <StatusPill tone={meta.tone}>{meta.label}</StatusPill>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{METHOD_LABEL[t.method]}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {METHOD_LABEL[t.method]}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {t.order?.orderNumber ?? "—"}
                       </TableCell>
@@ -138,7 +155,7 @@ export function TransactionManager() {
                         {t.note ?? "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(t.createdAt).toLocaleString()}
+                        {formatDateTime(t.createdAt)}
                       </TableCell>
                       <TableCell className="text-right font-semibold text-ink">
                         {meta.sign}

@@ -1,16 +1,20 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { getSettingsSnapshot } from "@/hooks/use-settings-store";
+import { formatMoney } from "@/lib/currency";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(amount);
+/**
+ * App-wide money formatter. Delegates to the tenant's configured currency
+ * (symbol, position, decimals from Settings → System) so every price in the app
+ * reflects the admin's settings. The legacy `currency` arg is ignored — the
+ * active currency comes from settings, not the call site.
+ */
+export function formatCurrency(amount: number, _currency = "USD") {
+  return formatMoney(amount);
 }
 
 /**
@@ -45,7 +49,12 @@ export function getSlaWindowMs(): number {
 }
 
 /** True when a placed order has not been acknowledged within the SLA window. */
-export function isSlaBreached(order: { status: string; placedAt: string; acceptedAt?: string; slaBreached?: boolean }) {
+export function isSlaBreached(order: {
+  status: string;
+  placedAt: string;
+  acceptedAt?: string;
+  slaBreached?: boolean;
+}) {
   if (order.slaBreached) return true;
   if (order.status !== "placed" || order.acceptedAt) return false;
   return Date.now() - new Date(order.placedAt).getTime() >= getSlaWindowMs();

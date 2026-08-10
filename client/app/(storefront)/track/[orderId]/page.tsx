@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
+  Ban,
   BellRing,
   CalendarClock,
   Check,
@@ -35,6 +36,7 @@ import { SuccessDialog } from "@/components/ui/success-dialog";
 import { toast } from "@/hooks/use-toast";
 import type { Order } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
+import { formatDateTime, formatTime } from "@/lib/datetime";
 
 // Read-only delivery-address map (Leaflet → client-only).
 const AddressMap = dynamic(() => import("@/features/storefront/components/address-map"), {
@@ -165,6 +167,18 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
         </p>
       </div>
 
+      {order.status === "cancelled" && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+          <Ban className="mt-0.5 size-5 shrink-0 text-destructive" />
+          <div>
+            <p className="text-sm font-semibold text-destructive">Order cancelled</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {order.cancellationReason ? order.cancellationReason : "This order was cancelled."}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Fulfillment + contact details. */}
       <Card className="mb-6">
         <CardContent className="space-y-3 p-4">
@@ -235,11 +249,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
                   {(() => {
                     const eta = order.deliveryEtaMinutes ?? 30;
                     const at = new Date(new Date(order.placedAt).getTime() + eta * 60_000);
-                    return `~${at.toLocaleTimeString([], {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      hour12: true,
-                    })} · about ${eta} min`;
+                    return `~${formatTime(at)} · about ${eta} min`;
                   })()}
                 </p>
               </div>
@@ -282,12 +292,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
             <CalendarClock className="mt-0.5 size-5 shrink-0 text-brand" />
             <div>
               <p className="text-sm font-semibold text-ink">Placed</p>
-              <p className="text-sm text-muted-foreground">
-                {new Date(order.placedAt).toLocaleString([], {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
-              </p>
+              <p className="text-sm text-muted-foreground">{formatDateTime(order.placedAt)}</p>
             </div>
           </div>
         </CardContent>

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/datetime";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
@@ -100,7 +101,7 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
           <p className="mt-0.5 text-sm text-muted-foreground">
             Base currency <span className="font-medium text-ink">{base}</span> ·{" "}
             {data.syncedAt
-              ? `last synced ${new Date(data.syncedAt).toLocaleString()}${data.lastProvider ? ` via ${data.lastProvider}` : ""}`
+              ? `last synced ${formatDateTime(data.syncedAt)}${data.lastProvider ? ` via ${data.lastProvider}` : ""}`
               : "never synced"}
           </p>
         </div>

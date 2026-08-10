@@ -37,6 +37,11 @@ export class UpdateOrderDto {
   @IsOptional()
   paymentMethod?: string;
 
+  /** Reason the order was cancelled — expected when status becomes `cancelled`. */
+  @IsString()
+  @IsOptional()
+  cancellationReason?: string;
+
   @IsString()
   @IsOptional()
   customerName?: string;

@@ -41,6 +41,8 @@ export interface Order {
   orderNumber: string;
   orderType: OrderType;
   status: OrderStatus;
+  /** Reason captured when the order was cancelled. */
+  cancellationReason?: string | null;
   tableId: string | null;
   table?: OrderTableRef | null;
   branchId: string | null;
@@ -101,6 +103,8 @@ export interface UpdateOrderInput {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   paymentMethod?: string;
+  /** Reason for cancellation — sent when moving an order to `cancelled`. */
+  cancellationReason?: string;
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
