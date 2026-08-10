@@ -22,8 +22,17 @@ import { sseFromChannel } from '@modules/realtime/sse.util';
 
 import { MenuService } from './menu.service';
 import { MenuIoService } from './services/menu-io.service';
-import { CreateMenuItemDto, UpdateMenuItemDto, GetMenuItemQueryDto } from './dto';
+import {
+  CreateMenuItemDto,
+  UpdateMenuItemDto,
+  GetMenuItemQueryDto,
+} from './dto';
 import { ImportMenuItemsDto } from './dto/import-menu-items.dto';
+import {
+  BulkAvailabilityDto,
+  BulkCategoryDto,
+  BulkDeleteDto,
+} from './dto/bulk-menu.dto';
 
 @Controller('menu-items')
 export class MenuController {
@@ -53,7 +62,9 @@ export class MenuController {
    */
   @Public()
   @Sse('stream')
-  streamMenu(@CurrentTenant() tenant: TenantRecord | null): Observable<MessageEvent> {
+  streamMenu(
+    @CurrentTenant() tenant: TenantRecord | null,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, menuChannel(tenant?.id));
   }
 
@@ -70,13 +81,34 @@ export class MenuController {
     return this._menuService.getById(id);
   }
 
+  /** Bulk delete selected items. */
+  @Post('bulk-delete')
+  bulkDelete(@Body() dto: BulkDeleteDto) {
+    return this._menuService.bulkDelete(dto.ids);
+  }
+
+  /** Bulk mark selected items available / unavailable. */
+  @Post('bulk-availability')
+  bulkAvailability(@Body() dto: BulkAvailabilityDto) {
+    return this._menuService.bulkSetAvailability(dto.ids, dto.isAvailable);
+  }
+
+  /** Bulk move selected items to a category. */
+  @Post('bulk-category')
+  bulkCategory(@Body() dto: BulkCategoryDto) {
+    return this._menuService.bulkSetCategory(dto.ids, dto.categoryId);
+  }
+
   @Post()
   create(@Body() dto: CreateMenuItemDto) {
     return this._menuService.createMenuItem(dto);
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateMenuItemDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMenuItemDto,
+  ) {
     return this._menuService.updateMenuItem(id, dto);
   }
 

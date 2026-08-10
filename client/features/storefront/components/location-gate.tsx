@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { api } from "@/lib/api";
 import { branchDistanceKm, nearestBranch } from "@/lib/geo";
+import { geolocationBlockedReason, getCurrentPosition, GEO_HTTPS_HINT } from "@/lib/geolocation";
 import type { Branch } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,13 @@ export function LocationGate() {
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
+  // True when geolocation is blocked because the site isn't served over HTTPS.
+  const [insecure, setInsecure] = useState(false);
+  // Detect the insecure origin up front so the hint shows even when the auto-
+  // detect (not the button) is what failed.
+  useEffect(() => {
+    if (geolocationBlockedReason() === "insecure") setInsecure(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,22 +47,19 @@ export function LocationGate() {
   }, []);
 
   const locate = () => {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      setGeoStatus("unsupported");
-      return;
-    }
+    setInsecure(false);
     setGeoStatus("locating");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    getCurrentPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 })
+      .then((c) => {
         setCoords(c);
         setGeoStatus("granted");
         const nearest = nearestBranch(branches, c);
         if (nearest) setBranch(nearest.id);
-      },
-      () => setGeoStatus("denied"),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
-    );
+      })
+      .catch((err) => {
+        setGeoStatus("denied");
+        if (err instanceof Error && err.message === GEO_HTTPS_HINT) setInsecure(true);
+      });
   };
 
   const locating = geoStatus === "locating";
@@ -85,9 +90,11 @@ export function LocationGate() {
 
       {showError && (
         <p className="mt-3 rounded-xl bg-accent-tint px-4 py-2.5 text-center text-sm text-amber-700">
-          {geoStatus === "unsupported"
-            ? "Location isn't available on this device — pick a branch below."
-            : "We couldn't access your location — pick a branch below."}
+          {insecure
+            ? `${GEO_HTTPS_HINT} You can still pick a branch below.`
+            : geoStatus === "unsupported"
+              ? "Location isn't available on this device — pick a branch below."
+              : "We couldn't access your location — pick a branch below."}
         </p>
       )}
 

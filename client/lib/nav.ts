@@ -3,6 +3,7 @@ import {
   ArrowDownCircle,
   Bell,
   Bike,
+  CalendarCheck,
   ArrowLeftRight,
   ArrowUpCircle,
   BarChart3,
@@ -105,6 +106,13 @@ export const navItems: NavItem[] = [
     section: "Operations",
   },
   { label: "Manager", slug: "manager", icon: ShieldCheck, roles: MANAGERS, section: "Operations" },
+  {
+    label: "Reservations",
+    slug: "reservations",
+    icon: CalendarCheck,
+    roles: [...MANAGERS, "waiter"],
+    section: "Operations",
+  },
   {
     label: "Table",
     slug: "tables",

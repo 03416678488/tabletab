@@ -14,14 +14,28 @@ const WEEK_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // Per-period bucketing. Tokens are fixed constants (never user input) so they are
 // safe to inline into the interval/date_trunc SQL.
-const CFG: Record<Period, { trunc: string; step: string; back: number; fmt: string }> = {
+const CFG: Record<
+  Period,
+  { trunc: string; step: string; back: number; fmt: string }
+> = {
   day: { trunc: 'day', step: 'day', back: 6, fmt: 'Dy' },
   month: { trunc: 'month', step: 'month', back: 11, fmt: 'Mon' },
   year: { trunc: 'year', step: 'year', back: 2, fmt: 'YYYY' },
 };
 
+/** A resolved aggregation window (preset or custom range). All fields are SQL
+ *  fragments built from validated constants only. */
+interface Win {
+  trunc: string;
+  step: string;
+  fmt: string;
+  startExpr: string;
+  endExpr: string;
+}
+
 const num = (v: unknown) => (v == null ? 0 : Number(v));
-const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const pct = (part: number, whole: number) =>
+  whole > 0 ? Math.round((part / whole) * 100) : 0;
 const trend = (curr: number, prev: number) =>
   prev > 0 ? Math.round(((curr - prev) / prev) * 1000) / 10 : 0;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -48,6 +62,9 @@ export class DashboardAnalyticsService {
   private static readonly UUID =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
+  /** Strict YYYY-MM-DD — safe to inline as a SQL date literal. */
+  private static readonly DATE = /^\d{4}-\d{2}-\d{2}$/;
+
   /** Validate the incoming branch filter — a strict UUID, or none for all branches. */
   private normalizeBranchId(branchId?: string): string | undefined {
     if (!branchId || branchId === 'all') return undefined;
@@ -66,14 +83,54 @@ export class DashboardAnalyticsService {
     return this._branchId ? ` AND ${col} = '${this._branchId}'` : '';
   }
 
-  /** Start of the series window for a period, as an SQL expression. */
-  private windowStart(period: Period): string {
-    const { trunc, step, back } = CFG[period];
-    return `date_trunc('${trunc}', now()) - interval '${back} ${step}'`;
+  /**
+   * The aggregation window, resolved from either a preset period or a custom
+   * `from`/`to` range. For custom ranges the bucket granularity is chosen from
+   * the span so the series stays readable and bounded (day ≤ 2mo, month ≤ 2yr,
+   * else year). `startExpr`/`endExpr` are SQL timestamp expressions built only
+   * from validated constants — safe to inline.
+   */
+  private resolveWindow(period: Period, from?: string, to?: string): Win {
+    const D = DashboardAnalyticsService.DATE;
+    if (from && to && D.test(from) && D.test(to)) {
+      const spanDays = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+      const g =
+        spanDays <= 62
+          ? { trunc: 'day', fmt: 'Mon DD' }
+          : spanDays <= 731
+            ? { trunc: 'month', fmt: 'Mon YY' }
+            : { trunc: 'year', fmt: 'YYYY' };
+      return {
+        trunc: g.trunc,
+        step: g.trunc,
+        fmt: g.fmt,
+        startExpr: `date_trunc('${g.trunc}', DATE '${from}')`,
+        endExpr: `date_trunc('${g.trunc}', DATE '${to}')`,
+      };
+    }
+    const { trunc, step, back, fmt } = CFG[period];
+    return {
+      trunc,
+      step,
+      fmt,
+      startExpr: `date_trunc('${trunc}', now()) - interval '${back} ${step}'`,
+      endExpr: `date_trunc('${trunc}', now())`,
+    };
   }
 
-  async getOwnerAnalytics(period: Period, branchId?: string) {
+  /** `AND col >= start AND col < end+1step` — the window as a SQL filter. */
+  private rangeFilter(col: string, win: Win): string {
+    return ` AND ${col} >= ${win.startExpr} AND ${col} < ${win.endExpr} + interval '1 ${win.step}'`;
+  }
+
+  async getOwnerAnalytics(
+    period: Period,
+    branchId?: string,
+    from?: string,
+    to?: string,
+  ) {
     this._branchId = this.normalizeBranchId(branchId);
+    const win = this.resolveWindow(period, from, to);
 
     const [
       revenueSeries,
@@ -89,18 +146,18 @@ export class DashboardAnalyticsService {
       heatmap,
       target,
     ] = await Promise.all([
-      this.revenueSeries(period),
+      this.revenueSeries(win),
       this.kpis(),
       this.sparklines(),
-      this.bestSellers(period),
-      this.channelSplit(period),
-      this.branchSplit(period),
-      this.categorySplit(period),
-      this.paymentSplit(period),
-      this.fulfillment(period),
-      this.customers(period),
+      this.bestSellers(win),
+      this.channelSplit(win),
+      this.branchSplit(win),
+      this.categorySplit(win),
+      this.paymentSplit(win),
+      this.fulfillment(win),
+      this.customers(win),
       this.hourlyHeatmap(),
-      this.target(period),
+      this.target(win),
     ]);
 
     return {
@@ -122,22 +179,21 @@ export class DashboardAnalyticsService {
   }
 
   // ── Revenue / orders time series ──────────────────────────────────────────
-  private async revenueSeries(period: Period) {
-    const { trunc, step, back, fmt } = CFG[period];
+  private async revenueSeries(win: Win) {
     const rows = await this.ds.query(`
       WITH buckets AS (
         SELECT generate_series(
-          date_trunc('${trunc}', now()) - interval '${back} ${step}',
-          date_trunc('${trunc}', now()),
-          interval '1 ${step}'
+          ${win.startExpr},
+          ${win.endExpr},
+          interval '1 ${win.step}'
         ) AS b
       )
-      SELECT trim(to_char(bk.b, '${fmt}')) AS label,
+      SELECT trim(to_char(bk.b, '${win.fmt}')) AS label,
              COALESCE(SUM(o.total), 0) AS revenue,
              COALESCE(COUNT(o.id), 0) AS orders
       FROM buckets bk
       LEFT JOIN orders o
-        ON date_trunc('${trunc}', o."createdAt") = bk.b AND o.status <> 'cancelled'${this.branchAnd('o."branchId"')}
+        ON date_trunc('${win.trunc}', o."createdAt") = bk.b AND o.status <> 'cancelled'${this.branchAnd('o."branchId"')}
       GROUP BY bk.b ORDER BY bk.b
     `);
     return rows.map((r: any) => ({
@@ -218,19 +274,21 @@ export class DashboardAnalyticsService {
     `);
     const revenueSpark = rows.map((r: any) => num(r.revenue));
     const ordersSpark = rows.map((r: any) => num(r.orders));
-    const aovSpark = rows.map((r: any) => round2(num(r.orders) > 0 ? num(r.revenue) / num(r.orders) : 0));
+    const aovSpark = rows.map((r: any) =>
+      round2(num(r.orders) > 0 ? num(r.revenue) / num(r.orders) : 0),
+    );
     const kitchenSpark = rows.map((r: any) => round2(num(r.kitchen)));
     return { revenueSpark, ordersSpark, aovSpark, kitchenSpark };
   }
 
   // ── Best-selling items ────────────────────────────────────────────────────
-  private async bestSellers(period: Period) {
+  private async bestSellers(win: Win) {
     const rows = await this.ds.query(`
       SELECT oi."menuItemId" AS "menuItemId", oi.name AS name,
              SUM(oi.quantity) AS quantity, SUM(oi."lineTotal") AS revenue
       FROM order_items oi
       JOIN orders o ON o.id = oi."orderId"
-      WHERE o.status <> 'cancelled' AND o."createdAt" >= ${this.windowStart(period)}${this.branchAnd('o."branchId"')}
+      WHERE o.status <> 'cancelled'${this.rangeFilter('o."createdAt"', win)}${this.branchAnd('o."branchId"')}
       GROUP BY oi."menuItemId", oi.name
       ORDER BY quantity DESC LIMIT 5
     `);
@@ -243,16 +301,19 @@ export class DashboardAnalyticsService {
   }
 
   // ── Channel split (in-venue vs online) ────────────────────────────────────
-  private async channelSplit(period: Period) {
+  private async channelSplit(win: Win) {
     const rows = await this.ds.query(`
       SELECT CASE WHEN "orderType" = 'online' THEN 'online' ELSE 'in-venue' END AS channel,
              SUM(total) AS revenue, COUNT(*) AS orders
       FROM orders
-      WHERE status <> 'cancelled' AND "createdAt" >= ${this.windowStart(period)}${this.branchAnd('"branchId"')}
+      WHERE status <> 'cancelled'${this.rangeFilter('"createdAt"', win)}${this.branchAnd('"branchId"')}
       GROUP BY channel
     `);
     const total = rows.reduce((s: number, r: any) => s + num(r.revenue), 0);
-    const labels: Record<string, string> = { 'in-venue': 'Dine-in', online: 'Online' };
+    const labels: Record<string, string> = {
+      'in-venue': 'Dine-in',
+      online: 'Online',
+    };
     return rows.map((r: any) => ({
       channel: r.channel,
       label: labels[r.channel] ?? r.channel,
@@ -263,13 +324,13 @@ export class DashboardAnalyticsService {
   }
 
   // ── Branch split ──────────────────────────────────────────────────────────
-  private async branchSplit(period: Period) {
+  private async branchSplit(win: Win) {
     const rows = await this.ds.query(`
       SELECT o."branchId" AS "branchId", COALESCE(b.name, 'Unassigned') AS name,
              SUM(o.total) AS revenue, COUNT(*) AS orders
       FROM orders o
       LEFT JOIN branches b ON b.id = o."branchId"
-      WHERE o.status <> 'cancelled' AND o."createdAt" >= ${this.windowStart(period)}
+      WHERE o.status <> 'cancelled'${this.rangeFilter('o."createdAt"', win)}
       GROUP BY o."branchId", b.name
       ORDER BY revenue DESC
     `);
@@ -284,7 +345,7 @@ export class DashboardAnalyticsService {
   }
 
   // ── Sales by menu category ────────────────────────────────────────────────
-  private async categorySplit(period: Period) {
+  private async categorySplit(win: Win) {
     const rows = await this.ds.query(`
       SELECT COALESCE(c.name, 'Uncategorized') AS category,
              SUM(oi."lineTotal") AS revenue, SUM(oi.quantity) AS orders
@@ -292,7 +353,7 @@ export class DashboardAnalyticsService {
       JOIN orders o ON o.id = oi."orderId"
       LEFT JOIN menu_items mi ON mi.id = oi."menuItemId"
       LEFT JOIN categories c ON c.id = mi."categoryId"
-      WHERE o.status <> 'cancelled' AND o."createdAt" >= ${this.windowStart(period)}${this.branchAnd('o."branchId"')}
+      WHERE o.status <> 'cancelled'${this.rangeFilter('o."createdAt"', win)}${this.branchAnd('o."branchId"')}
       GROUP BY c.name
       ORDER BY revenue DESC LIMIT 6
     `);
@@ -306,12 +367,12 @@ export class DashboardAnalyticsService {
   }
 
   // ── Payment method split (from transactions) ──────────────────────────────
-  private async paymentSplit(period: Period) {
+  private async paymentSplit(win: Win) {
     const rows = await this.ds.query(`
       SELECT t.method, SUM(t.amount) AS amount
       FROM transactions t
       LEFT JOIN orders o ON o.id = t."orderId"
-      WHERE t.type = 'sale' AND t."createdAt" >= ${this.windowStart(period)}${this.branchAnd('o."branchId"')}
+      WHERE t.type = 'sale'${this.rangeFilter('t."createdAt"', win)}${this.branchAnd('o."branchId"')}
       GROUP BY t.method ORDER BY amount DESC
     `);
     const total = rows.reduce((s: number, r: any) => s + num(r.amount), 0);
@@ -330,11 +391,11 @@ export class DashboardAnalyticsService {
   }
 
   // ── Fulfillment mix (by order type) ───────────────────────────────────────
-  private async fulfillment(period: Period) {
+  private async fulfillment(win: Win) {
     const rows = await this.ds.query(`
       SELECT "orderType" AS type, COUNT(*) AS orders
       FROM orders
-      WHERE status <> 'cancelled' AND "createdAt" >= ${this.windowStart(period)}${this.branchAnd('"branchId"')}
+      WHERE status <> 'cancelled'${this.rangeFilter('"createdAt"', win)}${this.branchAnd('"branchId"')}
       GROUP BY "orderType" ORDER BY orders DESC
     `);
     const total = rows.reduce((s: number, r: any) => s + num(r.orders), 0);
@@ -352,8 +413,8 @@ export class DashboardAnalyticsService {
   }
 
   // ── Customer insights (new vs returning within the window) ────────────────
-  private async customers(period: Period) {
-    const start = this.windowStart(period);
+  private async customers(win: Win) {
+    const start = win.startExpr;
     const [r] = await this.ds.query(`
       WITH firsts AS (
         SELECT "customerId", MIN("createdAt") AS first_at
@@ -361,7 +422,7 @@ export class DashboardAnalyticsService {
       ),
       active AS (
         SELECT DISTINCT "customerId" FROM orders
-        WHERE "customerId" IS NOT NULL AND "createdAt" >= ${start}${this.branchAnd('"branchId"')}
+        WHERE "customerId" IS NOT NULL${this.rangeFilter('"createdAt"', win)}${this.branchAnd('"branchId"')}
       )
       SELECT
         COUNT(*) FILTER (WHERE fr.first_at >= ${start}) AS new_count,
@@ -404,15 +465,16 @@ export class DashboardAnalyticsService {
   }
 
   // ── Revenue target (achieved vs a growth goal over the previous period) ────
-  private async target(period: Period) {
-    const { trunc, step } = CFG[period];
+  private async target(win: Win) {
+    // Achieved = revenue in the window; prev = the equally-long window before it.
+    const end = `${win.endExpr} + interval '1 ${win.step}'`;
     const [r] = await this.ds.query(`
       SELECT
         COALESCE(SUM(total) FILTER (
-          WHERE "createdAt" >= date_trunc('${trunc}', now())), 0) AS achieved,
+          WHERE "createdAt" >= ${win.startExpr} AND "createdAt" < ${end}), 0) AS achieved,
         COALESCE(SUM(total) FILTER (
-          WHERE "createdAt" >= date_trunc('${trunc}', now()) - interval '1 ${step}'
-            AND "createdAt" <  date_trunc('${trunc}', now())), 0) AS prev
+          WHERE "createdAt" >= ${win.startExpr} - (${end} - ${win.startExpr})
+            AND "createdAt" <  ${win.startExpr}), 0) AS prev
       FROM orders WHERE status <> 'cancelled'${this.branchAnd('"branchId"')}
     `);
     const achieved = round2(num(r.achieved));

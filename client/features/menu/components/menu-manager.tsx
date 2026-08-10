@@ -1,10 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Search, SlidersHorizontal, Trash2, UtensilsCrossed, X } from "lucide-react";
+import {
+  Ban,
+  Check,
+  Pencil,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  UtensilsCrossed,
+  X,
+} from "lucide-react";
 
 import { AppImage } from "@/components/ui/app-image";
 import { Button } from "@/components/ui/button";
+import { BulkActionBar, SelectCheckbox } from "@/components/ui/bulk-action-bar";
+import { useTableSelection } from "@/hooks/use-table-selection";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
@@ -86,6 +98,65 @@ export function MenuManager() {
       toast(err instanceof ApiError ? err.message : "Failed to delete item", {
         tone: "error",
       });
+    }
+  };
+
+  // Bulk selection (scoped to the current page — ids clear when page/filters change).
+  const sel = useTableSelection(items, `${page}|${search}|${categoryId}|${avail}`);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const bulkDelete = async () => {
+    if (
+      !(await confirm({
+        title: `Delete ${sel.count} item${sel.count === 1 ? "" : "s"}?`,
+        confirmLabel: "Delete",
+      }))
+    )
+      return;
+    setBulkBusy(true);
+    try {
+      await menuService.bulkRemove(sel.ids);
+      toast(`Deleted ${sel.count} item${sel.count === 1 ? "" : "s"}`, { tone: "success" });
+      sel.clear();
+      refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Bulk delete failed", { tone: "error" });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkAvailability = async (isAvailable: boolean) => {
+    setBulkBusy(true);
+    try {
+      await menuService.bulkSetAvailability(sel.ids, isAvailable);
+      toast(`Marked ${sel.count} ${isAvailable ? "available" : "unavailable"}`, {
+        tone: "success",
+      });
+      sel.clear();
+      refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Bulk update failed", { tone: "error" });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkMoveCategory = async (catId: string) => {
+    if (!catId) return;
+    const catName = categories.find((c) => c.id === catId)?.name ?? "category";
+    setBulkBusy(true);
+    try {
+      await menuService.bulkSetCategory(sel.ids, catId);
+      toast(`Moved ${sel.count} item${sel.count === 1 ? "" : "s"} to ${catName}`, {
+        tone: "success",
+      });
+      sel.clear();
+      refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Bulk move failed", { tone: "error" });
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -203,67 +274,119 @@ export function MenuManager() {
             }
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-16">Image</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <AppImage
-                      src={item.imageUrl || item.images?.[0]}
-                      alt={item.name}
-                      width={40}
-                      height={40}
-                      fallbackIcon={UtensilsCrossed}
-                      className="size-10 rounded-lg object-cover"
-                      fallbackClassName="size-10 rounded-lg"
+          <>
+            <BulkActionBar count={sel.count} onClear={sel.clear}>
+              <Dropdown
+                className="w-44"
+                value=""
+                onChange={(v) => void bulkMoveCategory(v)}
+                disabled={bulkBusy}
+                searchable
+                placeholder="Move to category…"
+                aria-label="Move selected items to a category"
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkBusy}
+                onClick={() => void bulkAvailability(true)}
+              >
+                <Check className="size-4" /> Mark available
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkBusy}
+                onClick={() => void bulkAvailability(false)}
+              >
+                <Ban className="size-4" /> Mark unavailable
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={bulkBusy}
+                onClick={() => void bulkDelete()}
+              >
+                <Trash2 className="size-4" /> Delete
+              </Button>
+            </BulkActionBar>
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10">
+                    <SelectCheckbox
+                      checked={sel.allSelected}
+                      onChange={sel.toggleAll}
+                      label="Select all on this page"
                     />
-                  </TableCell>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.category?.name ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatCurrency(item.price)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusPill tone={item.isAvailable ? "green" : "neutral"}>
-                      {item.isAvailable ? "Available" : "Unavailable"}
-                    </StatusPill>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Edit"
-                        onClick={() => openEdit(item)}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Delete"
-                        onClick={() => remove(item)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead className="w-16">Image</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={item.id} data-selected={sel.isSelected(item.id) || undefined}>
+                    <TableCell>
+                      <SelectCheckbox
+                        checked={sel.isSelected(item.id)}
+                        onChange={() => sel.toggleOne(item.id)}
+                        label={`Select ${item.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AppImage
+                        src={item.imageUrl || item.images?.[0]}
+                        alt={item.name}
+                        width={40}
+                        height={40}
+                        fallbackIcon={UtensilsCrossed}
+                        className="size-10 rounded-lg object-cover"
+                        fallbackClassName="size-10 rounded-lg"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.category?.name ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatCurrency(item.price)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill tone={item.isAvailable ? "green" : "neutral"}>
+                        {item.isAvailable ? "Available" : "Unavailable"}
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Edit"
+                          onClick={() => openEdit(item)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Delete"
+                          onClick={() => remove(item)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
         )}
       </Card>
 

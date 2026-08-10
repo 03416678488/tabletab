@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CalendarDays,
   Check,
+  Eye,
   Phone,
   RefreshCw,
   UserCheck,
@@ -12,19 +13,27 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReservationStatusPill, StatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { toast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
 import {
   listReservations,
   setReservationStatus,
   type StorefrontReservation,
 } from "@/features/reserve/services/reservation.service";
+import { fetchReservationSettings } from "@/features/reserve/services/reservation-settings.service";
 import { useReservationsStream } from "@/features/manager/hooks/use-reservations-stream";
-import { formatSlotLabel } from "@/lib/reservation-utils";
+import { deriveReservationTasks, formatSlotLabel } from "@/lib/reservation-utils";
+import { formatDateTime } from "@/lib/datetime";
 import type { ReservationTask } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -32,51 +41,74 @@ const ACTIVE_RESERVATION = new Set(["requested", "confirmed", "seated"]);
 
 export function ReservationsPanel() {
   const activeBranch = useSession((s) => s.activeBranch);
+  // Only scope to a branch when a real one is selected — "All branches" (null,
+  // or a non-UUID sentinel) lists every branch's reservations.
+  const branchId =
+    activeBranch?.id && /^[0-9a-f-]{36}$/i.test(activeBranch.id) ? activeBranch.id : undefined;
   const [reservations, setReservations] = useState<StorefrontReservation[]>([]);
-  const [tasks, setTasks] = useState<ReservationTask[]>([]);
+  // Reminder lead (mins) from the branch's settings; drives the reminder tasks.
+  const [reminderLead, setReminderLead] = useState(30);
+  // Tasks are derived from real bookings; "Mark done" hides them client-side.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Read-only "view details" dialog.
+  const [detailFor, setDetailFor] = useState<StorefrontReservation | null>(null);
 
   const refresh = async () => {
-    // Reservations are real; reminder tasks are still a client-side helper.
-    const [r, t] = await Promise.all([
-      listReservations(activeBranch.id),
-      api.getReservationTasks(activeBranch.id),
-    ]);
-    setReservations(r);
-    setTasks(t);
-    setLoading(false);
+    try {
+      setReservations(await listReservations(branchId));
+    } catch {
+      /* keep the last good data; a failed refresh must not blank the panel */
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Reminder lead comes from the selected branch's reservation settings.
+  useEffect(() => {
+    if (!branchId) return;
+    fetchReservationSettings(branchId)
+      .then((s) => setReminderLead(s.reminderLeadMins))
+      .catch(() => undefined);
+  }, [branchId]);
 
   useEffect(() => {
     void refresh();
     // Slow poll as a safety net — realtime below delivers the instant updates.
     const poll = setInterval(() => void refresh(), 30000);
     return () => clearInterval(poll);
-  }, [activeBranch.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
 
   // Live reservation book — new bookings + status changes reflect instantly.
   useReservationsStream(refresh);
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Local Y-M-D (not UTC — avoids hiding today's bookings in +offset zones).
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate(),
+  ).padStart(2, "0")}`;
   const upcoming = useMemo(
-    () =>
-      reservations.filter(
-        (r) => r.date >= today && ACTIVE_RESERVATION.has(r.status),
-      ),
+    () => reservations.filter((r) => r.date >= today && ACTIVE_RESERVATION.has(r.status)),
     [reservations, today],
   );
 
   const openTasks = useMemo(
-    () => tasks.filter((t) => t.status === "active" || t.status === "pending"),
-    [tasks],
+    () => deriveReservationTasks(reservations, reminderLead).filter((t) => !dismissed.has(t.id)),
+    [reservations, reminderLead, dismissed],
   );
 
   const urgentTasks = openTasks.filter((t) => t.type === "urgent-confirm");
   const reminderTasks = openTasks.filter((t) => t.type === "reminder");
 
+  const dismissTask = (id: string) => {
+    setDismissed((prev) => new Set(prev).add(id));
+    toast("Task dismissed", { tone: "success" });
+  };
+
   const tableLabel = (tableId: string) =>
-    activeBranch.tables.find((t) => t.id === tableId)?.label ?? tableId;
+    activeBranch?.tables?.find((t) => t.id === tableId)?.label ?? tableId;
 
   const runAction = async (id: string, action: () => Promise<unknown>, message: string) => {
     setBusyId(id);
@@ -107,9 +139,7 @@ export function ReservationsPanel() {
         <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
           <AlertTriangle className="size-5 text-amber-600" />
           Reservation tasks
-          {openTasks.length > 0 && (
-            <StatusPill tone="amber">{openTasks.length} open</StatusPill>
-          )}
+          {openTasks.length > 0 && <StatusPill tone="amber">{openTasks.length} open</StatusPill>}
         </h2>
 
         {openTasks.length === 0 ? (
@@ -126,9 +156,7 @@ export function ReservationsPanel() {
                 task={task}
                 urgent
                 busy={busyId === task.id}
-                onDismiss={() =>
-                  runAction(task.id, () => api.dismissReservationTask(task.id), "Task dismissed")
-                }
+                onDismiss={() => dismissTask(task.id)}
               />
             ))}
             {reminderTasks.map((task) => (
@@ -136,9 +164,7 @@ export function ReservationsPanel() {
                 key={task.id}
                 task={task}
                 busy={busyId === task.id}
-                onDismiss={() =>
-                  runAction(task.id, () => api.dismissReservationTask(task.id), "Task dismissed")
-                }
+                onDismiss={() => dismissTask(task.id)}
               />
             ))}
           </div>
@@ -195,8 +221,8 @@ export function ReservationsPanel() {
                       )}
                       {r.preOrder && r.preOrder.length > 0 && (
                         <p className="text-sm text-brand-deep">
-                          Pre-order:{" "}
-                          {r.preOrder.map((i) => `${i.quantity}× ${i.name}`).join(", ")} (
+                          Pre-order: {r.preOrder.map((i) => `${i.quantity}× ${i.name}`).join(", ")}{" "}
+                          (
                           {formatCurrency(
                             r.preOrder.reduce((s, i) => s + i.unitPrice * i.quantity, 0),
                           )}
@@ -211,6 +237,14 @@ export function ReservationsPanel() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="View reservation details"
+                        onClick={() => setDetailFor(r)}
+                      >
+                        <Eye className="size-4" />
+                      </Button>
                       {r.status === "requested" && (
                         <Button
                           size="sm"
@@ -218,8 +252,7 @@ export function ReservationsPanel() {
                           onClick={() =>
                             runAction(
                               r.id,
-                              () =>
-                                setReservationStatus(r.id, "confirmed"),
+                              () => setReservationStatus(r.id, "confirmed"),
                               "Reservation confirmed — table held",
                             )
                           }
@@ -234,7 +267,11 @@ export function ReservationsPanel() {
                           variant="outline"
                           disabled={busyId === r.id}
                           onClick={() =>
-                            runAction(r.id, () => setReservationStatus(r.id, "seated"), "Guest seated")
+                            runAction(
+                              r.id,
+                              () => setReservationStatus(r.id, "seated"),
+                              "Guest seated",
+                            )
                           }
                         >
                           <UserCheck className="size-4" />
@@ -247,7 +284,11 @@ export function ReservationsPanel() {
                           variant="outline"
                           disabled={busyId === r.id}
                           onClick={() =>
-                            runAction(r.id, () => setReservationStatus(r.id, "completed"), "Completed")
+                            runAction(
+                              r.id,
+                              () => setReservationStatus(r.id, "completed"),
+                              "Completed",
+                            )
                           }
                         >
                           Complete
@@ -261,7 +302,11 @@ export function ReservationsPanel() {
                             className="text-destructive"
                             disabled={busyId === r.id}
                             onClick={() =>
-                              runAction(r.id, () => setReservationStatus(r.id, "no-show"), "Marked no-show")
+                              runAction(
+                                r.id,
+                                () => setReservationStatus(r.id, "no-show"),
+                                "Marked no-show",
+                              )
                             }
                           >
                             No-show
@@ -271,7 +316,11 @@ export function ReservationsPanel() {
                             variant="ghost"
                             disabled={busyId === r.id}
                             onClick={() =>
-                              runAction(r.id, () => setReservationStatus(r.id, "cancelled"), "Cancelled")
+                              runAction(
+                                r.id,
+                                () => setReservationStatus(r.id, "cancelled"),
+                                "Cancelled",
+                              )
                             }
                           >
                             <X className="size-4" />
@@ -287,6 +336,91 @@ export function ReservationsPanel() {
           </div>
         )}
       </section>
+
+      <Dialog open={!!detailFor} onOpenChange={(open) => !open && setDetailFor(null)}>
+        <DialogContent className="max-w-lg">
+          {detailFor && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
+                  {detailFor.guestName}
+                  <ReservationStatusPill status={detailFor.status} dot={false} />
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="max-h-[70vh] space-y-4 overflow-y-auto">
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <Detail
+                    label="When"
+                    value={`${formatSlotLabel(detailFor.date, detailFor.time)} · ${detailFor.durationMins} min`}
+                  />
+                  <Detail label="Party size" value={`${detailFor.partySize} guests`} />
+                  <Detail
+                    label="Table"
+                    value={detailFor.tableName ?? tableLabel(detailFor.tableId)}
+                  />
+                  <Detail label="Source" value={detailFor.source} />
+                  <Detail label="Phone" value={detailFor.guestPhone} />
+                  {detailFor.guestEmail && <Detail label="Email" value={detailFor.guestEmail} />}
+                  {detailFor.branchName && <Detail label="Branch" value={detailFor.branchName} />}
+                </dl>
+
+                {detailFor.specialRequests && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Special requests
+                    </p>
+                    <p className="mt-1 whitespace-pre-line text-sm text-ink">
+                      {detailFor.specialRequests}
+                    </p>
+                  </div>
+                )}
+
+                {detailFor.buffet && (
+                  <div className="text-sm text-amber-800">
+                    Buffet: {detailFor.buffet.packageName} · {detailFor.buffet.totalCovers} covers (
+                    {formatCurrency(detailFor.buffet.subtotal)})
+                  </div>
+                )}
+                {detailFor.preOrder && detailFor.preOrder.length > 0 && (
+                  <div className="text-sm text-brand-deep">
+                    Pre-order:{" "}
+                    {detailFor.preOrder.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+                  </div>
+                )}
+
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border pt-3 text-sm">
+                  <Detail label="Booked" value={formatDateTime(detailFor.createdAt)} />
+                  {detailFor.confirmedAt && (
+                    <Detail label="Confirmed" value={formatDateTime(detailFor.confirmedAt)} />
+                  )}
+                  {detailFor.seatedAt && (
+                    <Detail label="Seated" value={formatDateTime(detailFor.seatedAt)} />
+                  )}
+                  {detailFor.completedAt && (
+                    <Detail label="Completed" value={formatDateTime(detailFor.completedAt)} />
+                  )}
+                </dl>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailFor(null)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="font-medium text-ink">{value}</dd>
     </div>
   );
 }

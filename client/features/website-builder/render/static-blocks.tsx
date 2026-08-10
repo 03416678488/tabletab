@@ -59,21 +59,20 @@ export function HeroRender({ config }: { config: HeroConfig }) {
 
 export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
   // Always one-up on mobile/tablet; the multi-up grid only kicks in on desktop.
-  // The desktop basis subtracts a share of the 16px `gap-4` (gap × (n-1)/n) so
-  // exactly `perView` slides fit within the content column with the gaps — the
-  // cards stay flush with the section title (no clipped/overflowing last card).
+  // Clean fractions — the inter-slide gap comes from each slide's left padding
+  // (see EmblaSlider), which is inside the basis width, so `perView` slides fit
+  // the content column exactly and stay flush with the section title.
   const perViewBasis =
     {
       1: "basis-full",
-      2: "basis-full lg:basis-[calc(50%_-_8px)]",
-      3: "basis-full lg:basis-[calc(33.333%_-_10.667px)]",
-      4: "basis-full lg:basis-[calc(25%_-_12px)]",
+      2: "basis-full lg:basis-1/2",
+      3: "basis-full lg:basis-1/3",
+      4: "basis-full lg:basis-1/4",
     }[config.perView] ?? "basis-full";
 
   // Multi-up slides are tall portrait cards on desktop; but when they collapse to
   // one-up below `lg` a wide banner ratio reads better. Single slides stay wide.
-  const slideAspect =
-    config.perView > 1 ? "aspect-[16/9] lg:aspect-[3/4]" : "aspect-[21/9]";
+  const slideAspect = config.perView > 1 ? "aspect-[16/9] lg:aspect-[3/4]" : "aspect-[21/9]";
 
   return (
     <section className={cn(shell, "py-4")}>
@@ -89,18 +88,9 @@ export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
           <Link
             key={i}
             href={img.href || "#"}
-            className={cn(
-              "relative block overflow-hidden rounded-3xl bg-subtle",
-              slideAspect,
-            )}
+            className={cn("relative block overflow-hidden rounded-3xl bg-subtle", slideAspect)}
           >
-            <AppImage
-              src={img.url}
-              alt={img.caption}
-              fill
-              className="object-cover"
-              sizes="100vw"
-            />
+            <AppImage src={img.url} alt={img.caption} fill className="object-cover" sizes="100vw" />
             {img.badge && (
               <span className="absolute right-3 top-3 rounded-full bg-brand px-3 py-1 text-xs font-bold text-primary-foreground shadow-md">
                 {img.badge}
@@ -253,7 +243,9 @@ export function BannerSliderRender({ config }: { config: BannerSliderConfig }) {
           </span>
         )}
         <h2 className="font-display text-2xl font-bold sm:text-3xl">{config.title}</h2>
-        {config.subtitle && <p className="mt-1 text-sm opacity-90 sm:text-base">{config.subtitle}</p>}
+        {config.subtitle && (
+          <p className="mt-1 text-sm opacity-90 sm:text-base">{config.subtitle}</p>
+        )}
         {config.ctaLabel && (
           <Link
             href={config.ctaHref || "#"}

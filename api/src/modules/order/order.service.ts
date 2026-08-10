@@ -288,6 +288,22 @@ export class OrderService extends AbstractService<Order> {
   }
 
   /**
+   * Every running order in the branch (any type/status still in progress),
+   * newest first — powers the POS "load an open order" picker. Unlike the KDS
+   * board this is never assignee-filtered: the POS operator settles any table.
+   */
+  listActive(branchId?: string): Promise<Order[]> {
+    return this.repository.find({
+      where: {
+        status: In([...ACTIVE_STATUSES, 'out-for-delivery'] as OrderStatus[]),
+        ...(branchId ? { branchId } : {}),
+      },
+      relations: ['table', 'table.area', 'branch', 'customer', 'items'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
    * Which assignment column (if any) a user's board is filtered by. Managers,
    * owners and super admins see everything (null); a chef/waiter/rider is scoped
    * to the orders assigned to them.

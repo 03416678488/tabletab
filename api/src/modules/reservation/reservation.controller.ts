@@ -17,11 +17,18 @@ import { Public } from '@modules/auth/guards/public/public.decorator';
 import { CurrentTenant } from '@modules/tenancy/current-tenant.decorator';
 import { TenantRecord } from '@modules/tenancy/tenancy.types';
 import { RealtimeService } from '@modules/realtime/realtime.service';
-import { reservationChannel, reservationsChannel } from '@modules/realtime/channels';
+import {
+  reservationChannel,
+  reservationsChannel,
+} from '@modules/realtime/channels';
 import { sseFromChannel } from '@modules/realtime/sse.util';
 
 import { ReservationService } from './reservation.service';
-import { CreateReservationDto, UpdateReservationDto, GetReservationQueryDto } from './dto';
+import {
+  CreateReservationDto,
+  UpdateReservationDto,
+  GetReservationQueryDto,
+} from './dto';
 
 @Controller('reservations')
 export class ReservationController {
@@ -36,7 +43,9 @@ export class ReservationController {
    * the bearer token via a fetch-based stream.
    */
   @Sse('stream')
-  streamReservations(@CurrentTenant() tenant: TenantRecord | null): Observable<MessageEvent> {
+  streamReservations(
+    @CurrentTenant() tenant: TenantRecord | null,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, reservationsChannel(tenant?.id));
   }
 
@@ -47,12 +56,37 @@ export class ReservationController {
   }
 
   /**
+   * Public — tables free for a party at a branch on a given date/time slot. The
+   * storefront table picker calls this; declared before `:id` so `availability`
+   * isn't captured as a reservation id.
+   */
+  @Public()
+  @Get('availability')
+  availability(
+    @Query('branchId', ParseUUIDPipe) branchId: string,
+    @Query('date') date: string,
+    @Query('time') time: string,
+    @Query('partySize') partySize: string,
+    @Query('durationMins') durationMins?: string,
+  ) {
+    return this._reservationService.availableTables({
+      branchId,
+      date,
+      time,
+      partySize: Number(partySize) || 1,
+      durationMins: durationMins ? Number(durationMins) : undefined,
+    });
+  }
+
+  /**
    * Live status for the guest's confirmation page. Public: the reservation UUID
    * is an unguessable capability (same trust model as `GET /reservations/:id`).
    */
   @Public()
   @Sse(':id/stream')
-  streamReservation(@Param('id', ParseUUIDPipe) id: string): Observable<MessageEvent> {
+  streamReservation(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, reservationChannel(id));
   }
 
@@ -71,7 +105,10 @@ export class ReservationController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateReservationDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateReservationDto,
+  ) {
     return this._reservationService.updateReservation(id, dto);
   }
 

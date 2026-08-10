@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
@@ -16,7 +16,11 @@ import { MenuItem } from './entities/menu-item.entity';
 import { MenuValidatorService } from './services/menu-validator.service';
 import { MenuHelperService } from './services/menu.helper.service';
 import { MenuSyncService } from './services/menu-sync.service';
-import { CreateMenuItemDto, UpdateMenuItemDto, GetMenuItemQueryDto } from './dto';
+import {
+  CreateMenuItemDto,
+  UpdateMenuItemDto,
+  GetMenuItemQueryDto,
+} from './dto';
 
 const RELATIONS = ['category', 'foodTypes', 'menus'];
 
@@ -44,7 +48,9 @@ export class MenuService extends AbstractService<MenuItem> {
    * a live endpoint is configured).
    */
   private emitMenuChanged(itemId: string): void {
-    this._realtime.publish(menuChannel(this._req.tenant?.id), 'menu.changed', { id: itemId });
+    this._realtime.publish(menuChannel(this._req.tenant?.id), 'menu.changed', {
+      id: itemId,
+    });
     // Debounced per-tenant DELTA push to connected aggregators (best-effort,
     // no-op unless a live endpoint is configured).
     this._menuSync.schedule(
@@ -56,7 +62,12 @@ export class MenuService extends AbstractService<MenuItem> {
 
   getAll(query: GetMenuItemQueryDto): Promise<Paginated<MenuItem>> {
     const where = this._helper.resolveListFilters(query);
-    return this.pagination.paginationQuery(query, this.repository, where, RELATIONS);
+    return this.pagination.paginationQuery(
+      query,
+      this.repository,
+      where,
+      RELATIONS,
+    );
   }
 
   getById(id: string): Promise<MenuItem> {
@@ -82,7 +93,8 @@ export class MenuService extends AbstractService<MenuItem> {
       relations: ['foodTypes', 'menus'],
     });
     Object.assign(item, this._helper.resolveUpdatePayload(dto));
-    if (dto.foodTypeIds !== undefined) item.foodTypes = this.toRefs<FoodType>(dto.foodTypeIds);
+    if (dto.foodTypeIds !== undefined)
+      item.foodTypes = this.toRefs<FoodType>(dto.foodTypeIds);
     if (dto.menuIds !== undefined) item.menus = this.toRefs<Menu>(dto.menuIds);
     await this.repository.save(item);
     this.emitMenuChanged(id);
@@ -94,6 +106,36 @@ export class MenuService extends AbstractService<MenuItem> {
     const result = await this.delete(id);
     this.emitMenuChanged(id);
     return result;
+  }
+
+  /** Delete many items at once (one atomic statement). */
+  async bulkDelete(ids: string[]): Promise<{ deleted: number }> {
+    if (!ids.length) return { deleted: 0 };
+    const res = await this.repository.delete({ id: In(ids) });
+    this.emitMenuChanged(ids[0]);
+    return { deleted: res.affected ?? 0 };
+  }
+
+  /** Mark many items available/unavailable at once (one atomic statement). */
+  async bulkSetAvailability(
+    ids: string[],
+    isAvailable: boolean,
+  ): Promise<{ updated: number }> {
+    if (!ids.length) return { updated: 0 };
+    const res = await this.repository.update({ id: In(ids) }, { isAvailable });
+    this.emitMenuChanged(ids[0]);
+    return { updated: res.affected ?? 0 };
+  }
+
+  /** Move many items to a category at once (one atomic statement). */
+  async bulkSetCategory(
+    ids: string[],
+    categoryId: string,
+  ): Promise<{ updated: number }> {
+    if (!ids.length) return { updated: 0 };
+    const res = await this.repository.update({ id: In(ids) }, { categoryId });
+    this.emitMenuChanged(ids[0]);
+    return { updated: res.affected ?? 0 };
   }
 
   /** Turn an id list into partial relation refs TypeORM persists into the join table. */

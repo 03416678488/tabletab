@@ -61,10 +61,7 @@ export function MenuGridRender({ config }: { config: MenuGridConfig }) {
               )}
             </div>
             {config.layout === "slider" ? (
-              <EmblaSlider
-                slideClassName="basis-[calc(50%_-_8px)] sm:basis-[calc(25%_-_12px)]"
-                showArrows={config.showArrows}
-              >
+              <EmblaSlider slideClassName="basis-1/2 sm:basis-1/4" showArrows={config.showArrows}>
                 {dishes.map((item) => (
                   <div key={item.id}>
                     <ProductCard item={item} />
@@ -120,10 +117,7 @@ export function FeaturedCategoriesRender({ config }: { config: FeaturedCategorie
               )}
             </div>
             {config.layout === "slider" ? (
-              <EmblaSlider
-                slideClassName="basis-[calc(50%_-_8px)] sm:basis-[calc(25%_-_12px)]"
-                showArrows={config.showArrows}
-              >
+              <EmblaSlider slideClassName="basis-1/2 sm:basis-1/4" showArrows={config.showArrows}>
                 {catItems.map((item) => (
                   <div key={item.id}>
                     <ProductCard item={item} />
@@ -280,10 +274,7 @@ export function ProductCarouselRender({ config }: { config: ProductCarouselConfi
         <h2 className="mb-4 font-display text-lg font-bold text-ink sm:text-xl">{config.title}</h2>
       )}
       {config.layout === "slider" ? (
-        <EmblaSlider
-          slideClassName="basis-[calc(50%_-_8px)] sm:basis-[calc(25%_-_12px)]"
-          showArrows={config.showArrows}
-        >
+        <EmblaSlider slideClassName="basis-1/2 sm:basis-1/4" showArrows={config.showArrows}>
           {shown.map((item) => (
             <div key={item.id}>
               <ProductCard item={item} />

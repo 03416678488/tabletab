@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { getCurrentPosition } from "@/lib/geolocation";
 import type { Address, AddressType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -33,9 +34,7 @@ interface AddressFormProps {
 /** Delivery-address form: address-type picker, map pin, and address fields. */
 export function AddressForm({ onSave, onCancel, saving, initial }: AddressFormProps) {
   const [type, setType] = useState<AddressType>(initial?.type ?? "home");
-  const [customLabel, setCustomLabel] = useState(
-    initial?.type === "other" ? initial.label : "",
-  );
+  const [customLabel, setCustomLabel] = useState(initial?.type === "other" ? initial.label : "");
   const [line1, setLine1] = useState(initial?.line1 ?? "");
   const [line2, setLine2] = useState(initial?.line2 ?? "");
   const [city, setCity] = useState(initial?.city ?? "");
@@ -49,16 +48,16 @@ export function AddressForm({ onSave, onCancel, saving, initial }: AddressFormPr
     setLng(ln);
   };
 
-  const useMyLocation = () => {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      toast("Geolocation isn't available", { tone: "error" });
-      return;
+  const handleUseLocation = async () => {
+    try {
+      const { lat: la, lng: ln } = await getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+      });
+      setPoint(la, ln);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't get your location", { tone: "error" });
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setPoint(pos.coords.latitude, pos.coords.longitude),
-      () => toast("Couldn't get your location", { tone: "error" }),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
   };
 
   const handleSave = () => {
@@ -131,7 +130,12 @@ export function AddressForm({ onSave, onCancel, saving, initial }: AddressFormPr
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Label>Pin your exact location</Label>
-          <Button type="button" variant="outline" size="sm" onClick={useMyLocation}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleUseLocation()}
+          >
             <Crosshair className="size-4" />
             Use my location
           </Button>

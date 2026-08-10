@@ -1,4 +1,4 @@
-import type { Branch, Reservation, ReservationStatus, Table } from "@/lib/types";
+import type { Branch, Reservation, ReservationStatus, ReservationTask, Table } from "@/lib/types";
 
 const BLOCKING_STATUSES: ReservationStatus[] = ["requested", "confirmed", "seated"];
 
@@ -9,6 +9,66 @@ export function slotStartDate(date: string, time: string): Date {
 export function slotEndDate(date: string, time: string, durationMins: number): Date {
   const start = slotStartDate(date, time);
   return new Date(start.getTime() + durationMins * 60_000);
+}
+
+/** A booking still unconfirmed within this many minutes of arrival is urgent. */
+const URGENT_CONFIRM_WINDOW_MINS = 120;
+
+/** Reservations the manager needs to act on now, derived from real bookings:
+ *  - `urgent-confirm`: still "requested" and arriving soon → call the guest.
+ *  - `reminder`: "confirmed" and within the reminder lead → prep the table.
+ *  Past-slot bookings are skipped. Pure — no store, no mock. */
+export function deriveReservationTasks(
+  reservations: Pick<
+    Reservation,
+    "id" | "branchId" | "guestName" | "guestPhone" | "date" | "time" | "durationMins" | "status"
+  >[],
+  reminderLeadMins: number,
+): ReservationTask[] {
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const out: ReservationTask[] = [];
+
+  for (const r of reservations) {
+    const start = slotStartDate(r.date, r.time).getTime();
+    const end = slotEndDate(r.date, r.time, r.durationMins).getTime();
+    if (now > end) continue; // slot already over
+    const minsToStart = Math.round((start - now) / 60_000);
+
+    const base = {
+      id: `task-${r.id}`,
+      reservationId: r.id,
+      branchId: r.branchId,
+      status: "active" as const,
+      activatesAt: nowIso,
+      createdAt: nowIso,
+      guestName: r.guestName,
+      guestPhone: r.guestPhone,
+      slotLabel: formatSlotLabel(r.date, r.time),
+    };
+
+    if (r.status === "requested" && minsToStart <= URGENT_CONFIRM_WINDOW_MINS) {
+      out.push({
+        ...base,
+        type: "urgent-confirm",
+        message:
+          minsToStart >= 0
+            ? `Not confirmed — guest arrives in ~${minsToStart} min. Call to confirm.`
+            : "Not confirmed and the arrival time has passed. Call the guest.",
+      });
+    } else if (r.status === "confirmed" && minsToStart <= reminderLeadMins) {
+      out.push({
+        ...base,
+        type: "reminder",
+        message:
+          minsToStart >= 0
+            ? `Arriving in ~${minsToStart} min — have the table ready.`
+            : "Guest is due now — greet and seat them.",
+      });
+    }
+  }
+
+  return out.sort((a, b) => a.reservationId.localeCompare(b.reservationId));
 }
 
 export function formatSlotLabel(date: string, time: string): string {
@@ -85,6 +145,30 @@ export function generateTimeSlots(): string[] {
   return slots;
 }
 
+/**
+ * Bookable slots between the daily open/close window ("HH:mm"), every `stepMins`,
+ * with the last slot early enough that a `slotDurationMins` booking ends by close.
+ * Driven by Settings → Reservation Time.
+ */
+export function generateSlots(
+  openTime: string,
+  closeTime: string,
+  slotDurationMins: number,
+  stepMins = 30,
+): string[] {
+  const toMin = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const start = toMin(openTime);
+  const lastStart = toMin(closeTime) - slotDurationMins;
+  const out: string[] = [];
+  for (let m = start; m <= lastStart; m += stepMins) {
+    out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+  }
+  return out;
+}
+
 export function formatTime12(time: string): string {
   const [h, m] = time.split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";
@@ -99,7 +183,11 @@ export function dateOptions(windowDays: number): { value: string; label: string 
   for (let i = 0; i < windowDays; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
-    const value = d.toISOString().slice(0, 10);
+    // Local Y-M-D (NOT toISOString, which is UTC and shifts a day in +offset
+    // timezones — that mismatch made "Tue 11 Aug" book Mon 10 Aug).
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
     const label = d.toLocaleDateString(undefined, {
       weekday: i === 0 ? "short" : "short",
       month: "short",
@@ -121,10 +209,6 @@ export function computeFireAt(date: string, time: string, leadMins = 15): string
   return new Date(start.getTime() - leadMins * 60_000).toISOString();
 }
 
-export function isSlotBookable(
-  date: string,
-  time: string,
-  cutoffMins: number,
-): boolean {
+export function isSlotBookable(date: string, time: string, cutoffMins: number): boolean {
   return minutesUntilSlot(date, time) >= cutoffMins;
 }

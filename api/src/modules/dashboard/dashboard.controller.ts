@@ -1,7 +1,10 @@
 import { Controller, DefaultValuePipe, Get, Query } from '@nestjs/common';
 
 import { RequiresFeature } from '@modules/tenancy/plan-feature.guard';
-import { DashboardAnalyticsService, Period } from './dashboard-analytics.service';
+import {
+  DashboardAnalyticsService,
+  Period,
+} from './dashboard-analytics.service';
 
 const PERIODS: Period[] = ['day', 'month', 'year'];
 
@@ -19,8 +22,19 @@ export class DashboardController {
   getAnalytics(
     @Query('period', new DefaultValuePipe('day')) period: string,
     @Query('branchId') branchId?: string,
+    // Optional custom range (YYYY-MM-DD); when both are set they override the
+    // preset and the series auto-buckets by span. Invalid values are ignored.
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     const p = (PERIODS.includes(period as Period) ? period : 'day') as Period;
-    return this._analytics.getOwnerAnalytics(p, branchId);
+    const valid = (d?: string) =>
+      d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined;
+    return this._analytics.getOwnerAnalytics(
+      p,
+      branchId,
+      valid(from),
+      valid(to),
+    );
   }
 }

@@ -1,20 +1,34 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
 import { TenantRequest } from '@modules/tenancy/tenancy.types';
 import { RealtimeService } from '@modules/realtime/realtime.service';
-import { reservationChannel, reservationsChannel } from '@modules/realtime/channels';
+import {
+  reservationChannel,
+  reservationsChannel,
+} from '@modules/realtime/channels';
 import { NotificationService } from '@modules/notification/notification.service';
 
-import { Reservation } from './entities/reservation.entity';
+import { Table } from '@modules/table/entities/table.entity';
+import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { ReservationValidatorService } from './services/reservation-validator.service';
 import { ReservationHelperService } from './services/reservation.helper.service';
-import { CreateReservationDto, UpdateReservationDto, GetReservationQueryDto } from './dto';
+import {
+  CreateReservationDto,
+  UpdateReservationDto,
+  GetReservationQueryDto,
+} from './dto';
+
+/** "HH:mm" → minutes since midnight. */
+const toMinutes = (hhmm: string): number => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
 
 /** Main reservation flow only — validation + normalization live in sibling services. */
 @Injectable()
@@ -22,6 +36,8 @@ export class ReservationService extends AbstractService<Reservation> {
   constructor(
     @InjectRepository(Reservation)
     protected readonly repository: Repository<Reservation>,
+    @InjectRepository(Table)
+    private readonly _tables: Repository<Table>,
     protected readonly pagination: PaginationProvider,
     private readonly _validator: ReservationValidatorService,
     private readonly _helper: ReservationHelperService,
@@ -30,6 +46,57 @@ export class ReservationService extends AbstractService<Reservation> {
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
+  }
+
+  /** Statuses where a reservation still holds its table. */
+  private static readonly HOLDING_STATUSES: ReservationStatus[] = [
+    'requested',
+    'confirmed',
+    'seated',
+  ];
+
+  /**
+   * Tables that can take a party of `partySize` at `branchId` on `date`/`time`
+   * for `durationMins` — active tables seating enough people whose slot doesn't
+   * overlap an existing holding reservation. Powers the storefront table picker.
+   */
+  async availableTables(params: {
+    branchId: string;
+    date: string;
+    time: string;
+    partySize: number;
+    durationMins?: number;
+  }): Promise<Table[]> {
+    const duration = params.durationMins ?? 90;
+    const reqStart = toMinutes(params.time);
+    const reqEnd = reqStart + duration;
+
+    const tables = await this._tables.find({
+      where: { branchId: params.branchId, isActive: true },
+      order: { capacity: 'ASC', name: 'ASC' },
+    });
+    const fits = tables.filter((t) => t.capacity >= params.partySize);
+    if (fits.length === 0) return [];
+
+    // Reservations on the same branch+date that still hold a table.
+    const sameDay = await this.repository.find({
+      where: {
+        branchId: params.branchId,
+        date: params.date,
+        status: In(ReservationService.HOLDING_STATUSES),
+      },
+    });
+
+    const busy = new Set<string>();
+    for (const r of sameDay) {
+      if (!r.tableId) continue;
+      const start = toMinutes(r.time);
+      const end = start + (r.durationMins ?? 90);
+      // Overlap when one starts before the other ends.
+      if (start < reqEnd && reqStart < end) busy.add(r.tableId);
+    }
+
+    return fits.filter((t) => !busy.has(t.id));
   }
 
   /** Notify managers/waiters of a new booking (best-effort). */
@@ -48,7 +115,10 @@ export class ReservationService extends AbstractService<Reservation> {
         },
       );
     } catch (err) {
-      console.warn('[notify] reservation notification failed', (err as Error).message);
+      console.warn(
+        '[notify] reservation notification failed',
+        (err as Error).message,
+      );
     }
   }
 
@@ -56,24 +126,38 @@ export class ReservationService extends AbstractService<Reservation> {
    * Emit after commit: a minimal event to the guest's tracking channel and a
    * "book changed" nudge to the tenant's manager view.
    */
-  private emit(reservation: Reservation, type: 'reservation.created' | 'reservation.updated'): void {
+  private emit(
+    reservation: Reservation,
+    type: 'reservation.created' | 'reservation.updated',
+  ): void {
     this._realtime.publish(reservationChannel(reservation.id), type, {
       id: reservation.id,
       status: reservation.status,
       updatedAt: reservation.updatedAt,
     });
-    this._realtime.publish(reservationsChannel(this._req.tenant?.id), 'reservations.changed', {
-      id: reservation.id,
-      status: reservation.status,
-    });
+    this._realtime.publish(
+      reservationsChannel(this._req.tenant?.id),
+      'reservations.changed',
+      {
+        id: reservation.id,
+        status: reservation.status,
+      },
+    );
   }
 
   getAll(query: GetReservationQueryDto): Promise<Paginated<Reservation>> {
     const where = this._helper.resolveListFilters(query);
-    return this.pagination.paginationQuery(query, this.repository, where, ['branch', 'table'], undefined, {
-      date: 'ASC',
-      time: 'ASC',
-    });
+    return this.pagination.paginationQuery(
+      query,
+      this.repository,
+      where,
+      ['branch', 'table'],
+      undefined,
+      {
+        date: 'ASC',
+        time: 'ASC',
+      },
+    );
   }
 
   getById(id: string): Promise<Reservation> {
@@ -89,7 +173,10 @@ export class ReservationService extends AbstractService<Reservation> {
     return reservation;
   }
 
-  async updateReservation(id: string, dto: UpdateReservationDto): Promise<Reservation> {
+  async updateReservation(
+    id: string,
+    dto: UpdateReservationDto,
+  ): Promise<Reservation> {
     await this._validator.ensureExists(id);
     await this.repository.update(id, this._helper.resolveUpdatePayload(dto));
     const reservation = await this.getById(id);

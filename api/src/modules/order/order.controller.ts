@@ -76,6 +76,14 @@ export class OrderController {
     return this._orderService.getTableStats(branchId);
   }
 
+  /** All running orders in a branch (POS "load open order" picker). */
+  @Get('active')
+  active(
+    @Query('branchId', new ParseUUIDPipe({ optional: true })) branchId?: string,
+  ) {
+    return this._orderService.listActive(branchId);
+  }
+
   @Get('board')
   getBoard(
     @CurrentUser() user: AuthenticatedUser,

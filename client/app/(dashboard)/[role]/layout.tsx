@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/features/dashboard/components/app-shell";
-import { ReservationTimerProvider } from "@/features/dashboard/components/reservation-timer-provider";
 import { StaffAuthGuard } from "@/features/dashboard/components/staff-auth-guard";
 import { isStaffRole } from "@/lib/roles";
 
@@ -21,9 +20,7 @@ export default async function StaffLayout({
 
   return (
     <StaffAuthGuard>
-      <ReservationTimerProvider>
-        <AppShell>{children}</AppShell>
-      </ReservationTimerProvider>
+      <AppShell>{children}</AppShell>
     </StaffAuthGuard>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { useLocationStore } from "@/hooks/use-location-store";
+import { geolocationBlockedReason, getCurrentPosition } from "@/lib/geolocation";
 
 /**
  * Auto-detect the visitor's location on mount so the landing can pick their
@@ -22,7 +23,10 @@ export function useAutoGeolocate() {
     const { coords, branchId } = useLocationStore.getState();
     if (coords || branchId) return; // already located / chosen
 
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+    // No geolocation at all (old browser) → give up silently. An insecure origin
+    // (non-HTTPS) still falls through to locate(), which fails to "denied" — the
+    // LocationGate turns that into the HTTPS hint.
+    if (geolocationBlockedReason() === "unsupported") {
       setGeoStatus("unsupported");
       return;
     }
@@ -31,17 +35,15 @@ export function useAutoGeolocate() {
 
     const locate = () => {
       setGeoStatus("locating");
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
+      getCurrentPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 })
+        .then((c) => {
           if (cancelled) return;
-          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setCoords(c);
           setGeoStatus("granted");
-        },
-        () => {
+        })
+        .catch(() => {
           if (!cancelled) setGeoStatus("denied");
-        },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
-      );
+        });
     };
 
     // Prefer the Permissions API so we stay silent when already granted and

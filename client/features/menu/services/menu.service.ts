@@ -42,6 +42,32 @@ export const menuService = {
       .then((res) => res.data);
   },
 
+  bulkRemove(ids: string[]) {
+    return httpClient
+      .post<{ deleted: number }>(`${MENU_ENDPOINTS.base}/bulk-delete`, { ids }, { auth: true })
+      .then((res) => res.data);
+  },
+
+  bulkSetAvailability(ids: string[], isAvailable: boolean) {
+    return httpClient
+      .post<{ updated: number }>(
+        `${MENU_ENDPOINTS.base}/bulk-availability`,
+        { ids, isAvailable },
+        { auth: true },
+      )
+      .then((res) => res.data);
+  },
+
+  bulkSetCategory(ids: string[], categoryId: string) {
+    return httpClient
+      .post<{ updated: number }>(
+        `${MENU_ENDPOINTS.base}/bulk-category`,
+        { ids, categoryId },
+        { auth: true },
+      )
+      .then((res) => res.data);
+  },
+
   exportCsv() {
     return httpClient
       .get<{ csv: string; count: number }>(`${MENU_ENDPOINTS.base}/export`, { auth: true })

@@ -10,9 +10,7 @@ export function generatePickupSlots(count = 5): string[] {
   const slots: string[] = [];
   for (let i = 0; i < count; i++) {
     const t = new Date(now.getTime() + i * 15 * 60 * 1000);
-    slots.push(
-      t.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }),
-    );
+    slots.push(t.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
   }
   return slots;
 }
@@ -33,12 +31,8 @@ export function branchOnlineConfig(branch: Branch): BranchOnlineConfig {
  * Public list of live branches for the storefront (nearest-branch resolution).
  * Maps the admin/API branch shape to the storefront `Branch` type.
  */
-export async function fetchStorefrontBranches(): Promise<Branch[]> {
-  const res = await httpClient.get<{ items?: ApiBranch[] } | ApiBranch[]>("/branches", {
-    params: { perPage: 100 },
-  });
-  const items = Array.isArray(res.data) ? res.data : (res.data.items ?? []);
-  return items.map((b) => ({
+function toBranch(b: ApiBranch): Branch {
+  return {
     id: b.id,
     name: b.name,
     address: b.address,
@@ -56,5 +50,23 @@ export async function fetchStorefrontBranches(): Promise<Branch[]> {
     pickupEnabled: b.pickupEnabled,
     reservationsEnabled: b.reservationsEnabled,
     deliveryEtaMinutes: b.deliveryEtaMinutes ?? undefined,
-  }));
+  };
+}
+
+export async function fetchStorefrontBranches(): Promise<Branch[]> {
+  const res = await httpClient.get<{ items?: ApiBranch[] } | ApiBranch[]>("/branches", {
+    params: { perPage: 100 },
+  });
+  const items = Array.isArray(res.data) ? res.data : (res.data.items ?? []);
+  return items.map(toBranch);
+}
+
+/** A single live branch (public) — used by the reservation booking flow. */
+export async function fetchStorefrontBranch(branchId: string): Promise<Branch | null> {
+  try {
+    const res = await httpClient.get<ApiBranch>(`/branches/${branchId}`);
+    return toBranch(res.data);
+  } catch {
+    return null;
+  }
 }

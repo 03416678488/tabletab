@@ -7,17 +7,17 @@ import { ReservationBookingFlow } from "@/features/reserve/components/reservatio
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/lib/api";
-import type { Branch, BranchReservationSettings } from "@/lib/types";
+import { fetchStorefrontBranch } from "@/features/storefront/services/storefront-branches";
+import {
+  fetchReservationConfig,
+  type ReservationConfig,
+} from "@/features/reserve/services/reservation-config.service";
+import type { Branch } from "@/lib/types";
 
-export default function ReserveBranchPage({
-  params,
-}: {
-  params: Promise<{ branchId: string }>;
-}) {
+export default function ReserveBranchPage({ params }: { params: Promise<{ branchId: string }> }) {
   const { branchId } = use(params);
   const [branch, setBranch] = useState<Branch | null>(null);
-  const [settings, setSettings] = useState<BranchReservationSettings | null>(null);
+  const [settings, setSettings] = useState<ReservationConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,8 +27,8 @@ export default function ReserveBranchPage({
       setLoading(true);
       try {
         const [b, s] = await Promise.all([
-          api.getBranch(branchId),
-          api.getReservationSettings(branchId),
+          fetchStorefrontBranch(branchId),
+          fetchReservationConfig(),
         ]);
         if (!cancelled) {
           if (!b) setError("Branch not found");
@@ -74,5 +74,5 @@ export default function ReserveBranchPage({
     );
   }
 
-  return <ReservationBookingFlow branch={branch} settings={settings} />;
+  return <ReservationBookingFlow branch={branch} config={settings} />;
 }

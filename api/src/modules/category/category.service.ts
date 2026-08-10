@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
@@ -9,7 +9,11 @@ import { Paginated } from '@modules/common/pagination/interface/pagination.inter
 import { Category } from './entities/category.entity';
 import { CategoryValidatorService } from './services/category-validator.service';
 import { CategoryHelperService } from './services/category.helper.service';
-import { CreateCategoryDto, UpdateCategoryDto, GetCategoryQueryDto } from './dto';
+import {
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  GetCategoryQueryDto,
+} from './dto';
 
 /** Main category flow only — validation + normalization live in the sibling services. */
 @Injectable()
@@ -26,9 +30,16 @@ export class CategoryService extends AbstractService<Category> {
 
   getAll(query: GetCategoryQueryDto): Promise<Paginated<Category>> {
     const where = this._helper.resolveListFilters(query);
-    return this.pagination.paginationQuery(query, this.repository, where, [], undefined, {
-      sortOrder: 'ASC',
-    });
+    return this.pagination.paginationQuery(
+      query,
+      this.repository,
+      where,
+      [],
+      undefined,
+      {
+        sortOrder: 'ASC',
+      },
+    );
   }
 
   getById(id: string): Promise<Category> {
@@ -49,5 +60,22 @@ export class CategoryService extends AbstractService<Category> {
   async deleteCategory(id: string) {
     await this._validator.ensureExists(id);
     return this.delete(id);
+  }
+
+  /** Delete many categories at once (one atomic statement). */
+  async bulkDelete(ids: string[]): Promise<{ deleted: number }> {
+    if (!ids.length) return { deleted: 0 };
+    const res = await this.repository.delete({ id: In(ids) });
+    return { deleted: res.affected ?? 0 };
+  }
+
+  /** Activate / deactivate many categories at once (one atomic statement). */
+  async bulkSetActive(
+    ids: string[],
+    isActive: boolean,
+  ): Promise<{ updated: number }> {
+    if (!ids.length) return { updated: 0 };
+    const res = await this.repository.update({ id: In(ids) }, { isActive });
+    return { updated: res.affected ?? 0 };
   }
 }

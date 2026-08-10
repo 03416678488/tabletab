@@ -49,4 +49,12 @@ export const DEFAULT_SETTINGS: Record<string, Record<string, string>> = {
 };
 
 /** Groups the public GET /settings exposes (safe for the storefront/app). */
-export const PUBLIC_GROUPS = ['company', 'site', 'social_media', 'theme'];
+// `reservation` is public so the storefront booking flow can read the tenant's
+// reservation window / turn time / party limit (Settings → Reservation Time).
+export const PUBLIC_GROUPS = [
+  'company',
+  'site',
+  'social_media',
+  'theme',
+  'reservation',
+];

@@ -32,9 +32,12 @@ import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefron
 import { useStorefrontCategories } from "@/features/storefront/hooks/use-storefront-categories";
 import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
 import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
-import { fetchReservationSettings } from "@/features/reserve/services/reservation-settings.service";
+import {
+  fetchReservationConfig,
+  type ReservationConfig,
+} from "@/features/reserve/services/reservation-config.service";
 import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
-import type { Branch, BranchReservationSettings, MenuItem } from "@/lib/types";
+import type { Branch, MenuItem } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 /** Delivery/pickup availability derived from the branch's own settings. */
@@ -99,9 +102,7 @@ export function HomeLanding({
     }
   }, [availability, fulfillment, branch, setFulfillment]);
 
-  const [reservationSettings, setReservationSettings] = useState<BranchReservationSettings | null>(
-    null,
-  );
+  const [reservationSettings, setReservationSettings] = useState<ReservationConfig | null>(null);
   const [reorderItems, setReorderItems] = useState<MenuItem[]>([]);
 
   // Menu content (categories + items) — real catalog, cached (React Query).
@@ -135,7 +136,7 @@ export function HomeLanding({
       return;
     }
     let cancelled = false;
-    fetchReservationSettings(branch.id)
+    fetchReservationConfig()
       .catch(() => null)
       .then((s) => {
         if (!cancelled) setReservationSettings(s);
@@ -533,7 +534,7 @@ function ReservationPane({
 }: {
   branchId: string | null;
   branch: Branch | null;
-  settings: BranchReservationSettings | null;
+  settings: ReservationConfig | null;
   loading: boolean;
   onChangeBranch: () => void;
 }) {
@@ -590,7 +591,7 @@ function ReservationPane({
     );
   }
 
-  return <ReservationBookingFlow branch={branch} settings={settings} />;
+  return <ReservationBookingFlow branch={branch} config={settings} />;
 }
 
 function ModeBanner({

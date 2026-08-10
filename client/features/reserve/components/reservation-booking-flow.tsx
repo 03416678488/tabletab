@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowRight,
   Calendar,
   Check,
@@ -24,15 +22,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
-import { api } from "@/lib/api";
+import { fetchStorefrontProducts } from "@/features/storefront/services/storefront-catalog";
+import { fetchAvailableTables } from "@/features/reserve/services/reservation-availability.service";
 import { bookReservation } from "@/features/reserve/services/reservation.service";
-import {
-  dateOptions,
-  formatTime12,
-  generateTimeSlots,
-  isSlotBookable,
-} from "@/lib/reservation-utils";
-import type { Branch, BranchReservationSettings, BuffetSelection, MenuItem, OrderItem, Table } from "@/lib/types";
+import { dateOptions, formatTime12, generateSlots, isSlotBookable } from "@/lib/reservation-utils";
+import type { ReservationConfig } from "@/features/reserve/services/reservation-config.service";
+import type { Branch, BuffetSelection, MenuItem, OrderItem, Table } from "@/lib/types";
 import { formatBuffetSummary } from "@/lib/buffet-utils";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -48,10 +43,10 @@ const STEP_LABELS: Record<Step, string> = {
 
 interface ReservationBookingFlowProps {
   branch: Branch;
-  settings: BranchReservationSettings;
+  config: ReservationConfig;
 }
 
-export function ReservationBookingFlow({ branch, settings }: ReservationBookingFlowProps) {
+export function ReservationBookingFlow({ branch, config }: ReservationBookingFlowProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("when");
   const [partySize, setPartySize] = useState(2);
@@ -74,32 +69,42 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
   const [modifierItem, setModifierItem] = useState<MenuItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const dates = useMemo(() => dateOptions(settings.bookingWindowDays), [settings.bookingWindowDays]);
+  const dates = useMemo(() => dateOptions(config.bookingWindowDays), [config.bookingWindowDays]);
   const timeSlots = useMemo(() => {
-    return generateTimeSlots().filter((t) =>
-      date ? isSlotBookable(date, t, settings.cutoffMins) : true,
+    return generateSlots(config.openTime, config.closeTime, config.slotDurationMins).filter((t) =>
+      date ? isSlotBookable(date, t, config.minNoticeMins) : true,
     );
-  }, [date, settings.cutoffMins]);
+  }, [date, config.openTime, config.closeTime, config.slotDurationMins, config.minNoticeMins]);
 
   useEffect(() => {
     if (!date && dates[0]) setDate(dates[0].value);
   }, [date, dates]);
 
   useEffect(() => {
-    api.getMenuItems().then(setMenuItems);
+    fetchStorefrontProducts()
+      .then(setMenuItems)
+      .catch(() => setMenuItems([]));
   }, []);
 
   useEffect(() => {
     if (step !== "table" || !date || !time) return;
     let cancelled = false;
     setTablesLoading(true);
-    api
-      .getAvailableReservationTables(branch.id, partySize, date, time)
+    fetchAvailableTables({
+      branchId: branch.id,
+      partySize,
+      date,
+      time,
+      durationMins: config.slotDurationMins,
+    })
       .then((list) => {
         if (!cancelled) {
           setTables(list);
           setSelectedTableId(null);
         }
+      })
+      .catch(() => {
+        if (!cancelled) setTables([]);
       })
       .finally(() => {
         if (!cancelled) setTablesLoading(false);
@@ -107,7 +112,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
     return () => {
       cancelled = true;
     };
-  }, [step, branch.id, partySize, date, time]);
+  }, [step, branch.id, partySize, date, time, config.slotDurationMins]);
 
   const stepIndex = STEPS.indexOf(step);
   const preOrderTotal = preOrder.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
@@ -174,7 +179,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
         partySize,
         date,
         time,
-        durationMins: settings.turnTimeMins,
+        durationMins: config.slotDurationMins,
         guestName: guestName.trim(),
         guestPhone: guestPhone.trim(),
         guestEmail: guestEmail.trim() || undefined,
@@ -192,17 +197,10 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
   return (
     <>
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
-        <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-          <Link href="/">
-            <ArrowLeft className="size-4" />
-            All branches
-          </Link>
-        </Button>
-
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Reserve a table</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {branch.name} · {settings.turnTimeMins} min turn time
+            {branch.name} · {config.slotDurationMins} min turn time
           </p>
         </div>
 
@@ -221,7 +219,11 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
               <span
                 className={cn(
                   "flex size-5 items-center justify-center rounded-full text-[10px] font-bold",
-                  i < stepIndex ? "bg-brand text-primary-foreground" : i === stepIndex ? "bg-brand text-primary-foreground" : "bg-border",
+                  i < stepIndex
+                    ? "bg-brand text-primary-foreground"
+                    : i === stepIndex
+                      ? "bg-brand text-primary-foreground"
+                      : "bg-border",
                 )}
               >
                 {i < stepIndex ? <Check className="size-3" /> : i + 1}
@@ -254,7 +256,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
                     type="button"
                     variant="outline"
                     size="icon"
-                    disabled={partySize >= 12}
+                    disabled={partySize >= config.maxPartySize}
                     onClick={() => setPartySize((n) => Math.min(12, n + 1))}
                   >
                     <Plus className="size-4" />
@@ -298,7 +300,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
                 {timeSlots.length === 0 ? (
                   <EmptyState
                     title="No slots available"
-                    description={`Book at least ${settings.cutoffMins} minutes ahead, or try another date.`}
+                    description={`Book at least ${config.minNoticeMins} minutes ahead, or try another date.`}
                   />
                 ) : (
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -328,7 +330,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Tables that seat {partySize} and are free for your {formatTime12(time)} slot (
-              {settings.turnTimeMins} min).
+              {config.slotDurationMins} min).
             </p>
             {tablesLoading ? (
               <div className="space-y-3">
@@ -520,12 +522,7 @@ export function ReservationBookingFlow({ branch, settings }: ReservationBookingF
               </Button>
             )}
             {step !== "details" ? (
-              <Button
-                type="button"
-                className="flex-1"
-                disabled={!canAdvance()}
-                onClick={goNext}
-              >
+              <Button type="button" className="flex-1" disabled={!canAdvance()} onClick={goNext}>
                 Continue
                 <ArrowRight className="size-4" />
               </Button>

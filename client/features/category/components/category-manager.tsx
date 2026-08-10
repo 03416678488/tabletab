@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Search, SlidersHorizontal, Tags, Trash2, X } from "lucide-react";
+import { Ban, Check, Pencil, Plus, Search, SlidersHorizontal, Tags, Trash2, X } from "lucide-react";
 
 import { AppImage } from "@/components/ui/app-image";
 
 import { Button } from "@/components/ui/button";
+import { BulkActionBar, SelectCheckbox } from "@/components/ui/bulk-action-bar";
+import { useTableSelection } from "@/hooks/use-table-selection";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Dropdown } from "@/components/ui/dropdown";
@@ -80,6 +82,45 @@ export function CategoryManager() {
       toast(err instanceof ApiError ? err.message : "Failed to delete category", {
         tone: "error",
       });
+    }
+  };
+
+  // Bulk selection + actions.
+  const sel = useTableSelection(categories, `${page}|${search}|${status}`);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const bulkDelete = async () => {
+    if (
+      !(await confirm({
+        title: `Delete ${sel.count} categor${sel.count === 1 ? "y" : "ies"}?`,
+        confirmLabel: "Delete",
+      }))
+    )
+      return;
+    setBulkBusy(true);
+    try {
+      await categoryService.bulkRemove(sel.ids);
+      toast(`Deleted ${sel.count} categor${sel.count === 1 ? "y" : "ies"}`, { tone: "success" });
+      sel.clear();
+      refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Bulk delete failed", { tone: "error" });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkActive = async (next: boolean) => {
+    setBulkBusy(true);
+    try {
+      await categoryService.bulkSetActive(sel.ids, next);
+      toast(`${next ? "Activated" : "Deactivated"} ${sel.count}`, { tone: "success" });
+      sel.clear();
+      refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Bulk update failed", { tone: "error" });
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -183,65 +224,110 @@ export function CategoryManager() {
             }
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-16">Image</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Order</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell>
-                    <AppImage
-                      src={category.imageUrl}
-                      alt={category.name}
-                      width={40}
-                      height={40}
-                      fallbackIcon={Tags}
-                      className="size-10 rounded-lg object-cover"
-                      fallbackClassName="size-10 rounded-lg"
+          <>
+            <BulkActionBar count={sel.count} onClear={sel.clear}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkBusy}
+                onClick={() => void bulkActive(true)}
+              >
+                <Check className="size-4" /> Activate
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkBusy}
+                onClick={() => void bulkActive(false)}
+              >
+                <Ban className="size-4" /> Deactivate
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={bulkBusy}
+                onClick={() => void bulkDelete()}
+              >
+                <Trash2 className="size-4" /> Delete
+              </Button>
+            </BulkActionBar>
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10">
+                    <SelectCheckbox
+                      checked={sel.allSelected}
+                      onChange={sel.toggleAll}
+                      label="Select all on this page"
                     />
-                  </TableCell>
-                  <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {category.description || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{category.sortOrder}</TableCell>
-                  <TableCell>
-                    <StatusPill tone={category.isActive ? "green" : "neutral"}>
-                      {category.isActive ? "Active" : "Inactive"}
-                    </StatusPill>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Edit"
-                        onClick={() => openEdit(category)}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Delete"
-                        onClick={() => remove(category)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead className="w-16">Image</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {categories.map((category) => (
+                  <TableRow
+                    key={category.id}
+                    data-selected={sel.isSelected(category.id) || undefined}
+                  >
+                    <TableCell>
+                      <SelectCheckbox
+                        checked={sel.isSelected(category.id)}
+                        onChange={() => sel.toggleOne(category.id)}
+                        label={`Select ${category.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AppImage
+                        src={category.imageUrl}
+                        alt={category.name}
+                        width={40}
+                        height={40}
+                        fallbackIcon={Tags}
+                        className="size-10 rounded-lg object-cover"
+                        fallbackClassName="size-10 rounded-lg"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{category.name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {category.description || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{category.sortOrder}</TableCell>
+                    <TableCell>
+                      <StatusPill tone={category.isActive ? "green" : "neutral"}>
+                        {category.isActive ? "Active" : "Inactive"}
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Edit"
+                          onClick={() => openEdit(category)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Delete"
+                          onClick={() => remove(category)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
         )}
       </Card>
 

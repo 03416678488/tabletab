@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
@@ -26,9 +26,16 @@ export class MenusService extends AbstractService<Menu> {
 
   getAll(query: GetMenuQueryDto): Promise<Paginated<Menu>> {
     const where = this._helper.resolveListFilters(query);
-    return this.pagination.paginationQuery(query, this.repository, where, [], undefined, {
-      sortOrder: 'ASC',
-    });
+    return this.pagination.paginationQuery(
+      query,
+      this.repository,
+      where,
+      [],
+      undefined,
+      {
+        sortOrder: 'ASC',
+      },
+    );
   }
 
   getById(id: string): Promise<Menu> {
@@ -49,5 +56,22 @@ export class MenusService extends AbstractService<Menu> {
   async deleteMenu(id: string) {
     await this._validator.ensureExists(id);
     return this.delete(id);
+  }
+
+  /** Delete many menus at once (one atomic statement). */
+  async bulkDelete(ids: string[]): Promise<{ deleted: number }> {
+    if (!ids.length) return { deleted: 0 };
+    const res = await this.repository.delete({ id: In(ids) });
+    return { deleted: res.affected ?? 0 };
+  }
+
+  /** Activate / deactivate many menus at once (one atomic statement). */
+  async bulkSetActive(
+    ids: string[],
+    isActive: boolean,
+  ): Promise<{ updated: number }> {
+    if (!ids.length) return { updated: 0 };
+    const res = await this.repository.update({ id: In(ids) }, { isActive });
+    return { updated: res.affected ?? 0 };
   }
 }

@@ -14,6 +14,7 @@ import { Public } from '@modules/auth/guards/public/public.decorator';
 
 import { MenusService } from './menus.service';
 import { CreateMenuDto, UpdateMenuDto, GetMenuQueryDto } from './dto';
+import { BulkActiveDto, BulkIdsDto } from '@modules/common/dto/bulk.dto';
 
 @Controller('menus')
 export class MenusController {
@@ -30,6 +31,16 @@ export class MenusController {
   @Get(':id')
   getOne(@Param('id', ParseUUIDPipe) id: string) {
     return this._menusService.getById(id);
+  }
+
+  @Post('bulk-delete')
+  bulkDelete(@Body() dto: BulkIdsDto) {
+    return this._menusService.bulkDelete(dto.ids);
+  }
+
+  @Post('bulk-active')
+  bulkActive(@Body() dto: BulkActiveDto) {
+    return this._menusService.bulkSetActive(dto.ids, dto.isActive);
   }
 
   @Post()

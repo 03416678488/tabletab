@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Ban,
   Loader2,
   Minus,
   Plus,
@@ -14,8 +15,16 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
@@ -29,7 +38,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MENU_ITEMS_ALL_KEY, useAllMenuItems } from "@/features/menu/hooks/use-all-menu-items";
 import { useCategories } from "@/features/category/hooks/use-categories";
 import { useTables } from "@/features/table/hooks/use-tables";
-import { useTableStats } from "@/features/order/hooks/use-table-stats";
 import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useTaxGroups } from "@/features/tax/hooks/use-tax-groups";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
@@ -52,7 +60,8 @@ import { PaymentDialog, type PaymentResult } from "@/features/order/components/p
 import { paymentMethodLabel } from "@/features/order/lib/payment-label";
 import { printReceipt } from "@/features/order/lib/print-receipt";
 import type { MenuItem } from "@/features/menu/types/menu.types";
-import type { CreateOrderInput, OrderType } from "@/features/order/types/order.types";
+import type { CreateOrderInput, Order, OrderType } from "@/features/order/types/order.types";
+import { ORDER_STATUS_META, ORDER_TYPE_META } from "@/features/order/constants/order.constants";
 
 type CartLine = CustomizedLine;
 
@@ -79,12 +88,6 @@ export function PosTerminal() {
   const businessName = useSettings().get("company", "name");
   const { categories, loading: categoriesLoading } = useCategories();
   const { tables } = useTables();
-  // Per-table live order status — used to surface only served tables (ready to
-  // pay) in the "load open order" picker.
-  const { byTable: tableStats } = useTableStats();
-  // Any table with a live/open order can be loaded into the POS to add items or
-  // collect payment — `tableStats` only holds tables that have an active order.
-  const openOrderTables = tables.filter((t) => tableStats.has(t.id));
   const { taxes } = useTaxes();
   const { groups: taxGroups } = useTaxGroups();
   const { defaultTax } = useDefaultTax();
@@ -144,10 +147,28 @@ export function PosTerminal() {
   // When set, the cart is editing an existing order instead of creating one.
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderNumber, setEditingOrderNumber] = useState<string>("");
-  const [loadTableId, setLoadTableId] = useState("");
-  const [loadingOrder, setLoadingOrder] = useState(false);
+  const [loadOrderSel, setLoadOrderSel] = useState("");
+  // Every running order in the branch (any type) — the "load open order" picker.
+  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+  // Cancel-the-loaded-order dialog (reason required).
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   // True once the cashier changes the tax, so the default won't override them.
   const taxTouched = useRef(false);
+
+  const refreshActiveOrders = useCallback(async () => {
+    try {
+      setActiveOrders(await orderService.active(orderBranchId ?? undefined));
+    } catch {
+      /* non-fatal — the picker just won't populate */
+    }
+  }, [orderBranchId]);
+
+  useEffect(() => {
+    void refreshActiveOrders();
+  }, [refreshActiveOrders]);
 
   // Restore an in-progress cart after a refresh.
   useEffect(() => {
@@ -251,51 +272,74 @@ export function PosTerminal() {
     taxTouched.current = false; // let the default re-apply for the next order
     setEditingOrderId(null);
     setEditingOrderNumber("");
-    setLoadTableId("");
+    setLoadOrderSel("");
     localStorage.removeItem(CART_STORAGE_KEY);
   };
 
-  /** Load a table's open order into the cart for editing. */
-  const loadTableOrder = async (tid: string) => {
-    setLoadTableId(tid);
-    if (!tid) return;
-    setLoadingOrder(true);
+  /** Load a fetched order into the cart for editing. */
+  const applyLoadedOrder = (order: Order) => {
+    setCart(
+      order.items.map((it, i) => ({
+        key: `${it.menuItemId ?? it.name}|${it.notes ?? ""}|${i}`,
+        menuItemId: it.menuItemId ?? "",
+        name: it.name,
+        unitPrice: it.unitPrice,
+        quantity: it.quantity,
+        notes: it.notes ?? undefined,
+      })),
+    );
+    setOrderType(order.orderType);
+    setTableId(order.tableId ?? "");
+    setDiscountKind("amount");
+    setDiscountInput(order.discount ? String(order.discount) : "");
+    // Best-effort: re-select the tax whose amount matches the saved order tax.
+    const taxable = Math.max(0, order.subtotal - order.discount);
+    const matched = order.tax
+      ? taxes.find((t) => round2((taxable * t.rate) / 100) === round2(order.tax))
+      : undefined;
+    setTaxId(matched ? `t:${matched.id}` : "");
+    taxTouched.current = true; // respect the loaded order's tax
+    setEditingOrderId(order.id);
+    setEditingOrderNumber(order.orderNumber);
+  };
+
+  /** Load one of the running orders (picked from the list) into the cart. */
+  const loadOrder = (orderId: string) => {
+    setLoadOrderSel(orderId);
+    if (!orderId) return;
+    const order = activeOrders.find((o) => o.id === orderId);
+    if (!order) {
+      toast("Order not found — it may already be closed", { tone: "error" });
+      return;
+    }
+    applyLoadedOrder(order);
+    toast(`Loaded ${order.orderNumber}`, { tone: "success" });
+  };
+
+  /** Cancel the currently-loaded order (requires a reason), then reset the cart. */
+  const cancelLoadedOrder = async () => {
+    if (!editingOrderId) return;
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setCancelError(true);
+      return;
+    }
+    setCancelling(true);
     try {
-      const order = await orderService.byTable(tid);
-      if (!order) {
-        toast("No open order for this table", { tone: "error" });
-        setEditingOrderId(null);
-        setEditingOrderNumber("");
-        return;
-      }
-      setCart(
-        order.items.map((it, i) => ({
-          key: `${it.menuItemId ?? it.name}|${it.notes ?? ""}|${i}`,
-          menuItemId: it.menuItemId ?? "",
-          name: it.name,
-          unitPrice: it.unitPrice,
-          quantity: it.quantity,
-          notes: it.notes ?? undefined,
-        })),
-      );
-      setOrderType(order.orderType);
-      setTableId(order.tableId ?? "");
-      setDiscountKind("amount");
-      setDiscountInput(order.discount ? String(order.discount) : "");
-      // Best-effort: re-select the tax whose amount matches the saved order tax.
-      const taxable = Math.max(0, order.subtotal - order.discount);
-      const matched = order.tax
-        ? taxes.find((t) => round2((taxable * t.rate) / 100) === round2(order.tax))
-        : undefined;
-      setTaxId(matched ? `t:${matched.id}` : "");
-      taxTouched.current = true; // respect the loaded order's tax
-      setEditingOrderId(order.id);
-      setEditingOrderNumber(order.orderNumber);
-      toast(`Loaded ${order.orderNumber}`, { tone: "success" });
+      await orderService.update(editingOrderId, {
+        status: "cancelled",
+        cancellationReason: reason,
+      });
+      toast(`Order ${editingOrderNumber} cancelled`, { tone: "success" });
+      setCancelOpen(false);
+      setCancelReason("");
+      setCancelError(false);
+      clearCart();
+      void refreshActiveOrders();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't load order", { tone: "error" });
+      toast(err instanceof ApiError ? err.message : "Couldn't cancel order", { tone: "error" });
     } finally {
-      setLoadingOrder(false);
+      setCancelling(false);
     }
   };
 
@@ -437,6 +481,7 @@ export function PosTerminal() {
       }
       setPaymentOpen(false);
       clearCart();
+      void refreshActiveOrders();
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Couldn't save order", {
         tone: "error",
@@ -565,32 +610,32 @@ export function PosTerminal() {
           {/* Scrollable order body — setup controls + line items scroll together,
             so the discount/tax/totals and Pay buttons below stay pinned in view. */}
           <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-            {/* Load an existing open order by table to edit it */}
+            {/* Load any running order (search by order #) to edit / settle it */}
             <div className="mt-3 space-y-2">
               <div className="flex items-center gap-2">
                 <Dropdown
                   className="flex-1"
-                  value={loadTableId}
-                  onChange={(v) => void loadTableOrder(v)}
-                  disabled={loadingOrder}
+                  value={loadOrderSel}
+                  onChange={(v) => loadOrder(v)}
                   searchable
                   placeholder={
-                    openOrderTables.length ? "Load an open table order…" : "No open table orders"
+                    activeOrders.length
+                      ? "Load a running order (search by #)…"
+                      : "No running orders"
                   }
-                  aria-label="Load open order by table"
-                  options={openOrderTables.map((t) => {
-                    const stat = tableStats.get(t.id);
+                  aria-label="Load a running order"
+                  options={activeOrders.map((o) => {
+                    const who = o.table?.name ?? o.customerName ?? undefined;
                     return {
-                      value: t.id,
-                      label: t.name,
+                      value: o.id,
+                      label: `${o.orderNumber} · ${ORDER_STATUS_META[o.status].label}`,
                       sublabel:
-                        [t.area?.name, stat ? formatMoney(stat.total) : undefined]
+                        [ORDER_TYPE_META[o.orderType].label, who, formatMoney(o.total)]
                           .filter(Boolean)
                           .join(" · ") || undefined,
                     };
                   })}
                 />
-                {loadingOrder && <Loader2 className="size-4 shrink-0 animate-spin text-brand" />}
               </div>
               {editingOrderId && (
                 <div className="flex items-center justify-between rounded-lg border border-brand/30 bg-brand-tint/40 px-3 py-1.5 text-xs">
@@ -803,13 +848,27 @@ export function PosTerminal() {
               {editingOrderId ? "Pay & Update" : "Pay & Punch"}
             </Button>
           </div>
+          {editingOrderId && (
+            <Button
+              variant="destructive"
+              className="mt-2 w-full"
+              onClick={() => {
+                setCancelReason("");
+                setCancelError(false);
+                setCancelOpen(true);
+              }}
+            >
+              <Ban className="size-4" />
+              Cancel order {editingOrderNumber}
+            </Button>
+          )}
           <Button
             variant="ghost"
             className="mt-2 w-full text-muted-foreground hover:text-destructive"
             disabled={cart.length === 0 && !editingOrderId}
             onClick={clearCart}
           >
-            Cancel
+            {editingOrderId ? "Discard changes" : "Cancel"}
           </Button>
           {orderType === "table" && !tableId && cart.length > 0 && (
             <p className="mt-1.5 text-center text-xs text-muted-foreground">
@@ -825,6 +884,48 @@ export function PosTerminal() {
           onOpenChange={setPaymentOpen}
           onConfirm={(payment: PaymentResult) => void submitOrder(payment)}
         />
+
+        <Dialog open={cancelOpen} onOpenChange={(open) => !cancelling && setCancelOpen(open)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Cancel order {editingOrderNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="pos-cancel-reason">Reason for cancellation</Label>
+              <textarea
+                id="pos-cancel-reason"
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  if (cancelError) setCancelError(false);
+                }}
+                rows={3}
+                autoFocus
+                placeholder="e.g. Customer changed their mind, item unavailable…"
+                aria-invalid={cancelError}
+                className="flex w-full rounded-xl border border-input bg-white px-3.5 py-2 text-sm text-ink shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20"
+              />
+              {cancelError && (
+                <p className="text-xs text-destructive">
+                  A reason is required to cancel this order.
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCancelOpen(false)} disabled={cancelling}>
+                Keep order
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => void cancelLoadedOrder()}
+                disabled={cancelling}
+              >
+                {cancelling && <Loader2 className="size-4 animate-spin" />}
+                Cancel order
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <ItemCustomizeDialog
           item={customizing}

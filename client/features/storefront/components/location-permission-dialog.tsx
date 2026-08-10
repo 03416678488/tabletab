@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 import { LocateFixed, Navigation } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { nearestBranch } from "@/lib/geo";
+import { getCurrentPosition, GEO_HTTPS_HINT } from "@/lib/geolocation";
 import { cn } from "@/lib/utils";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 
@@ -33,32 +29,32 @@ export function LocationPermissionDialog({ open, onOpenChange }: LocationPermiss
   const { branches } = useStorefrontBranches();
   const [locating, setLocating] = useState(false);
   const [denied, setDenied] = useState(false);
+  // True when the failure is really the HTTPS/secure-context requirement.
+  const [insecure, setInsecure] = useState(false);
 
-  const allow = () => {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      setDenied(true);
-      return;
-    }
+  const allow = async () => {
     setLocating(true);
     setDenied(false);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setCoords(c);
-        setGeoStatus("granted");
-        const nearest = nearestBranch(branches, c);
-        if (nearest) setBranch(nearest.id);
-        setConfirmed(true);
-        setLocating(false);
-        onOpenChange(false);
-      },
-      () => {
-        setLocating(false);
-        setDenied(true);
-        setGeoStatus("denied");
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
-    );
+    setInsecure(false);
+    try {
+      const c = await getCurrentPosition({
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000,
+      });
+      setCoords(c);
+      setGeoStatus("granted");
+      const nearest = nearestBranch(branches, c);
+      if (nearest) setBranch(nearest.id);
+      setConfirmed(true);
+      onOpenChange(false);
+    } catch (err) {
+      setDenied(true);
+      setGeoStatus("denied");
+      if (err instanceof Error && err.message === GEO_HTTPS_HINT) setInsecure(true);
+    } finally {
+      setLocating(false);
+    }
   };
 
   const browseAll = () => {
@@ -87,7 +83,7 @@ export function LocationPermissionDialog({ open, onOpenChange }: LocationPermiss
         <div className="mt-4 flex flex-col gap-2">
           <button
             type="button"
-            onClick={allow}
+            onClick={() => void allow()}
             disabled={locating}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-brand-hover disabled:opacity-70"
           >
@@ -105,7 +101,9 @@ export function LocationPermissionDialog({ open, onOpenChange }: LocationPermiss
 
         {denied && (
           <p className="mt-1 text-xs text-amber-700">
-            Couldn&apos;t access your location. You can still browse all branches.
+            {insecure
+              ? `${GEO_HTTPS_HINT} You can still browse all branches.`
+              : "Couldn't access your location. You can still browse all branches."}
           </p>
         )}
       </DialogContent>

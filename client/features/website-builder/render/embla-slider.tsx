@@ -60,11 +60,15 @@ export function EmblaSlider({
   return (
     <div className={cn("relative", className)}>
       <div className={cn("overflow-hidden", fill && "h-full")} ref={emblaRef}>
-        <div className={cn("flex gap-4", fill && "h-full")}>
+        {/* Spacing via per-slide left padding (not flex `gap`) so the gap is
+            consistent at the loop boundary too, and the `-ml-4` pulls the first
+            slide flush with the container's left edge — the last slide's right
+            edge lines up with the container's right edge. */}
+        <div className={cn("flex -ml-4", fill && "h-full")}>
           {children.map((child, i) => (
             <div
               key={i}
-              className={cn("min-w-0 shrink-0 grow-0", fill && "h-full", slideClassName)}
+              className={cn("min-w-0 shrink-0 grow-0 pl-4", fill && "h-full", slideClassName)}
             >
               {child}
             </div>

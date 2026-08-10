@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   CalendarDays,
@@ -27,20 +27,29 @@ import { SplitBars } from "@/features/admin/components/split-bars";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReservationStatusPill, StatusPill } from "@/components/ui/status-pill";
+import {
+  DateRangeFilter,
+  defaultDateRange,
+  type DateRange,
+} from "@/components/ui/date-range-filter";
 import { ROLE_LABELS } from "@/lib/nav";
-import { api } from "@/lib/api";
 import { analyticsService } from "@/features/admin/services/analytics.service";
-import { formatSlotLabel } from "@/lib/reservation-utils";
-import type { AnalyticsPeriod, OwnerAnalytics, Reservation, ReservationTask } from "@/lib/types";
+import {
+  listReservations,
+  type StorefrontReservation,
+} from "@/features/reserve/services/reservation.service";
+import { fetchReservationSettings } from "@/features/reserve/services/reservation-settings.service";
+import { deriveReservationTasks, formatSlotLabel } from "@/lib/reservation-utils";
+import type { OwnerAnalytics, ReservationTask } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
 import { useActiveBranch, isAllBranches } from "@/features/branch/hooks/use-active-branch";
 
-const PERIODS: { id: AnalyticsPeriod; label: string }[] = [
-  { id: "day", label: "Day" },
-  { id: "month", label: "Month" },
-  { id: "year", label: "Year" },
-];
+/** Series granularity label from the range span (matches the API's auto-bucketing). */
+function granularityLabel(range: { from: string; to: string }): string {
+  const days = (Date.parse(range.to) - Date.parse(range.from)) / 86_400_000;
+  return days <= 62 ? "daily" : days <= 731 ? "monthly" : "annual";
+}
 
 export function AdminDashboard() {
   const { get } = useSettings();
@@ -48,20 +57,17 @@ export function AdminDashboard() {
   // Scope KPIs to the topbar branch selection ("All branches" → undefined = all).
   const activeBranchId = useActiveBranch((s) => s.activeBranchId);
   const branchId = activeBranchId && !isAllBranches(activeBranchId) ? activeBranchId : undefined;
-  const [period, setPeriod] = useState<AnalyticsPeriod>("day");
+  const [range, setRange] = useState<DateRange>(defaultDateRange());
   const [data, setData] = useState<OwnerAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [resStats, setResStats] = useState<{ covers: number; noShows: number; count: number } | null>(
-    null,
-  );
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [tasks, setTasks] = useState<ReservationTask[]>([]);
+  const [reservations, setReservations] = useState<StorefrontReservation[]>([]);
+  const [reminderLead, setReminderLead] = useState(30);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     analyticsService
-      .getOwnerAnalytics(period, branchId)
+      .getOwnerAnalytics(range, branchId)
       .then((d) => {
         if (!cancelled) {
           setData(d);
@@ -74,22 +80,72 @@ export function AdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [period, branchId]);
+  }, [range.from, range.to, branchId]);
 
+  // Real reservations for the two overview cards, scoped to the active branch
+  // (or all branches when none is selected). Slow-polls to stay fresh.
   useEffect(() => {
-    Promise.all([
-      api.getReservationStats(),
-      api.getReservations(),
-      api.getReservationTasks(),
-    ]).then(([stats, res, t]) => {
-      setResStats(stats);
-      const today = new Date().toISOString().slice(0, 10);
-      setReservations(
-        res.filter((r) => r.date >= today && !["cancelled", "completed"].includes(r.status)),
-      );
-      setTasks(t.filter((x) => x.status === "active" || x.status === "pending"));
-    });
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const list = await listReservations(branchId);
+        if (!cancelled) setReservations(list);
+      } catch {
+        /* keep last good data */
+      }
+    };
+    void load();
+    const poll = setInterval(() => void load(), 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+    };
+  }, [branchId]);
+
+  // Reminder lead (mins) comes from the selected branch's reservation settings
+  // and drives the derived reminder tasks.
+  useEffect(() => {
+    if (!branchId) {
+      setReminderLead(30);
+      return;
+    }
+    fetchReservationSettings(branchId)
+      .then((s) => setReminderLead(s.reminderLeadMins))
+      .catch(() => undefined);
+  }, [branchId]);
+
+  // Local Y-M-D (not UTC — avoids hiding today's bookings in +offset zones).
+  const today = useMemo(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(
+      n.getDate(),
+    ).padStart(2, "0")}`;
   }, []);
+
+  // Today's covers / count / no-shows, computed from the real bookings.
+  const resStats = useMemo(() => {
+    const todays = reservations.filter((r) => r.date === today);
+    const covers = todays
+      .filter((r) => !["cancelled", "no-show"].includes(r.status))
+      .reduce((s, r) => s + r.partySize, 0);
+    const noShows = todays.filter((r) => r.status === "no-show").length;
+    return { covers, noShows, count: todays.length };
+  }, [reservations, today]);
+
+  // Upcoming = today or later and still active (requested/confirmed/seated).
+  const upcoming = useMemo(
+    () =>
+      reservations
+        .filter((r) => r.date >= today && ["requested", "confirmed", "seated"].includes(r.status))
+        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)),
+    [reservations, today],
+  );
+
+  // Reminder + urgent-confirm tasks, derived from the same real bookings.
+  const tasks: ReservationTask[] = useMemo(
+    () => deriveReservationTasks(reservations, reminderLead),
+    [reservations, reminderLead],
+  );
 
   if (loading || !data) {
     return (
@@ -126,23 +182,7 @@ export function AdminDashboard() {
               Revenue, operations, and customer metrics — aggregated live from your orders.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-xl bg-white/10 p-1 backdrop-blur-sm">
-            {PERIODS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPeriod(p.id)}
-                className={cn(
-                  "rounded-lg px-4 py-2 text-sm font-medium transition-all",
-                  period === p.id
-                    ? "bg-white text-brand-deep shadow-sm"
-                    : "text-white/80 hover:bg-white/10 hover:text-white",
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+          <DateRangeFilter value={range} onChange={setRange} />
         </div>
       </div>
 
@@ -217,13 +257,13 @@ export function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {reservations.length === 0 ? (
+            {upcoming.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 No upcoming reservations across branches.
               </p>
             ) : (
               <ul className="space-y-3">
-                {reservations.slice(0, 6).map((r) => (
+                {upcoming.slice(0, 6).map((r) => (
                   <li
                     key={r.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-subtle/40 px-4 py-3"
@@ -284,10 +324,7 @@ export function AdminDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="font-display">Revenue &amp; orders</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {period === "day" ? "Last 7 days" : period === "month" ? "Last 12 months" : "3-year trend"}
-              {" "}· revenue vs order volume
-            </p>
+            <p className="text-sm text-muted-foreground">{range.label} · revenue vs order volume</p>
           </CardHeader>
           <CardContent>
             <RevenueOrdersChart data={data.revenueSeries} />
@@ -300,10 +337,7 @@ export function AdminDashboard() {
             <CardTitle className="font-display text-base">Revenue target</CardTitle>
           </CardHeader>
           <CardContent>
-            <TargetGauge
-              target={data.target}
-              periodLabel={period === "day" ? "daily" : period === "month" ? "monthly" : "annual"}
-            />
+            <TargetGauge target={data.target} periodLabel={granularityLabel(range)} />
           </CardContent>
         </Card>
       </div>
@@ -453,77 +487,77 @@ export function AdminDashboard() {
         </Card>
 
         {data.staffPerformance.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <Users className="size-5 text-brand" />
-            <div>
-              <CardTitle className="font-display">Staff performance</CardTitle>
-              <p className="text-sm text-muted-foreground">Response times & SLA adherence</p>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[480px] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-subtle/60 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3">Team member</th>
-                    <th className="px-4 py-3">Ack (avg)</th>
-                    <th className="px-4 py-3">Serve (avg)</th>
-                    <th className="px-4 py-3">SLA</th>
-                    <th className="px-4 py-3 text-right">Orders</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.staffPerformance.map((row) => (
-                    <tr
-                      key={row.staffId}
-                      className="border-b border-border/50 transition-colors hover:bg-subtle/50"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {row.avatarUrl && (
-                            <Image
-                              src={row.avatarUrl}
-                              alt=""
-                              width={32}
-                              height={32}
-                              className="size-8 rounded-full border border-border object-cover"
-                              unoptimized
-                            />
-                          )}
-                          <div>
-                            <p className="font-medium text-ink">{row.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {ROLE_LABELS[row.role]}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.avgAcknowledgeMins > 0 ? `${row.avgAcknowledgeMins}m` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.avgServeMins > 0 ? `${row.avgServeMins}m` : "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {row.slaBreaches > 0 ? (
-                          <StatusPill tone="red" dot={false}>
-                            {row.slaBreaches}
-                          </StatusPill>
-                        ) : (
-                          <StatusPill tone="green" dot={false}>
-                            0
-                          </StatusPill>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium">{row.ordersHandled}</td>
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-2">
+              <Users className="size-5 text-brand" />
+              <div>
+                <CardTitle className="font-display">Staff performance</CardTitle>
+                <p className="text-sm text-muted-foreground">Response times & SLA adherence</p>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-subtle/60 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <th className="px-4 py-3">Team member</th>
+                      <th className="px-4 py-3">Ack (avg)</th>
+                      <th className="px-4 py-3">Serve (avg)</th>
+                      <th className="px-4 py-3">SLA</th>
+                      <th className="px-4 py-3 text-right">Orders</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  </thead>
+                  <tbody>
+                    {data.staffPerformance.map((row) => (
+                      <tr
+                        key={row.staffId}
+                        className="border-b border-border/50 transition-colors hover:bg-subtle/50"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {row.avatarUrl && (
+                              <Image
+                                src={row.avatarUrl}
+                                alt=""
+                                width={32}
+                                height={32}
+                                className="size-8 rounded-full border border-border object-cover"
+                                unoptimized
+                              />
+                            )}
+                            <div>
+                              <p className="font-medium text-ink">{row.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {ROLE_LABELS[row.role]}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {row.avgAcknowledgeMins > 0 ? `${row.avgAcknowledgeMins}m` : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {row.avgServeMins > 0 ? `${row.avgServeMins}m` : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {row.slaBreaches > 0 ? (
+                            <StatusPill tone="red" dot={false}>
+                              {row.slaBreaches}
+                            </StatusPill>
+                          ) : (
+                            <StatusPill tone="green" dot={false}>
+                              0
+                            </StatusPill>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">{row.ordersHandled}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

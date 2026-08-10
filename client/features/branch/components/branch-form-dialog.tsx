@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { WeeklyHoursEditor } from "@/components/ui/weekly-hours-editor";
 import { WeeklyHoursBadges } from "@/components/ui/weekly-hours-badges";
 import { toast } from "@/hooks/use-toast";
+import { getCurrentPosition } from "@/lib/geolocation";
 import { ApiError, applyApiErrorToForm, httpClient } from "@/lib/httpClient";
 import { coerceWeek, emptyWeek, flatToWeekly, type WeeklyHours } from "@/lib/opening-hours";
 import { ImagePickerField } from "@/features/media/components/image-picker-field";
@@ -118,16 +119,13 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
     setValue("lng", Number(nextLng.toFixed(6)), { shouldDirty: true });
   };
 
-  const useMyLocation = () => {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      toast("Geolocation isn't available", { tone: "error" });
-      return;
+  const handleUseLocation = async () => {
+    try {
+      const { lat, lng } = await getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+      setPoint(lat, lng);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't get your location", { tone: "error" });
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setPoint(pos.coords.latitude, pos.coords.longitude),
-      () => toast("Couldn't get your location", { tone: "error" }),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -212,7 +210,7 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
               <Label>Location</Label>
               <button
                 type="button"
-                onClick={useMyLocation}
+                onClick={() => void handleUseLocation()}
                 className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
               >
                 <LocateFixed className="size-3.5" /> Use my location

@@ -13,7 +13,12 @@ import {
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
 import { CategoryService } from './category.service';
-import { CreateCategoryDto, UpdateCategoryDto, GetCategoryQueryDto } from './dto';
+import {
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  GetCategoryQueryDto,
+} from './dto';
+import { BulkActiveDto, BulkIdsDto } from '@modules/common/dto/bulk.dto';
 
 @Controller('categories')
 export class CategoryController {
@@ -32,13 +37,26 @@ export class CategoryController {
     return this._categoryService.getById(id);
   }
 
+  @Post('bulk-delete')
+  bulkDelete(@Body() dto: BulkIdsDto) {
+    return this._categoryService.bulkDelete(dto.ids);
+  }
+
+  @Post('bulk-active')
+  bulkActive(@Body() dto: BulkActiveDto) {
+    return this._categoryService.bulkSetActive(dto.ids, dto.isActive);
+  }
+
   @Post()
   create(@Body() dto: CreateCategoryDto) {
     return this._categoryService.createCategory(dto);
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCategoryDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCategoryDto,
+  ) {
     return this._categoryService.updateCategory(id, dto);
   }
 

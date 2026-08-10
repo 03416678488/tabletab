@@ -40,4 +40,20 @@ export const categoryService = {
       .delete<{ message: string }>(CATEGORY_ENDPOINTS.byId(id), { auth: true })
       .then((res) => res.data);
   },
+
+  bulkRemove(ids: string[]) {
+    return httpClient
+      .post<{ deleted: number }>(`${CATEGORY_ENDPOINTS.base}/bulk-delete`, { ids }, { auth: true })
+      .then((res) => res.data);
+  },
+
+  bulkSetActive(ids: string[], isActive: boolean) {
+    return httpClient
+      .post<{ updated: number }>(
+        `${CATEGORY_ENDPOINTS.base}/bulk-active`,
+        { ids, isActive },
+        { auth: true },
+      )
+      .then((res) => res.data);
+  },
 };

@@ -40,10 +40,10 @@ export const orderService = {
       .then((res) => res.data);
   },
 
-  /** The active/open order for a table, or null. */
-  byTable(tableId: string) {
+  /** All running orders in a branch (POS "load open order" picker). */
+  active(branchId?: string) {
     return httpClient
-      .get<Order | null>(`/orders/by-table/${tableId}`, { auth: true })
+      .get<Order[]>("/orders/active", { auth: true, params: { branchId } })
       .then((res) => res.data);
   },
 
