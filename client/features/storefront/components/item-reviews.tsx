@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PenLine, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { cn } from "@/lib/utils";
 import {
@@ -126,13 +126,13 @@ export function ItemReviews({ menuItemId }: { menuItemId: string }) {
         comment: comment.trim() || undefined,
         guestName: name.trim(),
       });
-      toast("Thanks! Your review will appear once approved.", { tone: "success" });
+      flash("Thanks! Your review will appear once approved.", { tone: "success" });
       setShowForm(false);
       setName("");
       setComment("");
       setRating(5);
     } catch {
-      toast("Couldn't submit your review", { tone: "error" });
+      flash("Couldn't submit your review", { tone: "error" });
     } finally {
       setSubmitting(false);
     }

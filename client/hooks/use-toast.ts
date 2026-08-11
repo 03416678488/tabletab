@@ -1,37 +1,11 @@
 "use client";
 
-import { create } from "zustand";
+import { toast as sonnerToast } from "sonner";
 
 import { isAppDebug } from "@/lib/app-flags";
 import { getRecentApiError } from "@/lib/httpClient";
 
 export type ToastTone = "default" | "success" | "error" | "info";
-
-export interface ToastData {
-  id: string;
-  title: string;
-  description?: string;
-  tone: ToastTone;
-  duration: number;
-  /** App Debug only: the raw underlying error detail, shown under the toast. */
-  detail?: string;
-}
-
-interface ToastStore {
-  toasts: ToastData[];
-  add: (toast: Omit<ToastData, "id"> & { id?: string }) => string;
-  dismiss: (id: string) => void;
-}
-
-export const useToastStore = create<ToastStore>((set) => ({
-  toasts: [],
-  add: (toast) => {
-    const id = toast.id ?? Math.random().toString(36).slice(2);
-    set((state) => ({ toasts: [...state.toasts, { ...toast, id }] }));
-    return id;
-  },
-  dismiss: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
-}));
 
 interface ToastOptions {
   description?: string;
@@ -53,15 +27,25 @@ function debugDetail(options: ToastOptions): string | undefined {
   return `${recent.method} ${recent.status} — ${recent.message}${fields ? ` · ${fields}` : ""}`;
 }
 
-/** Imperative helper — call from anywhere: toast("Saved", { tone: "success" }). */
+/**
+ * Imperative helper — call from anywhere: `toast("Saved", { tone: "success" })`.
+ * Backed by Sonner (shadcn's toast); the tone maps to Sonner's success/error/
+ * info variants, and App-Debug error detail is appended to the description.
+ */
 export function toast(title: string, options: ToastOptions = {}) {
   const detail = debugDetail(options);
-  return useToastStore.getState().add({
-    title,
-    description: options.description,
-    tone: options.tone ?? "default",
-    // Give debug detail extra time to be read.
-    duration: options.duration ?? (detail ? 10000 : 4000),
-    detail,
-  });
+  const description = [options.description, detail].filter(Boolean).join(" — ") || undefined;
+  const duration = options.duration ?? (detail ? 10000 : 4000);
+  const opts = { description, duration };
+
+  switch (options.tone) {
+    case "success":
+      return sonnerToast.success(title, opts);
+    case "error":
+      return sonnerToast.error(title, opts);
+    case "info":
+      return sonnerToast.info(title, opts);
+    default:
+      return sonnerToast(title, opts);
+  }
 }

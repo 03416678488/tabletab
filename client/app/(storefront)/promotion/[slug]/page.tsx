@@ -8,7 +8,7 @@ import { AppImage } from "@/components/ui/app-image";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { cn, formatCurrency } from "@/lib/utils";
 import { formatDate } from "@/lib/datetime";
 import {
@@ -140,10 +140,10 @@ function CodeChip({ code }: { code: string }) {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      toast("Code copied", { tone: "success" });
+      flash("Code copied", { tone: "success" });
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast("Couldn't copy the code", { tone: "error" });
+      flash("Couldn't copy the code", { tone: "error" });
     }
   };
   return (

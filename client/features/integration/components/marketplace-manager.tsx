@@ -9,6 +9,7 @@ import {
   Loader2,
   Megaphone,
   MessageCircle,
+  MonitorSmartphone,
   Plug,
   ScrollText,
   UploadCloud,
@@ -56,11 +57,13 @@ const CATEGORY_ICON: Record<IntegrationCategory, LucideIcon> = {
   messaging: MessageCircle,
   accounting: Calculator,
   marketing: Megaphone,
+  pos: MonitorSmartphone,
 };
 
 const TABS = [
   { key: "all", label: "All" },
   { key: "delivery", label: "Delivery" },
+  { key: "pos", label: "POS" },
   { key: "messaging", label: "Messaging" },
   { key: "accounting", label: "Accounting" },
   { key: "marketing", label: "Marketing" },

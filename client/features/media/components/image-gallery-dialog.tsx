@@ -305,7 +305,8 @@ export function ImageGalleryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl">
         <DialogHeader>
-          <div className="flex items-center justify-between gap-4">
+          {/* pr-8 keeps the Upload button clear of the dialog's absolute close X */}
+          <div className="flex items-center justify-between gap-4 pr-8">
             <div>
               <DialogTitle>Image gallery</DialogTitle>
               <DialogDescription>

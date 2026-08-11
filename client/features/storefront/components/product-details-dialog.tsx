@@ -11,7 +11,7 @@ import { ShareButton } from "@/features/storefront/components/share-button";
 import { ItemReviews } from "@/features/storefront/components/item-reviews";
 import { useCart } from "@/hooks/use-cart";
 import { useLocationStore } from "@/hooks/use-location-store";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import type { CartItemModifier, MenuItem, MenuTag } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -155,7 +155,7 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
       modifiers,
       notes: notes.trim() || undefined,
     });
-    toast(`${quantity} × ${item.name} added to cart`, { tone: "success" });
+    flash(`${quantity} × ${item.name} added to cart`, { tone: "success" });
     onClose();
   };
 

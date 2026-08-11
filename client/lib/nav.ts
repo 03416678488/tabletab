@@ -65,6 +65,11 @@ export interface NavItem {
   section: NavSection;
   /** Permission module key — hidden unless the user can view it. */
   module?: string;
+  /**
+   * Show an unread-count badge from the notification feed: a category slug
+   * (e.g. "delivery", "orders", "reservations") or "all" for the total unread.
+   */
+  badgeCategory?: string;
   /** When present, this item is a collapsible dropdown (no direct route). */
   children?: NavChild[];
 }
@@ -81,7 +86,14 @@ export const navItems: NavItem[] = [
     section: "Operations",
     module: "dashboard",
   },
-  { label: "Notifications", slug: "notifications", icon: Bell, roles: ALL, section: "Operations" },
+  {
+    label: "Notifications",
+    slug: "notifications",
+    icon: Bell,
+    roles: ALL,
+    section: "Operations",
+    badgeCategory: "all",
+  },
   {
     label: "Deliveries",
     slug: "deliveries",
@@ -89,14 +101,7 @@ export const navItems: NavItem[] = [
     roles: [...MANAGERS, "delivery"],
     section: "Operations",
     module: "orders",
-  },
-  {
-    label: "Kitchen",
-    slug: "kitchen",
-    icon: ChefHat,
-    roles: [...MANAGERS, "chef"],
-    section: "Operations",
-    module: "kds",
+    badgeCategory: "delivery",
   },
   {
     label: "Waiter",
@@ -112,6 +117,7 @@ export const navItems: NavItem[] = [
     icon: CalendarCheck,
     roles: [...MANAGERS, "waiter"],
     section: "Operations",
+    badgeCategory: "reservations",
   },
   {
     label: "Table",
@@ -145,6 +151,7 @@ export const navItems: NavItem[] = [
     roles: MANAGERS,
     section: "POS & Orders",
     module: "orders",
+    badgeCategory: "orders",
   },
   {
     label: "Table Orders",

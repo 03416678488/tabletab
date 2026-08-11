@@ -1,7 +1,7 @@
 "use client";
 
 import { Share2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { cn } from "@/lib/utils";
 
 interface ShareButtonProps {
@@ -27,9 +27,7 @@ export function ShareButton({ path, title, text, label, ariaLabel, className }: 
     e.stopPropagation();
 
     const url =
-      typeof window !== "undefined"
-        ? new URL(path, window.location.origin).toString()
-        : path;
+      typeof window !== "undefined" ? new URL(path, window.location.origin).toString() : path;
 
     const nav = typeof navigator !== "undefined" ? navigator : undefined;
     if (nav?.share) {
@@ -43,9 +41,9 @@ export function ShareButton({ path, title, text, label, ariaLabel, className }: 
 
     try {
       await nav?.clipboard?.writeText(url);
-      toast("Link copied to clipboard", { tone: "success" });
+      flash("Link copied to clipboard", { tone: "success" });
     } catch {
-      toast("Couldn't copy the link", { tone: "error" });
+      flash("Couldn't copy the link", { tone: "error" });
     }
   };
 

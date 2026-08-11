@@ -3,16 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  MapPin,
-  RotateCcw,
-  ShoppingBag,
-  Truck,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, RotateCcw } from "lucide-react";
 import { ReservationBookingFlow } from "@/features/reserve/components/reservation-booking-flow";
 import { BlockList } from "@/features/website-builder/render/block-renderer";
 import { useSiteHeaderConfig } from "@/features/website-builder/render/site-chrome";
@@ -25,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useLocationStore } from "@/hooks/use-location-store";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { api } from "@/lib/api";
 import { branchDistanceKm, nearestBranch } from "@/lib/geo";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
@@ -38,7 +29,7 @@ import {
 } from "@/features/reserve/services/reservation-config.service";
 import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
 import type { Branch, MenuItem } from "@/lib/types";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 /** Delivery/pickup availability derived from the branch's own settings. */
 function branchOnlineConfig(branch: Branch): BranchOnlineConfig {
@@ -235,7 +226,7 @@ export function HomeLanding({
       quantity: 1,
       modifiers: [],
     });
-    toast(`${item.name} added to cart`, { tone: "success" });
+    flash(`${item.name} added to cart`, { tone: "success" });
   };
 
   const scrollToCategory = (id: string) => {
@@ -349,7 +340,7 @@ export function HomeLanding({
           {/* Mode-aware status */}
           {!loading && branch && online && (
             <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
-              <ModeBanner mode={fulfillment} branch={branch} online={online} />
+              <ModeBanner mode={fulfillment} branch={branch} />
             </div>
           )}
 
@@ -594,53 +585,20 @@ function ReservationPane({
   return <ReservationBookingFlow branch={branch} config={settings} />;
 }
 
-function ModeBanner({
-  mode,
-  branch,
-  online,
-}: {
-  mode: "delivery" | "pickup" | "reserve";
-  branch: Branch;
-  online: BranchOnlineConfig;
-}) {
-  if (mode === "reserve") {
-    return (
-      <Link
-        href={`/reserve/${branch.id}`}
-        className="mt-4 flex items-center gap-3 rounded-2xl bg-brand px-4 py-3.5 text-primary-foreground shadow-[var(--shadow-card)]"
-      >
-        <CalendarDays className="size-5 shrink-0" />
-        <span className="flex-1 text-sm font-semibold">Reserve a table at {branch.name}</span>
-        <ChevronRight className="size-5 shrink-0" />
-      </Link>
-    );
-  }
-
-  if (mode === "pickup") {
-    return (
-      <p className="mt-4 flex items-center gap-2 rounded-2xl bg-accent-tint px-4 py-3 text-sm font-medium text-amber-700">
-        <ShoppingBag className="size-4 shrink-0" />
-        {online.pickupAvailable
-          ? `Pickup from ${branch.name} · ready in ~15 min`
-          : "Pickup isn't available at this branch right now."}
-      </p>
-    );
-  }
+function ModeBanner({ mode, branch }: { mode: "delivery" | "pickup" | "reserve"; branch: Branch }) {
+  // Delivery/pickup info banners were removed — the delivery fee/ETA lives on
+  // the checkout, and the branch minimum order is enforced there. Only the
+  // reserve CTA (an action, not an info banner) remains.
+  if (mode !== "reserve") return null;
 
   return (
-    <p className="mt-4 flex items-center gap-2 rounded-2xl bg-brand-tint px-4 py-3 text-sm font-medium text-brand-deep">
-      {online.deliveryAvailable ? (
-        <>
-          <Truck className="size-4 shrink-0" />
-          Delivery · ~{online.deliveryEtaMinutes} min ·{" "}
-          {online.deliveryFee === 0 ? "Free" : formatCurrency(online.deliveryFee)}
-        </>
-      ) : (
-        <>
-          <Clock className="size-4 shrink-0" />
-          Delivery isn&apos;t available here — try pickup instead.
-        </>
-      )}
-    </p>
+    <Link
+      href={`/reserve/${branch.id}`}
+      className="mt-4 flex items-center gap-3 rounded-2xl bg-brand px-4 py-3.5 text-primary-foreground shadow-[var(--shadow-card)]"
+    >
+      <CalendarDays className="size-5 shrink-0" />
+      <span className="flex-1 text-sm font-semibold">Reserve a table at {branch.name}</span>
+      <ChevronRight className="size-5 shrink-0" />
+    </Link>
   );
 }

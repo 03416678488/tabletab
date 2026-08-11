@@ -6,7 +6,7 @@ import { Briefcase, Check, Crosshair, Home, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { getCurrentPosition } from "@/lib/geolocation";
 import type { Address, AddressType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -56,13 +56,13 @@ export function AddressForm({ onSave, onCancel, saving, initial }: AddressFormPr
       });
       setPoint(la, ln);
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Couldn't get your location", { tone: "error" });
+      flash(err instanceof Error ? err.message : "Couldn't get your location", { tone: "error" });
     }
   };
 
   const handleSave = () => {
     if (!line1.trim() || !city.trim()) {
-      toast("Add the street address and city", { tone: "error" });
+      flash("Add the street address and city", { tone: "error" });
       return;
     }
     const label =

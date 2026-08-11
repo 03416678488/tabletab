@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomerSession } from "@/hooks/use-customer-session";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 
 function SignInForm() {
   const router = useRouter();
@@ -37,10 +37,10 @@ function SignInForm() {
     if (!validate()) return;
     const result = await login(email, password);
     if (result.ok) {
-      toast("Welcome back!", { tone: "success" });
+      flash("Welcome back!", { tone: "success" });
       router.push(returnUrl);
     } else {
-      toast(result.error ?? "Sign in failed", { tone: "error" });
+      flash(result.error ?? "Sign in failed", { tone: "error" });
     }
   };
 

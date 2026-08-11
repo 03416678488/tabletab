@@ -38,30 +38,43 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Anchored near the top (translate-y-0 overrides the base vertical
           centering) so the search bar sits up top, like a command palette. */}
-      <DialogContent className="top-[8vh] max-w-3xl translate-y-0">
+      {/* No corner ✕ — the input's clear-✕ handles text; "Cancel" closes the
+          popup (a second bare ✕ next to the clear-✕ was confusing). */}
+      <DialogContent className="top-[8vh] max-w-3xl translate-y-0" showCloseButton={false}>
         <DialogTitle className="sr-only">Search the menu</DialogTitle>
 
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search dishes…"
-            aria-label="Search the menu"
-            className="h-12 w-full rounded-full border border-border bg-surface pl-12 pr-10 text-base text-ink outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-brand/40"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:bg-secondary"
-            >
-              <X className="size-4" />
-            </button>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              // Not type="search": that renders a *native* ✕ clear button that
+              // duplicated our custom one. type="text" leaves only ours.
+              type="text"
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search dishes…"
+              aria-label="Search the menu"
+              className="h-12 w-full rounded-full border border-border bg-surface pl-12 pr-10 text-base text-ink outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-brand/40"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:bg-secondary"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-ink"
+          >
+            Cancel
+          </button>
         </div>
 
         {!q ? (

@@ -5,13 +5,13 @@ import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 export interface ConfirmOptions {
@@ -55,9 +55,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      <Dialog open={open} onOpenChange={(next) => !next && settle(false)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
+      <AlertDialog open={open} onOpenChange={(next) => !next && settle(false)}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
             <div className="flex items-start gap-3 text-left">
               <span
                 className={cn(
@@ -68,14 +68,16 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 <AlertTriangle className="size-5" />
               </span>
               <div className="min-w-0">
-                <DialogTitle>{opts?.title}</DialogTitle>
+                <AlertDialogTitle>{opts?.title}</AlertDialogTitle>
                 {opts?.description && (
-                  <DialogDescription className="mt-1">{opts.description}</DialogDescription>
+                  <AlertDialogDescription className="mt-1">
+                    {opts.description}
+                  </AlertDialogDescription>
                 )}
               </div>
             </div>
-          </DialogHeader>
-          <DialogFooter>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
             <Button variant="outline" size="sm" onClick={() => settle(false)}>
               {opts?.cancelLabel ?? "Cancel"}
             </Button>
@@ -86,9 +88,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             >
               {opts?.confirmLabel ?? "Delete"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ConfirmContext.Provider>
   );
 }

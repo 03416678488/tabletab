@@ -37,7 +37,6 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   dashboard: ALL_ROLES,
   notifications: ALL_ROLES,
   deliveries: [...MANAGER_ROLES, "delivery"],
-  kitchen: [...MANAGER_ROLES, "chef"],
   kds: [...MANAGER_ROLES, "chef"],
   waiter: [...MANAGER_ROLES, "waiter"],
   manager: MANAGER_ROLES,

@@ -68,8 +68,6 @@ let mutableCustomer: CustomerAccount = structuredCloneSafe(initialCustomerAccoun
 let orderCounter = mutableOrders.length + 1000;
 let serviceRequestCounter = mutableServiceRequests.length + 1;
 
-const KITCHEN_ACTIVE: OrderStatus[] = ["placed", "accepted", "preparing", "ready"];
-
 function applySlaBreaches() {
   const now = Date.now();
   mutableOrders = mutableOrders.map((o) => {
@@ -172,27 +170,6 @@ export const api = {
   getOrders: (branchId?: string) => {
     applySlaBreaches();
     const list = branchId ? mutableOrders.filter((o) => o.branchId === branchId) : mutableOrders;
-    return delay<Order[]>(list);
-  },
-  getKitchenOrders: (branchId: string) => {
-    applySlaBreaches();
-    const now = Date.now();
-    const list = mutableOrders.filter((o) => {
-      if (o.branchId !== branchId || !KITCHEN_ACTIVE.includes(o.status)) return false;
-      if (o.fireAt && new Date(o.fireAt).getTime() > now) return false;
-      return true;
-    });
-    return delay<Order[]>(list);
-  },
-  getScheduledKitchenOrders: (branchId: string) => {
-    const now = Date.now();
-    const list = mutableOrders.filter(
-      (o) =>
-        o.branchId === branchId &&
-        o.fireAt &&
-        new Date(o.fireAt).getTime() > now &&
-        KITCHEN_ACTIVE.includes(o.status),
-    );
     return delay<Order[]>(list);
   },
   getOrder: (orderId: string) =>
@@ -318,30 +295,6 @@ export const api = {
       completedAt: status === "completed" ? now : order.completedAt,
       slaBreached: status !== "placed" ? false : order.slaBreached,
     });
-    return delay<Order | undefined>(updated, 150);
-  },
-
-  acknowledgeOrder: (orderId: string) => {
-    const order = mutableOrders.find((o) => o.id === orderId);
-    if (!order || !["placed", "accepted"].includes(order.status)) {
-      return delay<Order | undefined>(undefined);
-    }
-    const now = new Date().toISOString();
-    const updated = patchOrder(orderId, {
-      status: "preparing",
-      acceptedAt: order.acceptedAt ?? now,
-      slaBreached: false,
-    });
-    return delay<Order | undefined>(updated, 150);
-  },
-
-  markOrderReady: (orderId: string) => {
-    const order = mutableOrders.find((o) => o.id === orderId);
-    if (!order || order.status !== "preparing") {
-      return delay<Order | undefined>(undefined);
-    }
-    const now = new Date().toISOString();
-    const updated = patchOrder(orderId, { status: "ready", readyAt: now });
     return delay<Order | undefined>(updated, 150);
   },
 

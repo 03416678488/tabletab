@@ -8,7 +8,7 @@
  *   - builtin  → already configured elsewhere in the app (`manageSlug`).
  */
 export type IntegrationCategory =
-  'delivery' | 'messaging' | 'accounting' | 'marketing';
+  'delivery' | 'messaging' | 'accounting' | 'marketing' | 'pos';
 
 export type IntegrationStatus = 'available' | 'coming_soon';
 export type IntegrationAuthType = 'api_key' | 'oauth' | 'builtin';
@@ -142,6 +142,43 @@ export const INTEGRATION_CATALOG: Connector[] = [
     name: 'Google Business',
     category: 'marketing',
     description: 'Sync hours, menu and reviews to your Google profile.',
+    status: 'coming_soon',
+    authType: 'oauth',
+  },
+  // ── Point of sale ──────────────────────────────────────────────────────────
+  // Connect an external restaurant POS to sync menu, orders and sales.
+  // Credentials are stored on connect; two-way sync lands in a later phase (same
+  // trajectory as the delivery aggregators), so no webhook/menu-push is wired yet.
+  {
+    key: 'foodics',
+    name: 'Foodics',
+    category: 'pos',
+    description: 'Sync menu, orders and sales with your Foodics POS.',
+    status: 'available',
+    authType: 'api_key',
+    fields: [
+      {
+        key: 'apiToken',
+        label: 'API token',
+        type: 'password',
+        placeholder: 'eyJ…',
+      },
+      { key: 'businessReference', label: 'Business reference (optional)' },
+    ],
+  },
+  {
+    key: 'square',
+    name: 'Square POS',
+    category: 'pos',
+    description: 'Connect Square to sync your catalog, orders and payments.',
+    status: 'coming_soon',
+    authType: 'oauth',
+  },
+  {
+    key: 'lightspeed',
+    name: 'Lightspeed Restaurant',
+    category: 'pos',
+    description: 'Keep menu and sales in sync with Lightspeed (K-Series).',
     status: 'coming_soon',
     authType: 'oauth',
   },

@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useCart } from "@/hooks/use-cart";
 import { useLocationStore } from "@/hooks/use-location-store";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
@@ -174,7 +174,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ itemI
       modifiers,
       notes: notes.trim() || undefined,
     });
-    toast(`${quantity} × ${item.name} added to cart`, { tone: "success" });
+    flash(`${quantity} × ${item.name} added to cart`, { tone: "success" });
     router.back();
   };
 
@@ -191,7 +191,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ itemI
       quantity: 1,
       modifiers: [],
     });
-    toast(`${m.name} added to cart`, { tone: "success" });
+    flash(`${m.name} added to cart`, { tone: "success" });
   };
 
   if (loading) return <DetailsSkeleton />;

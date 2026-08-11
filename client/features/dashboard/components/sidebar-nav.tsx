@@ -5,38 +5,38 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  NAV_SECTIONS,
-  hrefFor,
-  navItemsForRole,
-  type NavItem,
-} from "@/lib/nav";
+import { NAV_SECTIONS, hrefFor, navItemsForRole, type NavItem } from "@/lib/nav";
 import { useSession } from "@/hooks/use-session";
 import { useMyAccess } from "@/features/role-permission/hooks/use-my-access";
+import { useNotifications } from "@/features/notifications/hooks/use-notifications";
 import type { StaffRole } from "@/lib/types";
+import { useMemo } from "react";
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const role = useSession((s) => s.user!.role);
   const { canView } = useMyAccess();
 
+  // Unread-count badges: "all" = total unread (mirrors the bell); a category key
+  // = unread of that category in the live feed. Same source as the bell.
+  const { items: feed, unread } = useNotifications();
+  const badgeFor = useMemo(() => {
+    const byCategory: Record<string, number> = {};
+    for (const n of feed) if (!n.readAt) byCategory[n.category] = (byCategory[n.category] ?? 0) + 1;
+    return (key?: string) => (!key ? 0 : key === "all" ? unread : (byCategory[key] ?? 0));
+  }, [feed, unread]);
+
   // Role-visible items, then filtered by the user's module permissions.
   const items = navItemsForRole(role)
     .map((item) =>
-      item.children
-        ? { ...item, children: item.children.filter((c) => canView(c.module)) }
-        : item,
+      item.children ? { ...item, children: item.children.filter((c) => canView(c.module)) } : item,
     )
-    .filter((item) =>
-      item.children ? item.children.length > 0 : canView(item.module),
-    );
+    .filter((item) => (item.children ? item.children.length > 0 : canView(item.module)));
 
   const linkClass = (active: boolean) =>
     cn(
       "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-      active
-        ? "bg-brand-tint text-brand-deep"
-        : "text-slate-600 hover:bg-secondary hover:text-ink",
+      active ? "bg-brand-tint text-brand-deep" : "text-slate-600 hover:bg-secondary hover:text-ink",
     );
 
   return (
@@ -68,6 +68,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                     pathname={pathname}
                     linkClass={linkClass}
                     onNavigate={onNavigate}
+                    badge={badgeFor(item.badgeCategory)}
                   />
                 ),
               )}
@@ -85,12 +86,14 @@ function LeafItem({
   pathname,
   linkClass,
   onNavigate,
+  badge = 0,
 }: {
   item: NavItem;
   role: StaffRole;
   pathname: string;
   linkClass: (active: boolean) => string;
   onNavigate?: () => void;
+  badge?: number;
 }) {
   const href = hrefFor(role, item.slug!);
   const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -111,6 +114,14 @@ function LeafItem({
           aria-hidden
         />
         {item.label}
+        {badge > 0 && (
+          <span
+            aria-label={`${badge} unread`}
+            className="ml-auto inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold leading-4 text-white"
+          >
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
       </Link>
     </li>
   );

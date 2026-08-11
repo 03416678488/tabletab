@@ -14,7 +14,7 @@ import { OrderStatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { AddressForm } from "@/features/storefront/components/address-form";
 import { fetchCustomerOrders } from "@/features/storefront/services/storefront-orders";
 import type { Address, Order } from "@/lib/types";
@@ -67,7 +67,7 @@ function AccountContent() {
   const handleSaveProfile = async () => {
     await updateProfile(profile);
     setEditingProfile(false);
-    toast("Profile updated", { tone: "success" });
+    flash("Profile updated", { tone: "success" });
   };
 
   const resetAddressForm = () => {
@@ -78,10 +78,10 @@ function AccountContent() {
   const handleSaveAddress = async (address: Omit<Address, "id">) => {
     if (editingAddressId) {
       await updateAddress(editingAddressId, address);
-      toast("Address updated", { tone: "success" });
+      flash("Address updated", { tone: "success" });
     } else {
       await addAddress(address);
-      toast("Address added", { tone: "success" });
+      flash("Address added", { tone: "success" });
     }
     resetAddressForm();
   };
@@ -105,7 +105,7 @@ function AccountContent() {
         notes: item.notes,
       });
     }
-    toast("Items added to cart", { tone: "success" });
+    flash("Items added to cart", { tone: "success" });
     router.push(`/order/${order.branchId}`);
   };
 
@@ -118,7 +118,14 @@ function AccountContent() {
           <h1 className="font-display text-3xl font-bold text-ink">My account</h1>
           <p className="text-muted-foreground">{user.email}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { logout(); router.push("/"); }}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            logout();
+            router.push("/");
+          }}
+        >
           <LogOut className="size-4" />
           Sign out
         </Button>
@@ -211,9 +218,7 @@ function AccountContent() {
               <div>
                 <p className="font-medium">
                   {addr.label}
-                  {addr.isDefault && (
-                    <span className="ml-2 text-xs text-brand">Default</span>
-                  )}
+                  {addr.isDefault && <span className="ml-2 text-xs text-brand">Default</span>}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {addr.line1}

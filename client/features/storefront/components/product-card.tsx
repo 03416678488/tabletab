@@ -12,7 +12,7 @@ import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useLocationStore } from "@/hooks/use-location-store";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import type { MenuItem, MenuTag } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -31,6 +31,17 @@ const RIBBON_TAG: Partial<Record<MenuTag, string>> = {
   popular: "Popular",
   new: "New",
   "chef-special": "Chef's pick",
+};
+
+/** Per-tag pill colours for the card badges. */
+const TAG_STYLE: Record<MenuTag, string> = {
+  popular: "bg-amber-100 text-amber-700",
+  new: "bg-emerald-100 text-emerald-700",
+  vegetarian: "bg-green-100 text-green-700",
+  vegan: "bg-green-100 text-green-700",
+  "gluten-free": "bg-sky-100 text-sky-700",
+  spicy: "bg-red-100 text-red-700",
+  "chef-special": "bg-violet-100 text-violet-700",
 };
 
 interface ProductCardProps {
@@ -72,22 +83,21 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuthenticated || !user) {
-      toast("Sign in to save your favorites", { tone: "info" });
+      flash("Sign in to save your favorites", { tone: "info" });
       router.push(`/signin?returnUrl=${encodeURIComponent(pathname)}`);
       return;
     }
     const nowFavorite = toggleFavorite(user.id, item.id);
-    toast(
-      nowFavorite ? `Saved ${item.name} to favorites` : `Removed ${item.name} from favorites`,
-      { tone: "success" },
-    );
+    flash(nowFavorite ? `Saved ${item.name} to favorites` : `Removed ${item.name} from favorites`, {
+      tone: "success",
+    });
   };
 
   // The plain (unmodified) cart line for this item — what the stepper controls.
   const baseLine = cartItems.find(
     (i) => i.menuItemId === item.id && i.modifiers.length === 0 && !i.notes,
   );
-  const qty = hydrated ? baseLine?.quantity ?? 0 : 0;
+  const qty = hydrated ? (baseLine?.quantity ?? 0) : 0;
 
   // Quick, unmodified add — used by the on-card quantity stepper and by any
   // caller that supplies its own `onAdd`.
@@ -105,7 +115,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
       quantity: 1,
       modifiers: [],
     });
-    toast(`${item.name} added to cart`, { tone: "success" });
+    flash(`${item.name} added to cart`, { tone: "success" });
   };
 
   // Primary "+" action: an override wins; otherwise open the details/customise
@@ -218,7 +228,11 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
 
       {/* Customise-&-add dialog (skipped when a caller overrides add). */}
       {!onAdd && (
-        <ProductDetailsDialog item={detailsOpen ? item : null} open={detailsOpen} onOpenChange={setDetailsOpen} />
+        <ProductDetailsDialog
+          item={detailsOpen ? item : null}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+        />
       )}
 
       <div className="flex flex-1 flex-col gap-1 p-3">
@@ -226,16 +240,25 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
         <p className="line-clamp-2 text-xs leading-snug text-muted-foreground">
           {item.description}
         </p>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
+        {item.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-0.5">
+            {item.tags.slice(0, 3).map((t) => (
+              <span
+                key={t}
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-semibold capitalize leading-none",
+                  // `tags` map from the item's food types (arbitrary names), so
+                  // fall back to a neutral pill + the raw label when unmapped.
+                  TAG_STYLE[t] ?? "bg-secondary text-muted-foreground",
+                )}
+              >
+                {TAG_LABELS[t] ?? t}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="mt-auto flex items-center pt-1.5">
           <span className="text-sm font-semibold text-ink">{formatCurrency(item.price)}</span>
-          {item.tags.length > 0 && (
-            <span className="truncate text-[10px] font-medium text-muted-foreground">
-              {item.tags
-                .slice(0, 2)
-                .map((t) => TAG_LABELS[t])
-                .join(" · ")}
-            </span>
-          )}
         </div>
       </div>
     </motion.article>

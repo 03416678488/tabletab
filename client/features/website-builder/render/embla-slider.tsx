@@ -51,10 +51,28 @@ export function EmblaSlider({
     };
   }, [embla, onSelect]);
 
+  // Autoplay + recovery from tab backgrounding. While the tab is hidden the
+  // browser throttles/parks timers and pauses Embla's rAF-driven transitions,
+  // which can leave a slide stuck mid-transform (blank) on return. So: never
+  // advance while hidden, and reInit() on refocus to re-measure the track and
+  // snap to a clean position.
   useEffect(() => {
-    if (!embla || !autoplayMs) return;
-    const id = setInterval(() => embla.scrollNext(), autoplayMs);
-    return () => clearInterval(id);
+    if (!embla) return;
+
+    const advance = () => {
+      if (!document.hidden) embla.scrollNext();
+    };
+    const timer = autoplayMs ? setInterval(advance, autoplayMs) : undefined;
+
+    const onVisible = () => {
+      if (!document.hidden) embla.reInit();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      if (timer) clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [embla, autoplayMs]);
 
   return (

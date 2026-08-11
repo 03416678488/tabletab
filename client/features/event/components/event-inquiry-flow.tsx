@@ -12,7 +12,7 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -73,7 +73,7 @@ export function EventInquiryFlow() {
         setEventTypes(ets.items ?? []);
         if (bs.length === 1) setValue("branchId", bs[0].id);
       } catch {
-        if (!cancelled) toast("Couldn't load event options", { tone: "error" });
+        if (!cancelled) flash("Couldn't load event options", { tone: "error" });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -107,7 +107,7 @@ export function EventInquiryFlow() {
       });
       router.push(`/events/confirm/${booking.id}`);
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't submit your inquiry", {
+      flash(err instanceof ApiError ? err.message : "Couldn't submit your inquiry", {
         tone: "error",
       });
     }

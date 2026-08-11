@@ -34,7 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
 import { useDineIn } from "@/hooks/use-dine-in";
 import { useCustomerSession } from "@/hooks/use-customer-session";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 import { branchOnlineConfig } from "@/features/storefront/services/storefront-branches";
 import {
@@ -164,6 +164,10 @@ function CheckoutContent() {
   const discount = appliedPromo?.discountAmount ?? 0;
   const total = Math.max(0, subtotal + deliveryFee + tax - discount);
 
+  // Branch minimum order — enforced on delivery/pickup only (dine-in has none).
+  const minOrder = branch?.minOrder ?? 0;
+  const belowMin = !isDineIn && minOrder > 0 && subtotal < minOrder;
+
   const applyPromo = async () => {
     const code = promoInput.trim();
     if (!code) return;
@@ -173,7 +177,7 @@ function CheckoutContent() {
       const result = await validatePromotionCode({ code, subtotal, customerId: user?.id });
       if (result.valid) {
         setAppliedPromo({ code: code.toUpperCase(), discountAmount: result.discountAmount });
-        toast("Promo applied", { tone: "success" });
+        flash("Promo applied", { tone: "success" });
       } else {
         setAppliedPromo(null);
         setPromoError(result.reason ?? "This code can't be applied");
@@ -217,7 +221,7 @@ function CheckoutContent() {
     try {
       await addAddress(address);
       setShowAddressForm(false);
-      toast("Address saved", { tone: "success" });
+      flash("Address saved", { tone: "success" });
     } finally {
       setSavingAddress(false);
     }
@@ -226,7 +230,7 @@ function CheckoutContent() {
   const handleSetDefault = async (id: string) => {
     await updateAddress(id, { isDefault: true });
     setSelectedAddressId(id);
-    toast("Default address updated", { tone: "success" });
+    flash("Default address updated", { tone: "success" });
   };
 
   const handlePay = async () => {
@@ -237,14 +241,14 @@ function CheckoutContent() {
     // client can't set the table, price, or payment status.
     if (isDineIn) {
       if (!dineIn.slug) {
-        toast("Please re-scan the table QR to order.", { tone: "error" });
+        flash("Please re-scan the table QR to order.", { tone: "error" });
         return;
       }
       const name = guestName.trim();
       const phone = guestPhone.trim();
       if (!name || !phone) {
         setShowGuestErrors(true);
-        toast("Please enter your name and phone number.", { tone: "error" });
+        flash("Please enter your name and phone number.", { tone: "error" });
         return;
       }
       setPaying(true);
@@ -263,10 +267,10 @@ function CheckoutContent() {
         });
         idempotencyRef.current = null;
         clear();
-        toast("Order sent to the kitchen!", { tone: "success" });
+        flash("Order sent to the kitchen!", { tone: "success" });
         router.push(`/track/${order.id}`);
       } catch (e) {
-        toast(e instanceof Error ? e.message : "Could not place order — please try again", {
+        flash(e instanceof Error ? e.message : "Could not place order — please try again", {
           tone: "error",
         });
       } finally {
@@ -276,16 +280,23 @@ function CheckoutContent() {
     }
 
     if (!user) return;
+    if (belowMin) {
+      flash(`Minimum order is ${formatCurrency(minOrder)}`, {
+        tone: "error",
+        description: `Add ${formatCurrency(minOrder - subtotal)} more to place this order.`,
+      });
+      return;
+    }
     if (fulfillmentType === "delivery" && !effectiveAddressId) {
-      toast("Select a delivery address", { tone: "error" });
+      flash("Select a delivery address", { tone: "error" });
       return;
     }
     if (fulfillmentType === "pickup" && !pickupTime) {
-      toast("Select a pickup time", { tone: "error" });
+      flash("Select a pickup time", { tone: "error" });
       return;
     }
     if (!paymentMethodId || !selectedPayment?.enabled) {
-      toast("Select a payment method", { tone: "error" });
+      flash("Select a payment method", { tone: "error" });
       return;
     }
 
@@ -342,11 +353,11 @@ function CheckoutContent() {
       });
       clear();
       setPaymentDialogOpen(false);
-      toast("Order placed!", { tone: "success" });
+      flash("Order placed!", { tone: "success" });
       router.push(`/track/${order.id}`);
     } catch (e) {
       setPaymentDialogOpen(false);
-      toast(e instanceof Error ? e.message : "Payment failed — please try again", {
+      flash(e instanceof Error ? e.message : "Payment failed — please try again", {
         tone: "error",
       });
     } finally {
@@ -742,11 +753,18 @@ function CheckoutContent() {
 
           {isAuthenticated || isDineIn ? (
             <>
+              {belowMin && (
+                <p className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-sm font-medium text-red-700">
+                  Minimum order for {branch?.name ?? "this branch"} is {formatCurrency(minOrder)} —
+                  add {formatCurrency(minOrder - subtotal)} more.
+                </p>
+              )}
               <Button
                 className="w-full"
                 size="lg"
                 disabled={
                   paying ||
+                  belowMin ||
                   (isDineIn && (!guestName.trim() || !guestPhone.trim())) ||
                   (!isDineIn &&
                     (!paymentMethodId || (fulfillmentType === "delivery" && !effectiveAddressId)))

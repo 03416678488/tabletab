@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomerSession } from "@/hooks/use-customer-session";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 
 function SignupForm() {
   const router = useRouter();
@@ -42,10 +42,10 @@ function SignupForm() {
     if (!validate()) return;
     const result = await signup({ name, email, phone, password });
     if (result.ok) {
-      toast("Account created!", { tone: "success" });
+      flash("Account created!", { tone: "success" });
       router.push(returnUrl);
     } else {
-      toast(result.error ?? "Signup failed", { tone: "error" });
+      flash(result.error ?? "Signup failed", { tone: "error" });
     }
   };
 
@@ -102,9 +102,7 @@ function SignupForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={!!errors.password}
               />
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password}</p>
-              )}
+              {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creating account…" : "Create account"}
@@ -112,7 +110,10 @@ function SignupForm() {
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href={`/signin?returnUrl=${encodeURIComponent(returnUrl)}`} className="font-medium text-brand hover:underline">
+            <Link
+              href={`/signin?returnUrl=${encodeURIComponent(returnUrl)}`}
+              className="font-medium text-brand hover:underline"
+            >
               Sign in
             </Link>
           </p>

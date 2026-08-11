@@ -33,7 +33,7 @@ import { useOrderStream } from "@/hooks/use-order-stream";
 import { useDineIn } from "@/hooks/use-dine-in";
 import { callWaiter } from "@/features/storefront/services/qr-ordering";
 import { SuccessDialog } from "@/components/ui/success-dialog";
-import { toast } from "@/hooks/use-toast";
+import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import type { Order } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { formatDateTime, formatTime } from "@/lib/datetime";
@@ -116,7 +116,7 @@ export default function TrackOrderPage({ params }: { params: Promise<{ orderId: 
       setCalled(true);
       setConfirmOpen(true);
     } catch {
-      toast("Couldn't reach a waiter — please try again", { tone: "error" });
+      flash("Couldn't reach a waiter — please try again", { tone: "error" });
     } finally {
       setCalling(false);
     }
