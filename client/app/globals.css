@@ -1,6 +1,21 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ── EXPERIMENTAL: global corner radius ──────────────────────────────────────
+   One knob for the whole app. `--radius-scale` multiplies Tailwind's default
+   radii (1 = default, lower = sharper corners). Remaps every rounded-sm…-3xl
+   utility at once; `rounded-full` (pills, avatars) is intentionally untouched.
+   Bump the scale back toward 1 to soften, or to 0 for fully square. */
+@theme {
+  --radius-scale: 0.5;
+  --radius-sm: calc(0.25rem * var(--radius-scale));
+  --radius-md: calc(0.375rem * var(--radius-scale));
+  --radius-lg: calc(0.5rem * var(--radius-scale));
+  --radius-xl: calc(0.75rem * var(--radius-scale));
+  --radius-2xl: calc(1rem * var(--radius-scale));
+  --radius-3xl: calc(1.5rem * var(--radius-scale));
+}
+
 /*
   TableTap design system tokens.
   Brand colors use @theme inline + runtime --brand/* tokens so tenant theming works.
