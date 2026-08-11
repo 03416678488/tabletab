@@ -28,6 +28,7 @@ import { NotificationService } from '@modules/notification/notification.service'
 import { OrderStatusSyncService } from './services/order-status-sync.service';
 import { StaffAssignmentService } from './services/staff-assignment.service';
 import { PromotionService } from '@modules/promotion/promotion.service';
+import { InventoryDeductionService } from '@modules/inventory/inventory-deduction.service';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -117,9 +118,24 @@ export class OrderService extends AbstractService<Order> {
     private readonly _statusSync: OrderStatusSyncService,
     private readonly _assignment: StaffAssignmentService,
     private readonly _transactionService: TransactionService,
+    private readonly _deduction: InventoryDeductionService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
+  }
+
+  /**
+   * Draw down (or, on cancel, put back) inventory for an order whose status just
+   * changed. Deduction fires once the order is live (any active status); it is
+   * idempotent per order, so repeated active transitions don't double-count.
+   * Cancelling a live order restocks. Best-effort — never throws into the flow.
+   */
+  private async syncInventory(order: Order): Promise<void> {
+    if (order.status === 'cancelled') {
+      await this._deduction.reverseOrderCancelled(order.id, order.branchId);
+    } else if (ACTIVE_STATUSES.includes(order.status)) {
+      await this._deduction.applyOrderConfirmed(order.id, order.branchId);
+    }
   }
 
   /** Push a minimal status event to the order's tracking channel (post-commit). */
@@ -439,6 +455,7 @@ export class OrderService extends AbstractService<Order> {
     if (order.status !== 'pending_payment') {
       this.emitBoard(order);
       await this.notify(order, 'placed');
+      await this.syncInventory(order);
     }
     return order;
   }
@@ -462,6 +479,7 @@ export class OrderService extends AbstractService<Order> {
     this.emitOrder(order, 'order.updated');
     this.emitBoard(order);
     await this.notify(order, 'placed');
+    await this.syncInventory(order);
     return order;
   }
 
@@ -539,6 +557,8 @@ export class OrderService extends AbstractService<Order> {
       // Relay the new status back to the source aggregator (foodpanda, …).
       if (order.status !== existing.status) {
         await this._statusSync.syncOutbound(order);
+        // Draw down stock when it goes live; restock when it's cancelled.
+        await this.syncInventory(order);
       }
     }
     return order;

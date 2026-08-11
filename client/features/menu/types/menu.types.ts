@@ -24,6 +24,9 @@ export interface MenuItem {
   sizes: MenuOptionRow[];
   variants: MenuOptionRow[];
   addOns: MenuOptionRow[];
+  /** Inventory tracking mode — see the inventory feature. */
+  trackingType?: "none" | "recipe" | "unit";
+  stockItemId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

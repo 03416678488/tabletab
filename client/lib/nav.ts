@@ -7,6 +7,7 @@ import {
   ArrowLeftRight,
   ArrowUpCircle,
   BarChart3,
+  Boxes,
   ChefHat,
   ConciergeBell,
   Globe,
@@ -126,6 +127,14 @@ export const navItems: NavItem[] = [
     roles: [...MANAGERS, "waiter"],
     section: "Operations",
     module: "tables",
+  },
+  {
+    label: "Inventory",
+    slug: "inventory",
+    icon: Boxes,
+    roles: MANAGERS,
+    section: "Operations",
+    badgeCategory: "inventory",
   },
 
   {

@@ -23,6 +23,7 @@ import { ErrorModule } from '@modules/common/error/error.module';
 import { PromotionModule } from '@modules/promotion/promotion.module';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { ShiftModule } from '@modules/shift/shift.module';
+import { InventoryModule } from '@modules/inventory/inventory.module';
 import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 
 @Module({
@@ -43,6 +44,7 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
     PromotionModule,
     NotificationModule,
     ShiftModule,
+    InventoryModule,
   ],
   controllers: [OrderController],
   providers: [

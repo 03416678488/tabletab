@@ -17,6 +17,15 @@ export interface MenuOptionRow {
   price: number;
 }
 
+/**
+ * How this item draws down inventory when sold (hybrid model):
+ * - `none`   — not stock-tracked (default; behaves as before).
+ * - `recipe` — cooked dish; a sale deducts its recipe's raw ingredients.
+ * - `unit`   — packaged good; the item *is* a stock item, a sale deducts 1 unit
+ *              of {@link MenuItem.stockItemId}.
+ */
+export type ItemTrackingType = 'none' | 'recipe' | 'unit';
+
 @Entity('menu_items')
 export class MenuItem extends AbstractEntity {
   @Column({ type: 'varchar' })
@@ -68,4 +77,12 @@ export class MenuItem extends AbstractEntity {
 
   @Column({ type: 'jsonb', default: () => "'[]'" })
   addOns: MenuOptionRow[];
+
+  /** Inventory tracking mode — see {@link ItemTrackingType}. */
+  @Column({ type: 'varchar', default: 'none' })
+  trackingType: ItemTrackingType;
+
+  /** For `unit`-tracked items: the stock item this dish decrements directly. */
+  @Column({ type: 'uuid', nullable: true })
+  stockItemId: string | null;
 }
