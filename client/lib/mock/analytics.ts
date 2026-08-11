@@ -194,6 +194,13 @@ export function getOwnerAnalytics(period: AnalyticsPeriod = "day"): OwnerAnalyti
     fulfillment: FULFILLMENT,
     customers: CUSTOMERS,
     target: TARGETS[period],
+    ancillaryEarnings: {
+      reservationDeposits: 0,
+      reservationCount: 0,
+      eventPayments: 0,
+      eventCount: 0,
+      total: 0,
+    },
   };
 }
 

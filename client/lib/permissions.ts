@@ -65,6 +65,7 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "menu-io": MANAGER_ROLES,
   categories: MANAGER_ROLES,
   "food-types": MANAGER_ROLES,
+  reviews: MANAGER_ROLES,
   areas: MANAGER_ROLES,
   "tables-list": MANAGER_ROLES,
   "qr-codes": MANAGER_ROLES,

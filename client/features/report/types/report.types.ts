@@ -10,6 +10,10 @@ export interface SalesReport {
     taxTotal: number;
     incomeTotal: number;
     expenseTotal: number;
+    reservationTotal: number;
+    reservationCount: number;
+    eventTotal: number;
+    eventCount: number;
     netProfit: number;
   };
   byType: { type: string; count: number; total: number }[];

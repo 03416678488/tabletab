@@ -10,7 +10,13 @@ import {
 import { Order } from '@modules/order/entities/order.entity';
 import { RegisterSession } from '@modules/register/entities/register-session.entity';
 
-export type TransactionType = 'sale' | 'refund' | 'cash_in' | 'cash_out';
+export type TransactionType =
+  | 'sale'
+  | 'refund'
+  | 'cash_in'
+  | 'cash_out'
+  | 'reservation_deposit'
+  | 'event_payment';
 export type PaymentMethod = 'cash' | 'card' | 'mfs' | 'other';
 
 @Index(['createdAt'])
@@ -34,6 +40,14 @@ export class Transaction {
   @ManyToOne(() => Order, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'orderId' })
   order: Order;
+
+  /**
+   * Owning branch — set for earnings with no order link (reservation deposits,
+   * event payments) so the dashboard can attribute them per branch. Order-linked
+   * sales derive their branch from the order instead.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   registerSessionId: string | null;

@@ -48,6 +48,12 @@ export function ReservationsPanel() {
   const [reservations, setReservations] = useState<StorefrontReservation[]>([]);
   // Reminder lead (mins) from the branch's settings; drives the reminder tasks.
   const [reminderLead, setReminderLead] = useState(30);
+  // Per-guest booking deposit from settings; 0 = confirm without a deposit step.
+  const [depositPerGuest, setDepositPerGuest] = useState(0);
+  // Deposit-on-confirm dialog.
+  const [confirmFor, setConfirmFor] = useState<StorefrontReservation | null>(null);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositMethod, setDepositMethod] = useState<"cash" | "card" | "mfs" | "other">("cash");
   // Tasks are derived from real bookings; "Mark done" hides them client-side.
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -69,7 +75,10 @@ export function ReservationsPanel() {
   useEffect(() => {
     if (!branchId) return;
     fetchReservationSettings(branchId)
-      .then((s) => setReminderLead(s.reminderLeadMins))
+      .then((s) => {
+        setReminderLead(s.reminderLeadMins);
+        setDepositPerGuest(s.depositPerGuest);
+      })
       .catch(() => undefined);
   }, [branchId]);
 
@@ -109,6 +118,41 @@ export function ReservationsPanel() {
 
   const tableLabel = (tableId: string) =>
     activeBranch?.tables?.find((t) => t.id === tableId)?.label ?? tableId;
+
+  // Confirm: with a per-guest deposit configured, open the collect-deposit
+  // dialog (prefilled to deposit × party size); otherwise confirm straight away.
+  const startConfirm = (r: StorefrontReservation) => {
+    if (depositPerGuest > 0) {
+      setDepositAmount((depositPerGuest * r.partySize).toFixed(2));
+      setDepositMethod("cash");
+      setConfirmFor(r);
+    } else {
+      void runAction(
+        r.id,
+        () => setReservationStatus(r.id, "confirmed"),
+        "Reservation confirmed — table held",
+      );
+    }
+  };
+
+  const submitConfirm = async (withDeposit: boolean) => {
+    const r = confirmFor;
+    if (!r) return;
+    const amount = withDeposit ? Number(depositAmount) || 0 : 0;
+    setConfirmFor(null);
+    await runAction(
+      r.id,
+      () =>
+        setReservationStatus(
+          r.id,
+          "confirmed",
+          amount > 0 ? { depositAmount: amount, depositMethod } : undefined,
+        ),
+      amount > 0
+        ? `Confirmed — ${formatCurrency(amount)} deposit recorded`
+        : "Reservation confirmed — table held",
+    );
+  };
 
   const runAction = async (id: string, action: () => Promise<unknown>, message: string) => {
     setBusyId(id);
@@ -234,6 +278,12 @@ export function ReservationsPanel() {
                           &ldquo;{r.specialRequests}&rdquo;
                         </p>
                       )}
+                      {(r.depositAmount ?? 0) > 0 && (
+                        <p className="text-sm font-medium text-emerald-700">
+                          Deposit paid: {formatCurrency(r.depositAmount ?? 0)}
+                          {r.depositMethod ? ` · ${r.depositMethod}` : ""}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -249,13 +299,7 @@ export function ReservationsPanel() {
                         <Button
                           size="sm"
                           disabled={busyId === r.id}
-                          onClick={() =>
-                            runAction(
-                              r.id,
-                              () => setReservationStatus(r.id, "confirmed"),
-                              "Reservation confirmed — table held",
-                            )
-                          }
+                          onClick={() => startConfirm(r)}
                         >
                           <Check className="size-4" />
                           Confirm
@@ -400,12 +444,75 @@ export function ReservationsPanel() {
                   {detailFor.completedAt && (
                     <Detail label="Completed" value={formatDateTime(detailFor.completedAt)} />
                   )}
+                  {(detailFor.depositAmount ?? 0) > 0 && (
+                    <Detail
+                      label="Deposit"
+                      value={`${formatCurrency(detailFor.depositAmount ?? 0)}${
+                        detailFor.depositMethod ? ` · ${detailFor.depositMethod}` : ""
+                      }`}
+                    />
+                  )}
                 </dl>
               </div>
 
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDetailFor(null)}>
                   Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm + record booking deposit */}
+      <Dialog open={!!confirmFor} onOpenChange={(o) => !o && setConfirmFor(null)}>
+        <DialogContent className="max-w-md">
+          {confirmFor && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Confirm reservation</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-1">
+                <p className="text-sm text-muted-foreground">
+                  {confirmFor.guestName} · {confirmFor.partySize} guests ·{" "}
+                  {formatSlotLabel(confirmFor.date, confirmFor.time)}
+                </p>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-ink">Booking deposit</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      className="h-9 w-32 rounded-lg border border-input bg-white px-3 text-sm text-ink outline-none focus-visible:border-brand"
+                    />
+                    <select
+                      value={depositMethod}
+                      onChange={(e) => setDepositMethod(e.target.value as typeof depositMethod)}
+                      className="h-9 rounded-lg border border-input bg-white px-2 text-sm text-ink outline-none focus-visible:border-brand"
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                      <option value="mfs">MFS</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Suggested {formatCurrency(depositPerGuest)}/guest — recorded as a transaction
+                    and counted in reports.
+                  </p>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => submitConfirm(false)}>
+                  Skip deposit
+                </Button>
+                <Button onClick={() => submitConfirm(true)}>
+                  <Check className="size-4" />
+                  Confirm &amp; record
                 </Button>
               </DialogFooter>
             </>

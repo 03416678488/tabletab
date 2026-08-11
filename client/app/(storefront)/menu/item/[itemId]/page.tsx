@@ -7,6 +7,7 @@ import { ArrowLeft, Minus, Plus, UtensilsCrossed } from "lucide-react";
 import { ProductCard } from "@/features/storefront/components/product-card";
 import { ProductGallery } from "@/features/storefront/components/product-gallery";
 import { ShareButton } from "@/features/storefront/components/share-button";
+import { ItemReviews } from "@/features/storefront/components/item-reviews";
 import { ProductHeroMedia } from "@/features/menu/components/product-hero-media";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -31,11 +32,7 @@ const TAG_LABELS: Record<MenuTag, string> = {
   "chef-special": "Chef's special",
 };
 
-export default function ProductDetailsPage({
-  params,
-}: {
-  params: Promise<{ itemId: string }>;
-}) {
+export default function ProductDetailsPage({ params }: { params: Promise<{ itemId: string }> }) {
   const { itemId } = use(params);
   const router = useRouter();
 
@@ -110,15 +107,30 @@ export default function ProductDetailsPage({
     }
     // Size / variant / add-ons → cart modifiers (price adds to the base).
     if (size) {
-      result.push({ groupId: "size", optionId: `size:${sizeIndex}`, label: `Size: ${size.name}`, priceDelta: size.price });
+      result.push({
+        groupId: "size",
+        optionId: `size:${sizeIndex}`,
+        label: `Size: ${size.name}`,
+        priceDelta: size.price,
+      });
     }
     if (variant) {
-      result.push({ groupId: "variant", optionId: `variant:${variantIndex}`, label: variant.name, priceDelta: variant.price });
+      result.push({
+        groupId: "variant",
+        optionId: `variant:${variantIndex}`,
+        label: variant.name,
+        priceDelta: variant.price,
+      });
     }
     addOns.forEach((a, i) => {
       const q = addonQty[i] ?? 0;
       if (q > 0) {
-        result.push({ groupId: "addon", optionId: `addon:${i}`, label: q > 1 ? `${a.name} ×${q}` : a.name, priceDelta: a.price * q });
+        result.push({
+          groupId: "addon",
+          optionId: `addon:${i}`,
+          label: q > 1 ? `${a.name} ×${q}` : a.name,
+          priceDelta: a.price * q,
+        });
       }
     });
     return result;
@@ -322,7 +334,9 @@ export default function ProductDetailsPage({
                     >
                       {s.name}
                       {s.price > 0 && (
-                        <span className="ml-1.5 text-muted-foreground">+{formatCurrency(s.price)}</span>
+                        <span className="ml-1.5 text-muted-foreground">
+                          +{formatCurrency(s.price)}
+                        </span>
                       )}
                     </button>
                   ))}
@@ -349,7 +363,9 @@ export default function ProductDetailsPage({
                     >
                       {v.name}
                       {v.price > 0 && (
-                        <span className="ml-1.5 text-muted-foreground">+{formatCurrency(v.price)}</span>
+                        <span className="ml-1.5 text-muted-foreground">
+                          +{formatCurrency(v.price)}
+                        </span>
                       )}
                     </button>
                   ))}
@@ -371,7 +387,9 @@ export default function ProductDetailsPage({
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-ink">{a.name}</p>
-                          <p className="text-xs text-muted-foreground">+{formatCurrency(a.price)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            +{formatCurrency(a.price)}
+                          </p>
                         </div>
                         <div className="flex items-center gap-1 rounded-full border border-border p-1">
                           <button
@@ -427,7 +445,9 @@ export default function ProductDetailsPage({
                             onClick={() => toggleOption(group.id, opt.id, group.multiple)}
                             className={cn(
                               "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors",
-                              checked ? "border-brand bg-brand-tint" : "border-border hover:bg-secondary",
+                              checked
+                                ? "border-brand bg-brand-tint"
+                                : "border-border hover:bg-secondary",
                             )}
                           >
                             <span className="flex items-center gap-3">
@@ -445,7 +465,9 @@ export default function ProductDetailsPage({
                               {opt.label}
                             </span>
                             <span className="text-muted-foreground">
-                              {opt.priceDelta > 0 ? `+${formatCurrency(opt.priceDelta)}` : "Included"}
+                              {opt.priceDelta > 0
+                                ? `+${formatCurrency(opt.priceDelta)}`
+                                : "Included"}
                             </span>
                           </button>
                         );
@@ -477,6 +499,11 @@ export default function ProductDetailsPage({
               {addButton}
             </div>
           </div>
+        </div>
+
+        {/* Reviews (approved only) + write-a-review */}
+        <div className="mt-10 max-w-3xl">
+          <ItemReviews menuItemId={item.id} />
         </div>
 
         {/* Related */}

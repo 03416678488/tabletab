@@ -1,4 +1,4 @@
-import { type LucideIcon, TrendingDown, TrendingUp } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sparkline } from "@/features/admin/components/sparkline";
 
@@ -7,12 +7,13 @@ interface KpiCardProps {
   value: string;
   sublabel?: string;
   trend?: number;
-  icon: LucideIcon;
   accent?: "brand" | "accent" | "neutral";
   /** Optional mini trend series rendered under the value. */
   spark?: number[];
   /** When true, a negative trend is good (e.g. response time going down). */
   lowerIsBetter?: boolean;
+  /** Denser padding + smaller value for dashboard grids. */
+  compact?: boolean;
 }
 
 const SPARK_COLOR: Record<NonNullable<KpiCardProps["accent"]>, string> = {
@@ -26,10 +27,10 @@ export function KpiCard({
   value,
   sublabel,
   trend,
-  icon: Icon,
   accent = "brand",
   spark,
   lowerIsBetter = false,
+  compact = false,
 }: KpiCardProps) {
   const numericUp = trend !== undefined && trend >= 0;
   // "Good" = up, unless lowerIsBetter flips it (a drop in response time is good).
@@ -40,37 +41,32 @@ export function KpiCard({
     accent: "from-amber-100/80 to-accent-tint border-amber-200/60",
     neutral: "from-slate-100 to-subtle border-border",
   };
-  const iconStyles = {
-    brand: "bg-brand text-white",
-    accent: "bg-accent text-accent-foreground",
-    neutral: "bg-slate-700 text-white",
-  };
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-[var(--shadow-card)]",
+        "relative overflow-hidden rounded-2xl border bg-gradient-to-br shadow-[var(--shadow-card)]",
+        compact ? "p-4" : "p-5",
         accentStyles[accent],
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <p className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">{value}</p>
-          {sublabel && <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>}
-        </div>
-        <span
+      <div className="min-w-0">
+        <p className={cn("font-medium text-muted-foreground", compact ? "text-xs" : "text-sm")}>
+          {label}
+        </p>
+        <p
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-xl shadow-sm",
-            iconStyles[accent],
+            "mt-1 font-display font-bold tracking-tight text-ink",
+            compact ? "text-2xl" : "text-3xl",
           )}
         >
-          <Icon className="size-5" aria-hidden />
-        </span>
+          {value}
+        </p>
+        {sublabel && <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>}
       </div>
 
       {spark && spark.length > 1 && (
-        <div className="mt-3 -mx-1">
+        <div className={cn("-mx-1", compact ? "mt-2" : "mt-3")}>
           <Sparkline data={spark} color={SPARK_COLOR[accent]} />
         </div>
       )}
@@ -78,7 +74,8 @@ export function KpiCard({
       {trend !== undefined && (
         <p
           className={cn(
-            "mt-2 flex items-center gap-1 text-xs font-medium",
+            "flex items-center gap-1 text-xs font-medium",
+            compact ? "mt-1.5" : "mt-2",
             good ? "text-emerald-700" : "text-red-600",
           )}
         >

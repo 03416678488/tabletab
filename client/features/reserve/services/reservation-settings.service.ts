@@ -14,6 +14,7 @@ interface ApiBranchReservation {
   reservationNoShowGraceMins?: number;
   reservationBookingWindowDays?: number;
   reservationCutoffMins?: number;
+  reservationDepositPerGuest?: number;
 }
 
 export function toReservationSettings(b: ApiBranchReservation): BranchReservationSettings {
@@ -25,6 +26,7 @@ export function toReservationSettings(b: ApiBranchReservation): BranchReservatio
     noShowGraceMins: b.reservationNoShowGraceMins ?? 15,
     bookingWindowDays: b.reservationBookingWindowDays ?? 14,
     cutoffMins: b.reservationCutoffMins ?? 60,
+    depositPerGuest: b.reservationDepositPerGuest ?? 0,
   };
 }
 
@@ -43,12 +45,16 @@ export async function saveReservationSettings(
   const body: Record<string, unknown> = {};
   if (patch.enabled !== undefined) body.reservationsEnabled = patch.enabled;
   if (patch.turnTimeMins !== undefined) body.reservationTurnMins = patch.turnTimeMins;
-  if (patch.reminderLeadMins !== undefined) body.reservationReminderLeadMins = patch.reminderLeadMins;
+  if (patch.reminderLeadMins !== undefined)
+    body.reservationReminderLeadMins = patch.reminderLeadMins;
   if (patch.noShowGraceMins !== undefined) body.reservationNoShowGraceMins = patch.noShowGraceMins;
   if (patch.bookingWindowDays !== undefined) {
     body.reservationBookingWindowDays = patch.bookingWindowDays;
   }
   if (patch.cutoffMins !== undefined) body.reservationCutoffMins = patch.cutoffMins;
+  if (patch.depositPerGuest !== undefined) {
+    body.reservationDepositPerGuest = patch.depositPerGuest;
+  }
 
   const res = await httpClient.put<ApiBranchReservation>(`/branches/${branchId}`, body, {
     auth: true,

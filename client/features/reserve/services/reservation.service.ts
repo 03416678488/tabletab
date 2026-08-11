@@ -19,6 +19,9 @@ interface ApiReservation {
   confirmedAt: string | null;
   seatedAt: string | null;
   completedAt: string | null;
+  depositAmount?: number;
+  depositMethod?: string | null;
+  depositCollectedAt?: string | null;
   branch?: { name?: string } | null;
   table?: { name?: string } | null;
 }
@@ -48,6 +51,9 @@ function toReservation(r: ApiReservation): StorefrontReservation {
     confirmedAt: r.confirmedAt ?? undefined,
     seatedAt: r.seatedAt ?? undefined,
     completedAt: r.completedAt ?? undefined,
+    depositAmount: r.depositAmount ?? 0,
+    depositMethod: (r.depositMethod as Reservation["depositMethod"]) ?? undefined,
+    depositCollectedAt: r.depositCollectedAt ?? undefined,
     branchName: r.branch?.name,
     tableName: r.table?.name,
   };
@@ -93,11 +99,23 @@ export async function listReservations(branchId?: string): Promise<StorefrontRes
   return items.map(toReservation);
 }
 
-/** Staff — move a reservation through its lifecycle. */
+/** A booking deposit collected by staff (e.g. when confirming). */
+export interface ReservationDepositInput {
+  depositAmount: number;
+  depositMethod: "cash" | "card" | "mfs" | "other";
+}
+
+/** Staff — move a reservation through its lifecycle, optionally recording a deposit. */
 export async function setReservationStatus(
   id: string,
   status: ReservationStatus,
+  deposit?: ReservationDepositInput,
 ): Promise<StorefrontReservation> {
-  const res = await httpClient.put<ApiReservation>(`/reservations/${id}`, { status }, { auth: true });
+  const body: Record<string, unknown> = { status };
+  if (deposit && deposit.depositAmount > 0) {
+    body.depositAmount = deposit.depositAmount;
+    body.depositMethod = deposit.depositMethod;
+  }
+  const res = await httpClient.put<ApiReservation>(`/reservations/${id}`, body, { auth: true });
   return toReservation(res.data);
 }

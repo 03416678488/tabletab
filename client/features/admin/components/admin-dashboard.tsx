@@ -3,18 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
+  CalendarCheck,
   CalendarDays,
-  Clock,
   CreditCard,
-  DollarSign,
   Flame,
   Repeat,
-  ShoppingBag,
-  Sparkles,
+  PartyPopper,
   Target,
-  TrendingUp,
+  Wallet,
   UserPlus,
-  UserX,
   Users,
 } from "lucide-react";
 import { KpiCard } from "@/features/admin/components/kpi-card";
@@ -44,6 +41,7 @@ import type { OwnerAnalytics, ReservationTask } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
 import { useActiveBranch, isAllBranches } from "@/features/branch/hooks/use-active-branch";
+import { useSession } from "@/hooks/use-session";
 
 /** Series granularity label from the range span (matches the API's auto-bucketing). */
 function granularityLabel(range: { from: string; to: string }): string {
@@ -54,6 +52,8 @@ function granularityLabel(range: { from: string; to: string }): string {
 export function AdminDashboard() {
   const { get } = useSettings();
   const brandName = get("company", "name") || "Your restaurant";
+  const user = useSession((s) => s.user);
+  const greetName = user?.name?.trim().split(/\s+/)[0] || (user ? ROLE_LABELS[user.role] : "");
   // Scope KPIs to the topbar branch selection ("All branches" → undefined = all).
   const activeBranchId = useActiveBranch((s) => s.activeBranchId);
   const branchId = activeBranchId && !isAllBranches(activeBranchId) ? activeBranchId : undefined;
@@ -162,93 +162,104 @@ export function AdminDashboard() {
   }
 
   const { kpis } = data;
+  const rangeRevenue = data.revenueSeries.reduce((s, p) => s + p.revenue, 0);
+  const rangeOrders = data.revenueSeries.reduce((s, p) => s + p.orders, 0);
+  const rangeAov = rangeOrders ? rangeRevenue / rangeOrders : 0;
 
   return (
-    <div className="space-y-8">
-      {/* Hero header */}
-      <div className="relative overflow-hidden rounded-2xl border border-brand/15 bg-gradient-to-br from-brand-deep via-brand to-brand-hover px-6 py-8 text-white shadow-[var(--shadow-elevated)] sm:px-10 sm:py-10">
-        <div className="absolute -right-16 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-20 left-1/3 size-48 rounded-full bg-accent/20 blur-3xl" />
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <StatusPill tone="neutral" className="mb-3 border-white/20 bg-white/10 text-white">
-              <Sparkles className="size-3" />
-              {brandName} analytics
-            </StatusPill>
-            <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              Performance at a glance
-            </h1>
-            <p className="mt-2 max-w-lg text-sm text-teal-100/90">
-              Revenue, operations, and customer metrics — aggregated live from your orders.
-            </p>
-          </div>
-          <DateRangeFilter value={range} onChange={setRange} />
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Welcome back{greetName ? `, ${greetName}` : ""} — {brandName} at a glance.
+          </p>
         </div>
+        <DateRangeFilter value={range} onChange={setRange} />
       </div>
 
-      {/* KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* KPI row (compact) */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
+          compact
           label="Today's revenue"
           value={formatCurrency(kpis.revenueToday)}
           trend={kpis.revenueTrendPct}
           spark={kpis.revenueSpark}
-          icon={DollarSign}
           accent="brand"
         />
         <KpiCard
+          compact
           label="Orders today"
           value={String(kpis.ordersToday)}
           trend={kpis.ordersTrendPct}
           spark={kpis.ordersSpark}
-          icon={ShoppingBag}
           accent="accent"
         />
         <KpiCard
+          compact
           label="Avg order value"
           value={formatCurrency(kpis.avgOrderValue)}
           trend={kpis.avgOrderTrendPct}
           spark={kpis.aovSpark}
-          icon={TrendingUp}
           accent="neutral"
         />
         <KpiCard
+          compact
           label="Avg kitchen response"
           value={`${kpis.avgKitchenResponseMins} min`}
           trend={kpis.kitchenTrendPct}
           spark={kpis.kitchenSpark}
           lowerIsBetter
-          icon={Clock}
           accent="brand"
         />
       </div>
 
-      {/* Reservations overview */}
-      {resStats && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <KpiCard
-            label="Today's covers"
-            value={String(resStats.covers)}
-            sublabel="Expected guests from reservations"
-            icon={Users}
-            accent="brand"
-          />
-          <KpiCard
-            label="Reservations today"
-            value={String(resStats.count)}
-            icon={CalendarDays}
-            accent="accent"
-          />
-          <KpiCard
-            label="No-shows today"
-            value={String(resStats.noShows)}
-            icon={UserX}
-            accent={resStats.noShows > 0 ? "neutral" : "brand"}
-          />
-        </div>
-      )}
+      {/* Sales overview (range totals + chart) + revenue target */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-base">Sales overview</CardTitle>
+            <p className="text-sm text-muted-foreground">{range.label} · revenue vs orders</p>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4 grid grid-cols-3 overflow-hidden rounded-xl border border-border bg-subtle/40">
+              <div className="px-4 py-3">
+                <p className="text-xs text-muted-foreground">Revenue</p>
+                <p className="mt-0.5 font-display text-xl font-bold text-ink">
+                  {formatCurrency(rangeRevenue)}
+                </p>
+              </div>
+              <div className="border-l border-border px-4 py-3">
+                <p className="text-xs text-muted-foreground">Orders</p>
+                <p className="mt-0.5 font-display text-xl font-bold text-ink">
+                  {rangeOrders.toLocaleString()}
+                </p>
+              </div>
+              <div className="border-l border-border px-4 py-3">
+                <p className="text-xs text-muted-foreground">Avg order</p>
+                <p className="mt-0.5 font-display text-xl font-bold text-ink">
+                  {formatCurrency(rangeAov)}
+                </p>
+              </div>
+            </div>
+            <RevenueOrdersChart data={data.revenueSeries} />
+          </CardContent>
+        </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <Target className="size-5 text-brand" />
+            <CardTitle className="font-display text-base">Revenue target</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TargetGauge target={data.target} periodLabel={granularityLabel(range)} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-display text-base">
@@ -319,28 +330,58 @@ export function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Revenue vs orders + target gauge */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-display">Revenue &amp; orders</CardTitle>
-            <p className="text-sm text-muted-foreground">{range.label} · revenue vs order volume</p>
-          </CardHeader>
-          <CardContent>
-            <RevenueOrdersChart data={data.revenueSeries} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-2">
-            <Target className="size-5 text-brand" />
-            <CardTitle className="font-display text-base">Revenue target</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TargetGauge target={data.target} periodLabel={granularityLabel(range)} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Bookings snapshot — today's reservations + booking earnings for range */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="font-display text-base">Bookings &amp; earnings</CardTitle>
+          <span className="text-xs text-muted-foreground">{range.label}</span>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          {resStats && (
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Covers today", value: resStats.covers },
+                { label: "Reservations", value: resStats.count },
+                { label: "No-shows", value: resStats.noShows },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-xl border border-border/60 bg-subtle/40 px-3 py-2.5 text-center"
+                >
+                  <p className="font-display text-2xl font-bold text-ink">{s.value}</p>
+                  <p className="text-[11px] text-muted-foreground">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CalendarCheck className="size-4 text-brand" /> Reservation deposits
+              </span>
+              <span className="font-semibold text-ink">
+                {formatCurrency(data.ancillaryEarnings.reservationDeposits)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <PartyPopper className="size-4 text-brand" /> Event payments
+              </span>
+              <span className="font-semibold text-ink">
+                {formatCurrency(data.ancillaryEarnings.eventPayments)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-brand-tint/50 px-3 py-2">
+              <span className="flex items-center gap-2 text-sm font-medium text-brand-deep">
+                <Wallet className="size-4" /> Booking earnings
+              </span>
+              <span className="font-display font-bold text-brand-deep">
+                {formatCurrency(data.ancillaryEarnings.total)}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Peak hours heatmap */}
       <Card>
@@ -357,7 +398,7 @@ export function AdminDashboard() {
       </Card>
 
       {/* Category mix · payment & fulfillment · customers */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="font-display text-base">Sales by category</CardTitle>
@@ -457,7 +498,7 @@ export function AdminDashboard() {
       </Card>
 
       {/* Best sellers + staff */}
-      <div className={cn("grid gap-6", data.staffPerformance.length > 0 && "lg:grid-cols-2")}>
+      <div className={cn("grid gap-4", data.staffPerformance.length > 0 && "lg:grid-cols-2")}>
         <Card>
           <CardHeader>
             <CardTitle className="font-display">Best-selling items</CardTitle>

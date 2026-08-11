@@ -5,14 +5,10 @@ import { Minus, Plus, UtensilsCrossed } from "lucide-react";
 
 import { AppImage } from "@/components/ui/app-image";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { StatusPill } from "@/components/ui/status-pill";
 import { ShareButton } from "@/features/storefront/components/share-button";
+import { ItemReviews } from "@/features/storefront/components/item-reviews";
 import { useCart } from "@/hooks/use-cart";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { toast } from "@/hooks/use-toast";
@@ -99,15 +95,30 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
       }
     }
     if (size) {
-      result.push({ groupId: "size", optionId: `size:${sizeIndex}`, label: `Size: ${size.name}`, priceDelta: size.price });
+      result.push({
+        groupId: "size",
+        optionId: `size:${sizeIndex}`,
+        label: `Size: ${size.name}`,
+        priceDelta: size.price,
+      });
     }
     if (variant) {
-      result.push({ groupId: "variant", optionId: `variant:${variantIndex}`, label: variant.name, priceDelta: variant.price });
+      result.push({
+        groupId: "variant",
+        optionId: `variant:${variantIndex}`,
+        label: variant.name,
+        priceDelta: variant.price,
+      });
     }
     addOns.forEach((a, i) => {
       const q = addonQty[i] ?? 0;
       if (q > 0) {
-        result.push({ groupId: "addon", optionId: `addon:${i}`, label: q > 1 ? `${a.name} ×${q}` : a.name, priceDelta: a.price * q });
+        result.push({
+          groupId: "addon",
+          optionId: `addon:${i}`,
+          label: q > 1 ? `${a.name} ×${q}` : a.name,
+          priceDelta: a.price * q,
+        });
       }
     });
     return result;
@@ -182,7 +193,9 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
             </div>
           )}
           <div className="flex items-start justify-between gap-3">
-            <DialogTitle className="font-display text-xl font-bold text-ink">{item.name}</DialogTitle>
+            <DialogTitle className="font-display text-xl font-bold text-ink">
+              {item.name}
+            </DialogTitle>
             <span className="shrink-0 font-display text-lg font-bold text-ink">
               {formatCurrency(item.price)}
             </span>
@@ -248,7 +261,9 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
                     <Stepper
                       value={q}
                       min={0}
-                      onDec={() => setAddonQty((p) => ({ ...p, [i]: Math.max(0, (p[i] ?? 0) - 1) }))}
+                      onDec={() =>
+                        setAddonQty((p) => ({ ...p, [i]: Math.max(0, (p[i] ?? 0) - 1) }))
+                      }
                       onInc={() => setAddonQty((p) => ({ ...p, [i]: (p[i] ?? 0) + 1 }))}
                       compact
                     />
@@ -286,7 +301,9 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
                         className={cn(
                           "flex size-5 items-center justify-center border-2 transition-colors",
                           group.multiple ? "rounded-md" : "rounded-full",
-                          checked ? "border-brand bg-brand text-primary-foreground" : "border-border",
+                          checked
+                            ? "border-brand bg-brand text-primary-foreground"
+                            : "border-border",
                         )}
                       >
                         {checked && <span className="size-2 rounded-full bg-current" />}
@@ -317,6 +334,9 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
             className="mt-2 w-full resize-none rounded-xl border border-input bg-surface px-3.5 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/40"
           />
         </div>
+
+        {/* Reviews (approved only) + write-a-review */}
+        <ItemReviews menuItemId={item.id} />
       </div>
 
       {/* Sticky footer — quantity + add */}
@@ -409,7 +429,9 @@ function Stepper({
       >
         <Minus className={compact ? "size-3.5" : "size-4"} />
       </button>
-      <span className={cn("text-center font-semibold", compact ? "min-w-[2ch] text-sm" : "min-w-[2ch]")}>
+      <span
+        className={cn("text-center font-semibold", compact ? "min-w-[2ch] text-sm" : "min-w-[2ch]")}
+      >
         {value}
       </span>
       <button

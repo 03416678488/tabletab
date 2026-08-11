@@ -21,6 +21,10 @@ export interface SalesReport {
     taxTotal: number;
     incomeTotal: number;
     expenseTotal: number;
+    reservationTotal: number;
+    reservationCount: number;
+    eventTotal: number;
+    eventCount: number;
     netProfit: number;
   };
   byType: { type: string; count: number; total: number }[];
@@ -43,7 +47,9 @@ export class ReportService {
   ) {}
 
   async getSalesReport(fromStr?: string, toStr?: string): Promise<SalesReport> {
-    const from = fromStr ? new Date(fromStr) : new Date(Date.now() - 30 * 864e5);
+    const from = fromStr
+      ? new Date(fromStr)
+      : new Date(Date.now() - 30 * 864e5);
     const to = toStr ? new Date(toStr) : new Date();
 
     const orders = await this._orderRepo.find({
@@ -84,17 +90,31 @@ export class ReportService {
       }
     }
 
-    // Payment-method breakdown from sale transactions in range.
-    const sales = await this._txnRepo.find({
-      where: { type: 'sale', createdAt: Between(from, to) },
-    });
+    // Payment-method breakdown from earning transactions in range — order sales
+    // plus reservation deposits and event payments (all money taken in).
+    const [sales, deposits, eventPayments] = await Promise.all([
+      this._txnRepo.find({
+        where: { type: 'sale', createdAt: Between(from, to) },
+      }),
+      this._txnRepo.find({
+        where: { type: 'reservation_deposit', createdAt: Between(from, to) },
+      }),
+      this._txnRepo.find({
+        where: { type: 'event_payment', createdAt: Between(from, to) },
+      }),
+    ]);
     const byMethod = new Map<string, { count: number; total: number }>();
-    for (const s of sales) {
+    for (const s of [...sales, ...deposits, ...eventPayments]) {
       const m = byMethod.get(s.method) ?? { count: 0, total: 0 };
       m.count += 1;
       m.total += s.amount;
       byMethod.set(s.method, m);
     }
+
+    const reservationTotal = deposits.reduce((sum, d) => sum + d.amount, 0);
+    const reservationCount = deposits.length;
+    const eventTotal = eventPayments.reduce((sum, e) => sum + e.amount, 0);
+    const eventCount = eventPayments.length;
 
     // Income / expense recorded in range (all payment types, not just cash).
     const [incomes, expenses] = await Promise.all([
@@ -103,7 +123,8 @@ export class ReportService {
     ]);
     const incomeTotal = incomes.reduce((s, i) => s + Number(i.amount), 0);
     const expenseTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
-    const netProfit = salesTotal + incomeTotal - expenseTotal;
+    const netProfit =
+      salesTotal + incomeTotal + reservationTotal + eventTotal - expenseTotal;
 
     const ordersCount = orders.length;
     return {
@@ -118,6 +139,10 @@ export class ReportService {
         taxTotal: round2(taxTotal),
         incomeTotal: round2(incomeTotal),
         expenseTotal: round2(expenseTotal),
+        reservationTotal: round2(reservationTotal),
+        reservationCount,
+        eventTotal: round2(eventTotal),
+        eventCount,
         netProfit: round2(netProfit),
       },
       byType: [...byType.entries()].map(([type, v]) => ({

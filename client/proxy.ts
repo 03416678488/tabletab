@@ -3,11 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { AUTH_ROUTES } from "@/features/auth/constants/auth.constants";
 import { isStaffRole, mapApiRolesToStaffRole } from "@/lib/roles";
-import {
-  canAccessSlug,
-  homePathForRole,
-  resolveAllowedPath,
-} from "@/lib/permissions";
+import { canAccessSlug, homePathForRole, resolveAllowedPath } from "@/lib/permissions";
 
 /**
  * Route protection for the staff/admin dashboard + public custom-page routing.
@@ -77,7 +73,12 @@ export default auth((req) => {
     return NextResponse.rewrite(url);
   }
 
-  const isLoggedIn = !!req.auth;
+  // A session whose token refresh has failed (refresh token expired, or the
+  // refresh call itself errored) still carries a `user`, but its backend access
+  // token is dead — every API call 401s. Treat it as logged-out so the user
+  // lands on /login and stays there, instead of bouncing between /login and the
+  // dashboard forever.
+  const isLoggedIn = !!req.auth && !req.auth.error;
 
   // 2) Login page — bounce signed-in users to their dashboard.
   if (nextUrl.pathname === AUTH_ROUTES.login) {

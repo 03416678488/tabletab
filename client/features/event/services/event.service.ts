@@ -43,6 +43,17 @@ export const eventService = {
       .then((res) => res.data);
   },
 
+  /** Staff — record an event payment (advance/package). Posts an earning txn. */
+  recordPayment(
+    id: string,
+    paymentAmount: number,
+    paymentMethod: "cash" | "card" | "mfs" | "other",
+  ) {
+    return httpClient
+      .put<EventBooking>(EVENT_ENDPOINTS.byId(id), { paymentAmount, paymentMethod }, { auth: true })
+      .then((res) => res.data);
+  },
+
   remove(id: string) {
     return httpClient
       .delete<{ message: string }>(EVENT_ENDPOINTS.byId(id), { auth: true })

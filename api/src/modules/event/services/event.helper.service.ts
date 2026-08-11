@@ -65,6 +65,13 @@ export class EventHelperService {
         ? trimSpaces(dto.cancellationReason)
         : null;
     }
+    // A payment being recorded now — stamp amount/method/time. The matching
+    // ledger transaction is posted by the service (this resolver stays pure).
+    if (dto.paymentAmount !== undefined && dto.paymentAmount > 0) {
+      patch.paymentAmount = dto.paymentAmount;
+      patch.paymentMethod = dto.paymentMethod ?? 'cash';
+      patch.paymentCollectedAt = new Date();
+    }
     return patch;
   }
 

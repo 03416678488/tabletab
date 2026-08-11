@@ -34,6 +34,8 @@ const TYPE_META: Record<
   refund: { label: "Refund", tone: "red", sign: "−" },
   cash_in: { label: "Cash In", tone: "blue", sign: "+" },
   cash_out: { label: "Cash Out", tone: "amber", sign: "−" },
+  reservation_deposit: { label: "Reservation Deposit", tone: "green", sign: "+" },
+  event_payment: { label: "Event Payment", tone: "green", sign: "+" },
 };
 const METHOD_LABEL: Record<PaymentMethod, string> = {
   cash: "Cash",
@@ -84,6 +86,8 @@ export function TransactionManager() {
               { value: "refund", label: "Refund" },
               { value: "cash_in", label: "Cash In" },
               { value: "cash_out", label: "Cash Out" },
+              { value: "reservation_deposit", label: "Reservation Deposit" },
+              { value: "event_payment", label: "Event Payment" },
             ]}
           />
           <Dropdown

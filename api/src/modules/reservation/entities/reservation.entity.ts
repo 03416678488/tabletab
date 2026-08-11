@@ -4,12 +4,7 @@ import { Branch } from '@modules/branch/entities/branch.entity';
 import { Table } from '@modules/table/entities/table.entity';
 
 export type ReservationStatus =
-  | 'requested'
-  | 'confirmed'
-  | 'seated'
-  | 'completed'
-  | 'no-show'
-  | 'cancelled';
+  'requested' | 'confirmed' | 'seated' | 'completed' | 'no-show' | 'cancelled';
 
 export type ReservationSource = 'online' | 'phone' | 'walk-in';
 
@@ -71,4 +66,17 @@ export class Reservation extends AbstractEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;
+
+  // ── Booking deposit (earning) ──
+  /** Deposit amount collected to hold the booking (0 = none collected). */
+  @Column({ type: 'double precision', default: 0 })
+  depositAmount: number;
+
+  /** How the deposit was paid: 'cash' | 'card' | 'mfs' | 'other'. */
+  @Column({ type: 'varchar', nullable: true })
+  depositMethod: string | null;
+
+  /** When staff recorded the deposit (posts a `reservation_deposit` txn). */
+  @Column({ type: 'timestamptz', nullable: true })
+  depositCollectedAt: Date | null;
 }

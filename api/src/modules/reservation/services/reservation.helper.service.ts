@@ -4,7 +4,11 @@ import { FindOptionsWhere } from 'typeorm';
 import { trimSpaces } from '@cor/helpers';
 
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
-import { CreateReservationDto, GetReservationQueryDto, UpdateReservationDto } from '../dto';
+import {
+  CreateReservationDto,
+  GetReservationQueryDto,
+  UpdateReservationDto,
+} from '../dto';
 import { toILikeContains } from '@cor/helpers/query.helper';
 
 /** Pure resolver helpers — payload shaping + query building. */
@@ -21,7 +25,9 @@ export class ReservationHelperService {
       guestName: trimSpaces(dto.guestName),
       guestPhone: dto.guestPhone.trim(),
       guestEmail: dto.guestEmail?.trim() || null,
-      specialRequests: dto.specialRequests ? trimSpaces(dto.specialRequests) : null,
+      specialRequests: dto.specialRequests
+        ? trimSpaces(dto.specialRequests)
+        : null,
       status: 'requested',
       source: dto.source ?? 'online',
     };
@@ -32,7 +38,9 @@ export class ReservationHelperService {
     if (dto.tableId !== undefined) patch.tableId = dto.tableId || null;
     if (dto.partySize !== undefined) patch.partySize = dto.partySize;
     if (dto.specialRequests !== undefined) {
-      patch.specialRequests = dto.specialRequests ? trimSpaces(dto.specialRequests) : null;
+      patch.specialRequests = dto.specialRequests
+        ? trimSpaces(dto.specialRequests)
+        : null;
     }
     if (dto.status !== undefined) {
       patch.status = dto.status as ReservationStatus;
@@ -42,15 +50,25 @@ export class ReservationHelperService {
       if (dto.status === 'seated') patch.seatedAt = now;
       if (dto.status === 'completed') patch.completedAt = now;
     }
+    // A deposit being recorded now — stamp the amount/method/time. The matching
+    // ledger transaction is posted by the service (this resolver stays pure).
+    if (dto.depositAmount !== undefined && dto.depositAmount > 0) {
+      patch.depositAmount = dto.depositAmount;
+      patch.depositMethod = dto.depositMethod ?? 'cash';
+      patch.depositCollectedAt = new Date();
+    }
     return patch;
   }
 
-  resolveListFilters(query: GetReservationQueryDto): FindOptionsWhere<Reservation> {
+  resolveListFilters(
+    query: GetReservationQueryDto,
+  ): FindOptionsWhere<Reservation> {
     const where: FindOptionsWhere<Reservation> = {};
     if (query.branchId) where.branchId = query.branchId;
     if (query.date) where.date = query.date;
     if (query.status) where.status = query.status as ReservationStatus;
-    if (query.search) where.guestName = toILikeContains(trimSpaces(query.search));
+    if (query.search)
+      where.guestName = toILikeContains(trimSpaces(query.search));
     return where;
   }
 }

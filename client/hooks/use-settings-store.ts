@@ -2,19 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { branches as initialBranches, TENANT } from "@/lib/mock";
 import { getBranchOnlineConfig } from "@/lib/mock/branch-online";
-import {
-  generateTablesForFloor,
-  generateTablesFromFloorPlans,
-} from "@/lib/table-utils";
+import { generateTablesForFloor, generateTablesFromFloorPlans } from "@/lib/table-utils";
 import { DEFAULT_BRANDING, resolveBranding } from "@/lib/theme";
-import type {
-  Branch,
-  BranchReservationSettings,
-  FloorPlanInput,
-  Table,
-  TenantBranding,
-  TenantSettings,
-} from "@/lib/types";
+import type { Branch, FloorPlanInput, Table, TenantBranding, TenantSettings } from "@/lib/types";
 
 export interface BranchInput {
   name: string;
@@ -34,17 +24,11 @@ export interface BranchInput {
 interface SettingsStore {
   tenant: TenantSettings;
   branches: Branch[];
-  reservationSettings: Record<string, BranchReservationSettings>;
   hydrated: boolean;
   setHydrated: (v: boolean) => void;
   updateTenant: (patch: Partial<TenantSettings>) => void;
   updateBranding: (patch: Partial<TenantBranding>) => void;
   setBranding: (branding: TenantBranding) => void;
-  getReservationSettings: (branchId: string) => BranchReservationSettings;
-  updateReservationSettings: (
-    branchId: string,
-    patch: Partial<Omit<BranchReservationSettings, "branchId">>,
-  ) => void;
   addBranch: (input: BranchInput) => Branch;
   updateBranch: (id: string, input: BranchInput) => void;
   deleteBranch: (id: string) => void;
@@ -62,7 +46,7 @@ function enrichBranch(b: Branch): Branch {
     deliveryFee: b.deliveryFee ?? online.deliveryFee,
     minOrder: b.minOrder ?? 15,
     onlineOrderingEnabled: b.onlineOrderingEnabled ?? online.deliveryAvailable,
-    floors: b.floors ?? [...new Set(b.tables.map((t) => t.floor).filter(Boolean))] as string[],
+    floors: b.floors ?? ([...new Set(b.tables.map((t) => t.floor).filter(Boolean))] as string[]),
   };
 }
 
@@ -85,30 +69,11 @@ function newBranchId() {
   return `br-${Date.now().toString(36)}`;
 }
 
-export function defaultReservationSettings(branchId: string): BranchReservationSettings {
-  return {
-    branchId,
-    enabled: true,
-    turnTimeMins: 90,
-    reminderLeadMins: 30,
-    noShowGraceMins: 15,
-    bookingWindowDays: 14,
-    cutoffMins: 60,
-  };
-}
-
-function seedReservationSettings(branches: Branch[]): Record<string, BranchReservationSettings> {
-  return Object.fromEntries(
-    branches.map((b) => [b.id, defaultReservationSettings(b.id)]),
-  );
-}
-
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set, get) => ({
       tenant: defaultTenant,
       branches: seedBranches,
-      reservationSettings: seedReservationSettings(seedBranches),
       hydrated: false,
       setHydrated: (v) => set({ hydrated: v }),
 
@@ -131,20 +96,6 @@ export const useSettingsStore = create<SettingsStore>()(
           tenant: {
             ...get().tenant,
             branding: resolveBranding(branding),
-          },
-        });
-      },
-
-      getReservationSettings: (branchId) => {
-        return get().reservationSettings[branchId] ?? defaultReservationSettings(branchId);
-      },
-
-      updateReservationSettings: (branchId, patch) => {
-        const current = get().reservationSettings[branchId] ?? defaultReservationSettings(branchId);
-        set({
-          reservationSettings: {
-            ...get().reservationSettings,
-            [branchId]: { ...current, ...patch, branchId },
           },
         });
       },
@@ -173,12 +124,6 @@ export const useSettingsStore = create<SettingsStore>()(
           tables,
         });
         set({ branches: [...get().branches, branch] });
-        set({
-          reservationSettings: {
-            ...get().reservationSettings,
-            [id]: defaultReservationSettings(id),
-          },
-        });
         return branch;
       },
 
@@ -192,7 +137,7 @@ export const useSettingsStore = create<SettingsStore>()(
         }
         const floorSet = new Set([
           ...(existing.floors ?? []),
-          ...tables.map((t) => t.floor).filter(Boolean) as string[],
+          ...(tables.map((t) => t.floor).filter(Boolean) as string[]),
         ]);
         const updated: Branch = enrichBranch({
           ...existing,
@@ -232,9 +177,7 @@ export const useSettingsStore = create<SettingsStore>()(
         const floors = [...new Set([...(branch.floors ?? []), floor])];
         set({
           branches: get().branches.map((b) =>
-            b.id === branchId
-              ? { ...b, floors, tables: [...b.tables, table] }
-              : b,
+            b.id === branchId ? { ...b, floors, tables: [...b.tables, table] } : b,
           ),
         });
         return table;
@@ -243,9 +186,7 @@ export const useSettingsStore = create<SettingsStore>()(
       removeTable: (branchId, tableId) => {
         set({
           branches: get().branches.map((b) =>
-            b.id === branchId
-              ? { ...b, tables: b.tables.filter((t) => t.id !== tableId) }
-              : b,
+            b.id === branchId ? { ...b, tables: b.tables.filter((t) => t.id !== tableId) } : b,
           ),
         });
       },
@@ -260,9 +201,6 @@ export const useSettingsStore = create<SettingsStore>()(
           if (!state.tenant.menuDisplayMode) {
             state.tenant.menuDisplayMode = "simple";
           }
-        }
-        if (state && Object.keys(state.reservationSettings ?? {}).length === 0) {
-          state.reservationSettings = seedReservationSettings(state.branches);
         }
         state?.setHydrated(true);
       },

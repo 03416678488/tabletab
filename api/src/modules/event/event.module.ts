@@ -19,6 +19,7 @@ import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
 import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 import { NotificationModule } from '@modules/notification/notification.module';
+import { TransactionModule } from '@modules/transaction/transaction.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { NotificationModule } from '@modules/notification/notification.module';
     PaginationModule,
     ErrorModule,
     NotificationModule,
+    TransactionModule,
   ],
   controllers: [EventController, EventTypeController],
   providers: [

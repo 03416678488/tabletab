@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Between,
+  FindOptionsWhere,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
@@ -8,7 +14,10 @@ import { RegisterSession } from '@modules/register/entities/register-session.ent
 import { NotificationService } from '@modules/notification/notification.service';
 
 import { Transaction } from './entities/transaction.entity';
-import { CreateTransactionDto, GetTransactionQueryDto } from './dto/transaction.dto';
+import {
+  CreateTransactionDto,
+  GetTransactionQueryDto,
+} from './dto/transaction.dto';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -24,7 +33,10 @@ export class TransactionService {
   ) {}
 
   /** Record a transaction, auto-attaching it to the open register session. */
-  async record(dto: CreateTransactionDto, userId?: string): Promise<Transaction> {
+  async record(
+    dto: CreateTransactionDto,
+    userId?: string,
+  ): Promise<Transaction> {
     const session = await this._sessionRepo.findOne({
       where: { status: 'open' },
       order: { openedAt: 'DESC' },
@@ -35,6 +47,7 @@ export class TransactionService {
         method: dto.method as Transaction['method'],
         amount: round2(dto.amount),
         orderId: dto.orderId ?? null,
+        branchId: dto.branchId ?? null,
         registerSessionId: session?.id ?? null,
         note: dto.note ?? null,
         createdBy: userId ?? null,
@@ -56,7 +69,10 @@ export class TransactionService {
           },
         );
       } catch (err) {
-        console.warn('[notify] refund notification failed', (err as Error).message);
+        console.warn(
+          '[notify] refund notification failed',
+          (err as Error).message,
+        );
       }
     }
 
@@ -67,7 +83,8 @@ export class TransactionService {
     const where: FindOptionsWhere<Transaction> = {};
     if (query.type) where.type = query.type as Transaction['type'];
     if (query.method) where.method = query.method as Transaction['method'];
-    if (query.registerSessionId) where.registerSessionId = query.registerSessionId;
+    if (query.registerSessionId)
+      where.registerSessionId = query.registerSessionId;
 
     if (query.from && query.to) {
       where.createdAt = Between(new Date(query.from), new Date(query.to));
@@ -77,8 +94,15 @@ export class TransactionService {
       where.createdAt = LessThanOrEqual(new Date(query.to));
     }
 
-    return this._pagination.paginationQuery(query, this._repo, where, ['order'], undefined, {
-      createdAt: 'DESC',
-    });
+    return this._pagination.paginationQuery(
+      query,
+      this._repo,
+      where,
+      ['order'],
+      undefined,
+      {
+        createdAt: 'DESC',
+      },
+    );
   }
 }

@@ -1,6 +1,7 @@
 import {
   IsIn,
   IsInt,
+  IsNumber,
   IsNumberString,
   IsOptional,
   IsString,
@@ -10,6 +11,7 @@ import {
 } from 'class-validator';
 
 const STATUSES = ['requested', 'confirmed', 'completed', 'cancelled'];
+const METHODS = ['cash', 'card', 'mfs', 'other'];
 
 export class UpdateEventDto {
   @IsIn(STATUSES)
@@ -56,4 +58,14 @@ export class UpdateEventDto {
   @IsString()
   @IsOptional()
   cancellationReason?: string;
+
+  /** Event payment collected now (e.g. an advance on confirm). Posts a transaction. */
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  paymentAmount?: number;
+
+  @IsIn(METHODS)
+  @IsOptional()
+  paymentMethod?: string;
 }

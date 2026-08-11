@@ -74,4 +74,17 @@ export class Event extends AbstractEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;
+
+  // ── Payment (earning) ──
+  /** Agreed amount collected from the guest (advance/package). 0 = none. */
+  @Column({ type: 'double precision', default: 0 })
+  paymentAmount: number;
+
+  /** How the payment was taken: 'cash' | 'card' | 'mfs' | 'other'. */
+  @Column({ type: 'varchar', nullable: true })
+  paymentMethod: string | null;
+
+  /** When staff recorded the payment (posts an `event_payment` txn). */
+  @Column({ type: 'timestamptz', nullable: true })
+  paymentCollectedAt: Date | null;
 }

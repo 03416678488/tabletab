@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   CalendarDays,
+  DollarSign,
   PartyPopper,
   Plus,
   Search,
@@ -72,6 +73,11 @@ export function EventManager() {
   const [cancelling, setCancelling] = useState<EventBooking | null>(null);
   const [reason, setReason] = useState("");
   const [savingCancel, setSavingCancel] = useState(false);
+  // Record-payment dialog.
+  const [payingFor, setPayingFor] = useState<EventBooking | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState<"cash" | "card" | "mfs" | "other">("cash");
+  const [savingPay, setSavingPay] = useState(false);
 
   const {
     events,
@@ -121,6 +127,29 @@ export function EventManager() {
     if (ok) {
       setCancelling(null);
       setReason("");
+    }
+  };
+
+  const startPayment = (event: EventBooking) => {
+    setPayAmount(event.budget ?? "");
+    setPayMethod("cash");
+    setPayingFor(event);
+  };
+
+  const submitPayment = async () => {
+    if (!payingFor) return;
+    const amount = Number(payAmount) || 0;
+    if (amount <= 0) return;
+    setSavingPay(true);
+    try {
+      await eventService.recordPayment(payingFor.id, amount, payMethod);
+      toast(`Payment recorded — ${formatCurrency(amount)}`, { tone: "success" });
+      setPayingFor(null);
+      refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Failed to record payment", { tone: "error" });
+    } finally {
+      setSavingPay(false);
     }
   };
 
@@ -272,6 +301,12 @@ export function EventManager() {
                   <TableCell className="text-muted-foreground">{event.guestCount}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {event.budget ? formatCurrency(Number(event.budget)) : "—"}
+                    {(event.paymentAmount ?? 0) > 0 && (
+                      <div className="mt-0.5 text-xs font-medium text-emerald-700">
+                        Paid {formatCurrency(event.paymentAmount ?? 0)}
+                        {event.paymentMethod ? ` · ${event.paymentMethod}` : ""}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <StatusPill tone={STATUS_TONE[event.status]}>
@@ -298,6 +333,17 @@ export function EventManager() {
                           label: STATUS_LABEL[s],
                         }))}
                       />
+                      {event.status !== "cancelled" && !event.paymentCollectedAt && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Record payment"
+                          title="Record payment"
+                          onClick={() => startPayment(event)}
+                        >
+                          <DollarSign className="size-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -375,6 +421,63 @@ export function EventManager() {
               onClick={confirmCancel}
             >
               Cancel booking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record event payment */}
+      <Dialog open={!!payingFor} onOpenChange={(o) => !o && setPayingFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record payment</DialogTitle>
+            <DialogDescription>
+              {payingFor
+                ? `Collected against "${payingFor.title}" — posts a transaction and counts in reports.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-end gap-2">
+            <div className="flex-1 space-y-1.5">
+              <Label htmlFor="event-pay-amount">Amount</Label>
+              <Input
+                id="event-pay-amount"
+                type="number"
+                min={0}
+                step="0.01"
+                autoFocus
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="event-pay-method">Method</Label>
+              <select
+                id="event-pay-method"
+                value={payMethod}
+                onChange={(e) => setPayMethod(e.target.value as typeof payMethod)}
+                className="h-10 rounded-xl border border-input bg-white px-3 text-sm text-ink shadow-sm outline-none focus-visible:border-brand"
+              >
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="mfs">MFS</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPayingFor(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!(Number(payAmount) > 0) || savingPay}
+              onClick={submitPayment}
+            >
+              <DollarSign className="size-4" />
+              Record payment
             </Button>
           </DialogFooter>
         </DialogContent>

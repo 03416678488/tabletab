@@ -1,4 +1,5 @@
-export type TransactionType = "sale" | "refund" | "cash_in" | "cash_out";
+export type TransactionType =
+  "sale" | "refund" | "cash_in" | "cash_out" | "reservation_deposit" | "event_payment";
 export type PaymentMethod = "cash" | "card" | "mfs" | "other";
 
 export interface Transaction {

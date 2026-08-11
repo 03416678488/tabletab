@@ -10,6 +10,7 @@ import { TenantRequest } from '@modules/tenancy/tenancy.types';
 import { RealtimeService } from '@modules/realtime/realtime.service';
 import { eventChannel, eventsChannel } from '@modules/realtime/channels';
 import { NotificationService } from '@modules/notification/notification.service';
+import { TransactionService } from '@modules/transaction/transaction.service';
 
 import { Event } from './entities/event.entity';
 import { EventValidatorService } from './services/event-validator.service';
@@ -27,6 +28,7 @@ export class EventService extends AbstractService<Event> {
     private readonly _helper: EventHelperService,
     private readonly _realtime: RealtimeService,
     private readonly _notifications: NotificationService,
+    private readonly _transactions: TransactionService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -98,7 +100,33 @@ export class EventService extends AbstractService<Event> {
   }
 
   async updateEvent(id: string, dto: UpdateEventDto): Promise<Event> {
-    await this._validator.ensureExists(id);
+    const existing = await this._validator.ensureExists(id);
+
+    // An event payment is only recorded once. Post the ledger transaction BEFORE
+    // stamping the event so a booking never shows a payment without a matching
+    // earning; a re-sent payment on an already-paid booking is ignored.
+    const isNewPayment =
+      dto.paymentAmount !== undefined &&
+      dto.paymentAmount > 0 &&
+      !existing.paymentCollectedAt;
+    if (isNewPayment) {
+      const userId = (this._req as unknown as { user?: { id?: string } }).user
+        ?.id;
+      await this._transactions.record(
+        {
+          type: 'event_payment',
+          method: dto.paymentMethod ?? 'cash',
+          amount: dto.paymentAmount as number,
+          branchId: existing.branchId ?? undefined,
+          note: `Event payment — ${existing.title}`,
+        },
+        userId,
+      );
+    } else {
+      dto.paymentAmount = undefined;
+      dto.paymentMethod = undefined;
+    }
+
     await this.repository.update(id, this._helper.resolveUpdatePayload(dto));
     const event = await this.getById(id);
     this.emit(event, 'event.updated');

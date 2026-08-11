@@ -18,6 +18,7 @@ import { OrderModule } from '@modules/order/order.module';
 import { CustomerModule } from '@modules/customer/customer.module';
 import { ReservationModule } from '@modules/reservation/reservation.module';
 import { EventModule } from '@modules/event/event.module';
+import { ReviewModule } from '@modules/review/review.module';
 import { RealtimeModule } from '@modules/realtime/realtime.module';
 import { RolePermissionModule } from '@modules/role-permission/role-permission.module';
 import { SettingModule } from '@modules/setting/setting.module';
@@ -67,6 +68,7 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     CustomerModule,
     ReservationModule,
     EventModule,
+    ReviewModule,
     RealtimeModule,
     RolePermissionModule,
     SettingModule,

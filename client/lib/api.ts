@@ -18,29 +18,15 @@ import {
   serviceRequests,
 } from "@/lib/mock";
 import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
-import {
-  availableTablesForBooking,
-  createPreOrderForReservation,
-  createReservationRecord,
-  dismissReservationTask,
-  getReservation,
-  listReservationTasks,
-  listReservations,
-  patchReservation,
-  reservationStatsForToday,
-  tickReservationTimers,
-} from "@/lib/reservations-logic";
 import { orderItemsSubtotal, isBuffetAvailable } from "@/lib/buffet-utils";
 import { cartTax, cartTotal } from "@/lib/cart-utils";
 import type {
   Address,
   AnalyticsPeriod,
   Branch,
-  BranchReservationSettings,
   BuffetPackage,
   BuffetSelection,
   CreateOrderInput,
-  CreateReservationInput,
   CreateVenueOrderInput,
   CustomerAccount,
   MenuCategory,
@@ -49,8 +35,6 @@ import type {
   OrderItem,
   OrderStatus,
   OwnerAnalytics,
-  Reservation,
-  ReservationTask,
   SalesPoint,
   ServiceRequest,
   ServiceRequestType,
@@ -123,25 +107,12 @@ const DELIVERY_STATUS_FLOW: OrderStatus[] = [
   "completed",
 ];
 
-const PICKUP_STATUS_FLOW: OrderStatus[] = [
-  "placed",
-  "accepted",
-  "preparing",
-  "ready",
-  "completed",
-];
+const PICKUP_STATUS_FLOW: OrderStatus[] = ["placed", "accepted", "preparing", "ready", "completed"];
 
-const VENUE_STATUS_FLOW: OrderStatus[] = [
-  "placed",
-  "accepted",
-  "preparing",
-  "ready",
-  "served",
-];
+const VENUE_STATUS_FLOW: OrderStatus[] = ["placed", "accepted", "preparing", "ready", "served"];
 
 function nextStatus(order: Order): OrderStatus | null {
-  const flow =
-    order.fulfillmentType === "delivery" ? DELIVERY_STATUS_FLOW : PICKUP_STATUS_FLOW;
+  const flow = order.fulfillmentType === "delivery" ? DELIVERY_STATUS_FLOW : PICKUP_STATUS_FLOW;
   const idx = flow.indexOf(order.status);
   if (idx < 0 || idx >= flow.length - 1) return null;
   return flow[idx + 1];
@@ -173,9 +144,7 @@ export const api = {
     return delay<BranchOnlineConfig>(config);
   },
   getTables: (branchId: string) =>
-    delay<Table[]>(
-      getSettingsSnapshot().branches.find((b) => b.id === branchId)?.tables ?? [],
-    ),
+    delay<Table[]>(getSettingsSnapshot().branches.find((b) => b.id === branchId)?.tables ?? []),
   resolveTableToken: (token: string) => {
     for (const b of getSettingsSnapshot().branches) {
       const table = b.tables.find((t) => t.qrToken === token);
@@ -202,14 +171,11 @@ export const api = {
   // Orders
   getOrders: (branchId?: string) => {
     applySlaBreaches();
-    const list = branchId
-      ? mutableOrders.filter((o) => o.branchId === branchId)
-      : mutableOrders;
+    const list = branchId ? mutableOrders.filter((o) => o.branchId === branchId) : mutableOrders;
     return delay<Order[]>(list);
   },
   getKitchenOrders: (branchId: string) => {
     applySlaBreaches();
-    tickReservationTimers();
     const now = Date.now();
     const list = mutableOrders.filter((o) => {
       if (o.branchId !== branchId || !KITCHEN_ACTIVE.includes(o.status)) return false;
@@ -219,7 +185,6 @@ export const api = {
     return delay<Order[]>(list);
   },
   getScheduledKitchenOrders: (branchId: string) => {
-    tickReservationTimers();
     const now = Date.now();
     const list = mutableOrders.filter(
       (o) =>
@@ -287,7 +252,7 @@ export const api = {
     const updated = patchOrder(orderId, {
       status: next,
       acceptedAt: next !== "placed" && !order.acceptedAt ? now : order.acceptedAt,
-      readyAt: next === "ready" || next === "served" ? order.readyAt ?? now : order.readyAt,
+      readyAt: next === "ready" || next === "served" ? (order.readyAt ?? now) : order.readyAt,
       completedAt: next === "served" ? now : order.completedAt,
     });
     return delay<Order | undefined>(updated, 200);
@@ -345,11 +310,10 @@ export const api = {
     const now = new Date().toISOString();
     const updated = patchOrder(orderId, {
       status,
-      acceptedAt:
-        status !== "placed" && !order.acceptedAt ? now : order.acceptedAt,
+      acceptedAt: status !== "placed" && !order.acceptedAt ? now : order.acceptedAt,
       readyAt:
         status === "ready" || status === "served" || status === "out-for-delivery"
-          ? order.readyAt ?? now
+          ? (order.readyAt ?? now)
           : order.readyAt,
       completedAt: status === "completed" ? now : order.completedAt,
       slaBreached: status !== "placed" ? false : order.slaBreached,
@@ -429,7 +393,7 @@ export const api = {
       acceptedAt: next !== "placed" && !order.acceptedAt ? now : order.acceptedAt,
       readyAt:
         next === "ready" || next === "out-for-delivery" || next === "completed"
-          ? order.readyAt ?? now
+          ? (order.readyAt ?? now)
           : order.readyAt,
       completedAt: next === "completed" ? now : order.completedAt,
     };
@@ -495,7 +459,8 @@ export const api = {
   simulateServiceRequest: (branchId: string, type: ServiceRequestType = "waiter") => {
     serviceRequestCounter += 1;
     const branch = getSettingsSnapshot().branches.find((b) => b.id === branchId);
-    const seated = branch?.tables.filter((t) => t.status === "seated" || t.status === "needs-service") ?? [];
+    const seated =
+      branch?.tables.filter((t) => t.status === "seated" || t.status === "needs-service") ?? [];
     const table = seated[serviceRequestCounter % seated.length] ?? branch?.tables[0];
     if (!table) return delay<ServiceRequest | null>(null, 100);
     const req: ServiceRequest = {
@@ -529,12 +494,7 @@ export const api = {
     return delay<CustomerAccount>(mutableCustomer, 400);
   },
 
-  signupCustomer: (data: {
-    name: string;
-    email: string;
-    phone: string;
-    password: string;
-  }) => {
+  signupCustomer: (data: { name: string; email: string; phone: string; password: string }) => {
     mutableCustomer = {
       id: `cu-${Date.now()}`,
       name: data.name.trim(),
@@ -605,10 +565,9 @@ export const api = {
       status,
       managerNote: reason.trim(),
       acceptedAt: status !== "placed" && !order.acceptedAt ? now : order.acceptedAt,
-      readyAt:
-        ["ready", "served", "out-for-delivery", "completed"].includes(status)
-          ? order.readyAt ?? now
-          : order.readyAt,
+      readyAt: ["ready", "served", "out-for-delivery", "completed"].includes(status)
+        ? (order.readyAt ?? now)
+        : order.readyAt,
       slaBreached: false,
     });
     return delay<Order | undefined>(updated, 200);
@@ -628,111 +587,6 @@ export const api = {
   getSalesLast7Days: () => delay<SalesPoint[]>(salesLast7Days),
   getOwnerAnalytics: (period: AnalyticsPeriod = "day") =>
     delay<OwnerAnalytics>(getOwnerAnalytics(period), 400),
-
-  // Reservations
-  getReservationSettings: (branchId: string) =>
-    delay<BranchReservationSettings>(getSettingsSnapshot().getReservationSettings(branchId)),
-  updateReservationSettings: (
-    branchId: string,
-    patch: Partial<Omit<BranchReservationSettings, "branchId">>,
-  ) => {
-    getSettingsSnapshot().updateReservationSettings(branchId, patch);
-    return delay<BranchReservationSettings>(
-      getSettingsSnapshot().getReservationSettings(branchId),
-    );
-  },
-  getReservations: (branchId?: string) => {
-    tickReservationTimers();
-    return delay<Reservation[]>(listReservations(branchId));
-  },
-  getReservation: (id: string) => {
-    tickReservationTimers();
-    return delay<Reservation | undefined>(getReservation(id));
-  },
-  getReservationTasks: (branchId?: string) => {
-    tickReservationTimers();
-    return delay<ReservationTask[]>(listReservationTasks(branchId));
-  },
-  getAvailableReservationTables: (
-    branchId: string,
-    partySize: number,
-    date: string,
-    time: string,
-  ) => {
-    const branch = getSettingsSnapshot().getBranch(branchId);
-    if (!branch) return delay<Table[]>([]);
-    return delay<Table[]>(availableTablesForBooking(branch, partySize, date, time));
-  },
-  createReservation: async (input: CreateReservationInput) => {
-    try {
-      const r = createReservationRecord(input);
-      return delay<Reservation>(r, 500);
-    } catch (e) {
-      throw e;
-    }
-  },
-  confirmReservation: (reservationId: string, staffId: string) => {
-    const r = getReservation(reservationId);
-    if (!r || r.status !== "requested") return delay<Reservation | undefined>(undefined);
-    const now = new Date().toISOString();
-    let updated = patchReservation(reservationId, {
-      status: "confirmed",
-      confirmedAt: now,
-      confirmedBy: staffId,
-    });
-    if (updated?.preOrder?.length || updated?.buffet) {
-      updated = createPreOrderForReservation(updated, (order) => {
-        orderCounter += 1;
-        mutableOrders = [order, ...mutableOrders];
-      });
-    }
-    for (const t of listReservationTasks(r.branchId).filter((x) => x.reservationId === r.id)) {
-      dismissReservationTask(t.id);
-    }
-    return delay<Reservation | undefined>(updated, 200);
-  },
-  seatReservation: (reservationId: string) => {
-    const r = getReservation(reservationId);
-    if (!r || r.status !== "confirmed") return delay<Reservation | undefined>(undefined);
-    const updated = patchReservation(reservationId, {
-      status: "seated",
-      seatedAt: new Date().toISOString(),
-    });
-    return delay<Reservation | undefined>(updated, 150);
-  },
-  completeReservation: (reservationId: string) => {
-    const r = getReservation(reservationId);
-    if (!r || !["seated", "confirmed"].includes(r.status)) {
-      return delay<Reservation | undefined>(undefined);
-    }
-    const updated = patchReservation(reservationId, {
-      status: "completed",
-      completedAt: new Date().toISOString(),
-    });
-    return delay<Reservation | undefined>(updated, 150);
-  },
-  markReservationNoShow: (reservationId: string) => {
-    const updated = patchReservation(reservationId, {
-      status: "no-show",
-      completedAt: new Date().toISOString(),
-    });
-    return delay<Reservation | undefined>(updated, 150);
-  },
-  cancelReservation: (reservationId: string) => {
-    const updated = patchReservation(reservationId, {
-      status: "cancelled",
-      completedAt: new Date().toISOString(),
-    });
-    return delay<Reservation | undefined>(updated, 150);
-  },
-  dismissReservationTask: (taskId: string) =>
-    delay<ReservationTask | undefined>(dismissReservationTask(taskId), 100),
-  runReservationTimers: () => {
-    tickReservationTimers();
-    return delay<void>(undefined as void, 0);
-  },
-  getReservationStats: (branchId?: string) =>
-    delay(reservationStatsForToday(branchId)),
 
   // Buffet packages
   getBuffetPackages: (branchId?: string, at?: string) => {

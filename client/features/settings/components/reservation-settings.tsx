@@ -175,6 +175,20 @@ export function ReservationSettings() {
                   onChange={(e) => patch({ cutoffMins: parseInt(e.target.value, 10) || 60 })}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="deposit-per-guest">Booking deposit / guest</Label>
+                <Input
+                  id="deposit-per-guest"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={settings.depositPerGuest}
+                  onChange={(e) => patch({ depositPerGuest: parseFloat(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  0 = no deposit. Staff collect deposit × party size on confirm.
+                </p>
+              </div>
             </div>
 
             <Button onClick={handleSave} disabled={saving}>

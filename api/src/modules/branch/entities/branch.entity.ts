@@ -74,6 +74,10 @@ export class Branch extends AbstractEntity {
   @Column({ type: 'int', default: 60 })
   reservationCutoffMins: number;
 
+  /** Booking deposit charged per guest to hold a reservation (0 = none). */
+  @Column({ type: 'double precision', default: 0 })
+  reservationDepositPerGuest: number;
+
   /**
    * Dine-in (QR) payment timing for this branch:
    *  - `pay_after`  → order goes to the kitchen immediately, settled at the

@@ -9,7 +9,14 @@ import {
 } from 'class-validator';
 import { PaginationQueryDto } from '@modules/common/pagination/dto/pagination-query.dto';
 
-const TYPES = ['sale', 'refund', 'cash_in', 'cash_out'];
+const TYPES = [
+  'sale',
+  'refund',
+  'cash_in',
+  'cash_out',
+  'reservation_deposit',
+  'event_payment',
+];
 const METHODS = ['cash', 'card', 'mfs', 'other'];
 
 export class CreateTransactionDto {
@@ -26,6 +33,11 @@ export class CreateTransactionDto {
   @IsUUID()
   @IsOptional()
   orderId?: string;
+
+  /** Owning branch for earnings with no order link (deposits, event payments). */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 
   @IsString()
   @IsOptional()

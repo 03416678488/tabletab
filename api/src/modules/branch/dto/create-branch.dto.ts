@@ -107,6 +107,11 @@ export class CreateBranchDto {
   @IsOptional()
   reservationCutoffMins?: number;
 
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  reservationDepositPerGuest?: number;
+
   /** Dine-in (QR) payment timing: 'pay_after' (default) or 'pay_first' (prepay). */
   @IsIn(['pay_first', 'pay_after'])
   @IsOptional()

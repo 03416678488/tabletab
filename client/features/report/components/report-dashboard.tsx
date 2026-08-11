@@ -5,6 +5,8 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   BarChart3,
+  CalendarCheck,
+  PartyPopper,
   Receipt,
   ShoppingBag,
   TrendingUp,
@@ -55,16 +57,28 @@ export function ReportDashboard() {
           <h1 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight text-ink">
             <BarChart3 className="size-5 text-brand" /> Reports
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Sales performance over a date range.</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Sales performance over a date range.
+          </p>
         </div>
         <div className="flex items-end gap-2">
           <div className="space-y-1">
             <Label className="text-xs">From</Label>
-            <Input type="date" value={fromDay} onChange={(e) => setFromDay(e.target.value)} className="h-9" />
+            <Input
+              type="date"
+              value={fromDay}
+              onChange={(e) => setFromDay(e.target.value)}
+              className="h-9"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">To</Label>
-            <Input type="date" value={toDay} onChange={(e) => setToDay(e.target.value)} className="h-9" />
+            <Input
+              type="date"
+              value={toDay}
+              onChange={(e) => setToDay(e.target.value)}
+              className="h-9"
+            />
           </div>
         </div>
       </div>
@@ -77,13 +91,23 @@ export function ReportDashboard() {
         </div>
       ) : error || !report ? (
         <Card className="mt-5 p-0">
-          <EmptyState className="py-12" icon={BarChart3} title="Couldn't load report" description={error ?? ""} />
+          <EmptyState
+            className="py-12"
+            icon={BarChart3}
+            title="Couldn't load report"
+            description={error ?? ""}
+          />
         </Card>
       ) : (
         <>
           {/* KPI cards */}
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi icon={TrendingUp} label="Sales" value={formatMoney(report.totals.salesTotal)} tone="brand" />
+            <Kpi
+              icon={TrendingUp}
+              label="Sales"
+              value={formatMoney(report.totals.salesTotal)}
+              tone="brand"
+            />
             <Kpi icon={ShoppingBag} label="Orders" value={String(report.totals.ordersCount)} />
             <Kpi icon={Receipt} label="Avg. Order" value={formatMoney(report.totals.avgOrder)} />
             <Kpi
@@ -93,12 +117,28 @@ export function ReportDashboard() {
             />
           </div>
 
-          {/* Income / expense / profit */}
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {/* Income / reservation deposits / event payments / expense / profit */}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <Kpi
               icon={ArrowDownCircle}
               label="Income"
               value={formatMoney(report.totals.incomeTotal)}
+              tone="up"
+            />
+            <Kpi
+              icon={CalendarCheck}
+              label="Reservation deposits"
+              value={formatMoney(report.totals.reservationTotal)}
+              sub={`${report.totals.reservationCount} booking${
+                report.totals.reservationCount === 1 ? "" : "s"
+              }`}
+              tone="up"
+            />
+            <Kpi
+              icon={PartyPopper}
+              label="Event payments"
+              value={formatMoney(report.totals.eventTotal)}
+              sub={`${report.totals.eventCount} event${report.totals.eventCount === 1 ? "" : "s"}`}
               tone="up"
             />
             <Kpi
@@ -178,11 +218,13 @@ function Kpi({
   icon: Icon,
   label,
   value,
+  sub,
   tone,
 }: {
   icon: typeof TrendingUp;
   label: string;
   value: string;
+  sub?: string;
   tone?: "brand" | "up" | "down";
 }) {
   const iconTone =
@@ -200,6 +242,7 @@ function Kpi({
         {label}
       </div>
       <p className="mt-1.5 font-display text-2xl font-bold text-ink">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
     </Card>
   );
 }

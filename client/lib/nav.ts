@@ -227,6 +227,7 @@ export const navItems: NavItem[] = [
       { label: "Import / Export", slug: "menu-io", roles: MANAGERS, module: "menu" },
       { label: "Category", slug: "categories", roles: MANAGERS, module: "categories" },
       { label: "Food Types", slug: "food-types", roles: MANAGERS, module: "menu" },
+      { label: "Reviews", slug: "reviews", roles: MANAGERS, module: "menu" },
     ],
   },
   {

@@ -33,6 +33,10 @@ export interface EventBooking {
   createdAt: string;
   confirmedAt: string | null;
   completedAt: string | null;
+  /** Agreed payment collected from the guest (0 = none). */
+  paymentAmount?: number;
+  paymentMethod?: "cash" | "card" | "mfs" | "other" | null;
+  paymentCollectedAt?: string | null;
   branch?: { id: string; name: string } | null;
   eventType?: { id: string; name: string } | null;
 }

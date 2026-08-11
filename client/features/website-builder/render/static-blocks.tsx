@@ -26,6 +26,9 @@ export function HeroRender({ config }: { config: HeroConfig }) {
             alt=""
             width={1600}
             height={800}
+            // The hero is the top-of-page banner (almost always the LCP), so load
+            // it eagerly + preload instead of lazily.
+            priority
             unoptimized={isLocalUpload(config.imageUrl)}
             className="h-[280px] w-full object-cover opacity-80 sm:h-[380px]"
           />

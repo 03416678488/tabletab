@@ -383,6 +383,16 @@ export interface OwnerAnalytics {
   fulfillment: FulfillmentSplit[];
   customers: CustomerInsights;
   target: RevenueTarget;
+  ancillaryEarnings: AncillaryEarnings;
+}
+
+/** Earnings from bookings that aren't order sales (no order link). */
+export interface AncillaryEarnings {
+  reservationDeposits: number;
+  reservationCount: number;
+  eventPayments: number;
+  eventCount: number;
+  total: number;
 }
 
 export interface CreateOrderInput {
@@ -427,6 +437,8 @@ export interface BranchReservationSettings {
   noShowGraceMins: number;
   bookingWindowDays: number;
   cutoffMins: number;
+  /** Booking deposit charged per guest to hold a reservation (0 = none). */
+  depositPerGuest: number;
 }
 
 export interface Reservation {
@@ -455,6 +467,10 @@ export interface Reservation {
   completedAt?: string;
   /** When kitchen should fire the pre-order (near arrival). */
   fireAt?: string;
+  /** Booking deposit collected to hold the table (0 = none collected). */
+  depositAmount?: number;
+  depositMethod?: "cash" | "card" | "mfs" | "other";
+  depositCollectedAt?: string;
 }
 
 export interface ReservationTask {

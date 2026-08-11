@@ -13,6 +13,7 @@ import {
   reservationsChannel,
 } from '@modules/realtime/channels';
 import { NotificationService } from '@modules/notification/notification.service';
+import { TransactionService } from '@modules/transaction/transaction.service';
 
 import { Table } from '@modules/table/entities/table.entity';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
@@ -43,6 +44,7 @@ export class ReservationService extends AbstractService<Reservation> {
     private readonly _helper: ReservationHelperService,
     private readonly _realtime: RealtimeService,
     private readonly _notifications: NotificationService,
+    private readonly _transactions: TransactionService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -177,7 +179,34 @@ export class ReservationService extends AbstractService<Reservation> {
     id: string,
     dto: UpdateReservationDto,
   ): Promise<Reservation> {
-    await this._validator.ensureExists(id);
+    const existing = await this._validator.ensureExists(id);
+
+    // A booking deposit is only recorded once. Post the ledger transaction
+    // BEFORE stamping the reservation so a booking never shows a deposit without
+    // a matching earning; a re-sent deposit on an already-paid booking is ignored.
+    const isNewDeposit =
+      dto.depositAmount !== undefined &&
+      dto.depositAmount > 0 &&
+      !existing.depositCollectedAt;
+    if (isNewDeposit) {
+      const userId = (this._req as unknown as { user?: { id?: string } }).user
+        ?.id;
+      await this._transactions.record(
+        {
+          type: 'reservation_deposit',
+          method: dto.depositMethod ?? 'cash',
+          amount: dto.depositAmount as number,
+          branchId: existing.branchId ?? undefined,
+          note: `Reservation deposit — ${existing.guestName}`,
+        },
+        userId,
+      );
+    } else {
+      // Not a fresh deposit — never let a stray amount re-stamp the booking.
+      dto.depositAmount = undefined;
+      dto.depositMethod = undefined;
+    }
+
     await this.repository.update(id, this._helper.resolveUpdatePayload(dto));
     const reservation = await this.getById(id);
     this.emit(reservation, 'reservation.updated');

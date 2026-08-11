@@ -145,6 +145,7 @@ export class DashboardAnalyticsService {
       customers,
       heatmap,
       target,
+      ancillaryEarnings,
     ] = await Promise.all([
       this.revenueSeries(win),
       this.kpis(),
@@ -158,6 +159,7 @@ export class DashboardAnalyticsService {
       this.customers(win),
       this.hourlyHeatmap(),
       this.target(win),
+      this.ancillaryEarnings(win),
     ]);
 
     return {
@@ -175,6 +177,29 @@ export class DashboardAnalyticsService {
       fulfillment,
       customers,
       target,
+      ancillaryEarnings,
+    };
+  }
+
+  // ── Ancillary earnings (reservation deposits + event payments) ────────────
+  // These are ledger transactions with no order link, so they never appear in
+  // the order-based revenue series — surfaced separately on the dashboard.
+  private async ancillaryEarnings(win: Win) {
+    const rows = await this.ds.query(`
+      SELECT t.type, COALESCE(SUM(t.amount), 0) AS amount, COUNT(*) AS count
+      FROM transactions t
+      WHERE t.type IN ('reservation_deposit', 'event_payment')${this.rangeFilter('t."createdAt"', win)}${this.branchAnd('t."branchId"')}
+      GROUP BY t.type
+    `);
+    const by = (type: string) => rows.find((r: any) => r.type === type);
+    const reservationDeposits = num(by('reservation_deposit')?.amount);
+    const eventPayments = num(by('event_payment')?.amount);
+    return {
+      reservationDeposits: round2(reservationDeposits),
+      reservationCount: num(by('reservation_deposit')?.count),
+      eventPayments: round2(eventPayments),
+      eventCount: num(by('event_payment')?.count),
+      total: round2(reservationDeposits + eventPayments),
     };
   }
 
