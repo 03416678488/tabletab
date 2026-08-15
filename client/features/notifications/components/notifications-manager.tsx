@@ -22,10 +22,9 @@ import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/use-session";
 
 import { usePaginatedNotifications } from "@/features/notifications/hooks/use-paginated-notifications";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { notificationService } from "@/features/notifications/services/notification.service";
-import {
-  broadcastNotificationsChanged,
-} from "@/features/notifications/lib/notifications-client";
+import { broadcastNotificationsChanged } from "@/features/notifications/lib/notifications-client";
 import { notificationHref } from "@/features/notifications/lib/deep-link";
 import { NotificationPreferences } from "@/features/notifications/components/notification-preferences";
 import type { AppNotification } from "@/features/notifications/types/notification.types";
@@ -61,12 +60,26 @@ export function NotificationsManager() {
   const [tab, setTab] = useState("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
 
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
+
   const isSettings = tab === "settings";
-  const { items, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch } =
-    usePaginatedNotifications({
-      category: tab === "all" || isSettings ? undefined : tab,
-      status: unreadOnly ? "unread" : undefined,
-    });
+  const {
+    items,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedNotifications({
+    category: tab === "all" || isSettings ? undefined : tab,
+    status: unreadOnly ? "unread" : undefined,
+    branchId,
+  });
 
   const open = (n: AppNotification) => {
     if (!n.readAt) {
@@ -93,7 +106,9 @@ export function NotificationsManager() {
             <Bell className="size-5 text-brand" /> Notifications
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {isSettings ? "Control how and when you're alerted." : `${totalItems} notification${totalItems === 1 ? "" : "s"}.`}
+            {isSettings
+              ? "Control how and when you're alerted."
+              : `${totalItems} notification${totalItems === 1 ? "" : "s"}.`}
           </p>
         </div>
         {!isSettings && (
@@ -136,7 +151,9 @@ export function NotificationsManager() {
                 className="py-12"
                 icon={Bell}
                 title={unreadOnly ? "Nothing unread" : "No notifications"}
-                description={unreadOnly ? "You're all caught up." : "New activity will appear here."}
+                description={
+                  unreadOnly ? "You're all caught up." : "New activity will appear here."
+                }
               />
             ) : (
               <ul className="divide-y divide-border">
@@ -156,17 +173,27 @@ export function NotificationsManager() {
                         <span
                           className={cn(
                             "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg",
-                            unread ? "bg-brand-tint text-brand-deep" : "bg-secondary text-muted-foreground",
+                            unread
+                              ? "bg-brand-tint text-brand-deep"
+                              : "bg-secondary text-muted-foreground",
                           )}
                         >
                           <Icon className="size-4" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
-                            <span className="min-w-0 flex-1 truncate font-medium text-ink">{n.title}</span>
-                            <span className="shrink-0 text-xs text-muted-foreground">{timeLabel(n.createdAt)}</span>
+                            <span className="min-w-0 flex-1 truncate font-medium text-ink">
+                              {n.title}
+                            </span>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {timeLabel(n.createdAt)}
+                            </span>
                           </span>
-                          {n.body && <span className="mt-0.5 block text-sm text-muted-foreground">{n.body}</span>}
+                          {n.body && (
+                            <span className="mt-0.5 block text-sm text-muted-foreground">
+                              {n.body}
+                            </span>
+                          )}
                         </span>
                         {unread && <span className="mt-2 size-2 shrink-0 rounded-full bg-brand" />}
                       </button>

@@ -8,6 +8,7 @@ import { resolveApiBaseUrl } from "@/lib/api-base";
 import { toast } from "@/hooks/use-toast";
 import { playNewOrderChime, primeChime } from "@/features/order/lib/chime";
 import { notificationService } from "@/features/notifications/services/notification.service";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import {
   NOTIF_CHANGED_EVENT,
   shouldAlert,
@@ -29,6 +30,8 @@ const BURST_WINDOW_MS = 1200;
  * everything but `critical`. The badge always updates so nothing is lost.
  */
 export function useNotifications() {
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -41,8 +44,8 @@ export function useNotifications() {
   const load = useCallback(async (): Promise<AppNotification[]> => {
     try {
       const [page, count] = await Promise.all([
-        notificationService.list({ perPage: 20 }),
-        notificationService.unreadCount(),
+        notificationService.list({ perPage: 20, ...(branchId ? { branchId } : {}) }),
+        notificationService.unreadCount(branchId),
       ]);
       latestItems.current = page.items;
       setItems(page.items);
@@ -53,7 +56,7 @@ export function useNotifications() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [branchId]);
 
   const flush = useCallback(() => {
     const ids = pending.current;
@@ -90,6 +93,10 @@ export function useNotifications() {
       onEvent: (d) => {
         if (d.event === "ping") return;
         void load(); // badge always reconciles
+        // Don't chime for another branch's event while scoped to one branch
+        // (branch-less/global events still alert).
+        const evBranch = d.branchId ? String(d.branchId) : null;
+        if (branchId && evBranch && evBranch !== branchId) return;
         const priority = String(d.priority ?? "normal") as NotificationPriority;
         const category = String(d.category ?? "");
         if (!shouldAlert(priority, category)) return;
@@ -102,7 +109,7 @@ export function useNotifications() {
       close();
       if (flushTimer.current) clearTimeout(flushTimer.current);
     };
-  }, [load, flush]);
+  }, [load, flush, branchId]);
 
   const markRead = useCallback(
     async (id: string) => {

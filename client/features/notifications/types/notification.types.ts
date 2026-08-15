@@ -28,4 +28,5 @@ export interface ListNotificationsParams {
   perPage?: number;
   category?: string;
   status?: "unread" | "all";
+  branchId?: string;
 }

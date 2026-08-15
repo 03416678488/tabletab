@@ -98,9 +98,7 @@ export function NotificationBell() {
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-elevated)]">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <span className="font-display text-sm font-semibold text-ink">
-              Notifications
-            </span>
+            <span className="font-display text-sm font-semibold text-ink">Notifications</span>
             <div className="flex items-center gap-3">
               {unread > 0 && (
                 <button
@@ -118,7 +116,9 @@ export function NotificationBell() {
                 title={dnd ? "Do Not Disturb is on — critical only" : "Do Not Disturb"}
                 className={cn(
                   "inline-flex size-6 items-center justify-center rounded-md transition-colors",
-                  dnd ? "bg-brand text-primary-foreground" : "text-muted-foreground hover:bg-secondary",
+                  dnd
+                    ? "bg-brand text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary",
                 )}
               >
                 <Moon className="size-3.5" />
@@ -177,12 +177,8 @@ function NotificationRow({ n, onClick }: { n: AppNotification; onClick: () => vo
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-            {n.title}
-          </span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">
-            {timeAgo(n.createdAt)}
-          </span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{n.title}</span>
+          <span className="shrink-0 text-[11px] text-muted-foreground">{timeAgo(n.createdAt)}</span>
         </span>
         {n.body && (
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">{n.body}</span>

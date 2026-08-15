@@ -17,14 +17,18 @@ export const notificationService = {
           perPage: params?.perPage,
           category: params?.category,
           status: params?.status,
+          branchId: params?.branchId,
         },
       })
       .then((r) => r.data);
   },
 
-  unreadCount() {
+  unreadCount(branchId?: string) {
     return httpClient
-      .get<{ count: number }>(`${BASE}/unread-count`, { auth: true })
+      .get<{ count: number }>(`${BASE}/unread-count`, {
+        auth: true,
+        params: branchId ? { branchId } : undefined,
+      })
       .then((r) => r.data.count);
   },
 

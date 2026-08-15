@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
@@ -12,7 +12,10 @@ import { User } from '@modules/user/entities/users.entity';
 /** Roles that see events across every branch (not scoped to one). */
 const CROSS_BRANCH_ROLES = new Set(['Owner', 'Multi Branch Manager']);
 
-import { Notification, NotificationPriority } from './entities/notification.entity';
+import {
+  Notification,
+  NotificationPriority,
+} from './entities/notification.entity';
 import { GetNotificationsQueryDto } from './dto/get-notifications-query.dto';
 
 /** A notification to emit — recipients are resolved separately. */
@@ -43,7 +46,10 @@ export class NotificationService {
    * users with no branch assignment always receive it; branch-scoped roles get
    * it only when their branch matches. A branch-less event reaches everyone.
    */
-  async notifyRoles(roleNames: string[], payload: NewNotification): Promise<void> {
+  async notifyRoles(
+    roleNames: string[],
+    payload: NewNotification,
+  ): Promise<void> {
     if (roleNames.length === 0) return;
 
     const rows = await this._userRoles
@@ -54,7 +60,11 @@ export class NotificationService {
       .select('urp.userId', 'userId')
       .addSelect('role.name', 'roleName')
       .addSelect('u.branchId', 'branchId')
-      .getRawMany<{ userId: string; roleName: string; branchId: string | null }>();
+      .getRawMany<{
+        userId: string;
+        roleName: string;
+        branchId: string | null;
+      }>();
 
     const eventBranch = payload.branchId ?? null;
     const recipients = new Set<string>();
@@ -71,7 +81,10 @@ export class NotificationService {
   }
 
   /** Persist one row per recipient, then push a light "new" event to each. */
-  async notifyUsers(userIds: string[], payload: NewNotification): Promise<void> {
+  async notifyUsers(
+    userIds: string[],
+    payload: NewNotification,
+  ): Promise<void> {
     const unique = [...new Set(userIds)].filter(Boolean);
     if (unique.length === 0) return;
 
@@ -96,38 +109,80 @@ export class NotificationService {
         category: n.category,
         type: n.type,
         priority: n.priority,
+        branchId: n.branchId,
       });
     }
   }
 
-  list(userId: string, query: GetNotificationsQueryDto): Promise<Paginated<Notification>> {
-    const where: Record<string, unknown> = { userId };
-    if (query.category) where.category = query.category;
-    if (query.status === 'unread') where.readAt = IsNull();
-
-    return this._pagination.paginationQuery(query, this._repo, where, undefined, undefined, {
-      createdAt: 'DESC',
-    });
+  /**
+   * Build the where-clause for a user's notifications, branch-scoped when a
+   * branch is given: a specific branch shows that branch's events **plus**
+   * branch-less (global) ones. Returns an OR array when scoped.
+   */
+  private scopedWhere(
+    base: FindOptionsWhere<Notification>,
+    branchId?: string,
+  ): FindOptionsWhere<Notification> | FindOptionsWhere<Notification>[] {
+    if (!branchId) return base;
+    return [
+      { ...base, branchId },
+      { ...base, branchId: IsNull() },
+    ];
   }
 
-  async unreadCount(userId: string): Promise<{ count: number }> {
-    const count = await this._repo.count({ where: { userId, readAt: IsNull() } });
+  list(
+    userId: string,
+    query: GetNotificationsQueryDto,
+  ): Promise<Paginated<Notification>> {
+    const base: FindOptionsWhere<Notification> = { userId };
+    if (query.category) base.category = query.category;
+    if (query.status === 'unread') base.readAt = IsNull();
+
+    return this._pagination.paginationQuery(
+      query,
+      this._repo,
+      this.scopedWhere(base, query.branchId),
+      undefined,
+      undefined,
+      { createdAt: 'DESC' },
+    );
+  }
+
+  async unreadCount(
+    userId: string,
+    branchId?: string,
+  ): Promise<{ count: number }> {
+    const count = await this._repo.count({
+      where: this.scopedWhere({ userId, readAt: IsNull() }, branchId),
+    });
     return { count };
   }
 
   async markRead(userId: string, id: string): Promise<{ success: true }> {
-    await this._repo.update({ id, userId, readAt: IsNull() }, { readAt: new Date() });
+    await this._repo.update(
+      { id, userId, readAt: IsNull() },
+      { readAt: new Date() },
+    );
     return { success: true };
   }
 
   async markAllRead(userId: string): Promise<{ success: true }> {
-    await this._repo.update({ userId, readAt: IsNull() }, { readAt: new Date() });
+    await this._repo.update(
+      { userId, readAt: IsNull() },
+      { readAt: new Date() },
+    );
     return { success: true };
   }
 
   /** Mark every unread notification in one category read (auto-read on context). */
-  async markCategoryRead(userId: string, category: string): Promise<{ success: true }> {
-    await this._repo.update({ userId, category, readAt: IsNull() }, { readAt: new Date() });
+  async markCategoryRead(
+    userId: string,
+    category: string,
+  ): Promise<{ success: true }> {
+    await this._repo.update(
+      { userId, category, readAt: IsNull() },
+      { readAt: new Date() },
+    );
     return { success: true };
   }
 }

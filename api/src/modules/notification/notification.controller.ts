@@ -37,13 +37,19 @@ export class NotificationController {
   }
 
   @Get()
-  list(@CurrentUser() user: AuthenticatedUser, @Query() query: GetNotificationsQueryDto) {
+  list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: GetNotificationsQueryDto,
+  ) {
     return this._service.list(user.id, query);
   }
 
   @Get('unread-count')
-  unreadCount(@CurrentUser() user: AuthenticatedUser) {
-    return this._service.unreadCount(user.id);
+  unreadCount(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this._service.unreadCount(user.id, branchId);
   }
 
   @Patch('read-all')

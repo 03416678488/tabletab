@@ -4,14 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError } from "@/lib/httpClient";
 import { notificationService } from "@/features/notifications/services/notification.service";
-import {
-  NOTIF_CHANGED_EVENT,
-} from "@/features/notifications/lib/notifications-client";
+import { NOTIF_CHANGED_EVENT } from "@/features/notifications/lib/notifications-client";
 import type { AppNotification } from "@/features/notifications/types/notification.types";
 
 interface Params {
   category?: string;
   status?: "unread" | "all";
+  branchId?: string;
   initialPerPage?: number;
 }
 
@@ -19,6 +18,7 @@ interface Params {
 export function usePaginatedNotifications({
   category,
   status,
+  branchId,
   initialPerPage = 20,
 }: Params = {}) {
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -29,7 +29,7 @@ export function usePaginatedNotifications({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${category ?? ""}|${status ?? ""}|${perPage}`;
+  const key = `${category ?? ""}|${status ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -44,6 +44,7 @@ export function usePaginatedNotifications({
           perPage,
           category: category || undefined,
           status,
+          ...(branchId ? { branchId } : {}),
         });
         if (keyRef.current !== activeKey) return;
         setItems(data.items);
@@ -70,7 +71,7 @@ export function usePaginatedNotifications({
     const onChanged = () => void fetchPage(page);
     window.addEventListener(NOTIF_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(NOTIF_CHANGED_EVENT, onChanged);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [fetchPage, page]);
 
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
