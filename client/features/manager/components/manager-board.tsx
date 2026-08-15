@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, RefreshCw, ShieldAlert } from "lucide-react";
 import {
   OrderActionDialog,
@@ -13,55 +13,49 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OrderStatusPill, StatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLiveOps } from "@/hooks/use-live-ops";
+import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { useServiceRequests } from "@/features/service-request/hooks/use-service-requests";
-import { useSession } from "@/hooks/use-session";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
+import { orderService } from "@/features/order/services/order.service";
 import { toast } from "@/hooks/use-toast";
-import { api } from "@/lib/api";
-import { orderTableLabel } from "@/lib/order-display";
-import type { Order, OrderStatus, StaffUser } from "@/lib/types";
+import { ApiError } from "@/lib/httpClient";
+import type { Order, OrderStatus } from "@/features/order/types/order.types";
 import { isSlaBreached } from "@/lib/utils";
 import { cn, formatCurrency } from "@/lib/utils";
 
-const ACTIVE_STATUSES = new Set([
+/** Orders still on the floor (excludes terminal + awaiting-payment states). */
+const ACTIVE_STATUSES = new Set<OrderStatus>([
   "placed",
-  "accepted",
+  "confirmed",
   "preparing",
   "ready",
   "out-for-delivery",
   "served",
 ]);
 
+const orderName = (o: Order) => o.customerName ?? o.customer?.name ?? "Walk-in";
+const orderLocation = (o: Order) => o.table?.name ?? (o.orderType === "online" ? "Online" : "—");
+
 export function ManagerBoard() {
-  const activeBranch = useSession((s) => s.activeBranch);
-  const { orders, loading, error, refresh } = useLiveOps({
-    branchId: activeBranch.id,
-    simulateOrders: true,
-    simulateRequests: false,
-  });
+  // Follow the topbar branch switcher — "All branches" shows every branch.
+  const branchId = useScopedBranchId();
+  // Real, live order board (SSE + poll) — already branch-scoped internally.
+  const { orders, loading, error, refetch, connected } = useOrderBoard();
   // Real, live service-request queue (call waiter / ready to pay from QR scans).
-  const { requests, resolve: resolveRequest } = useServiceRequests();
-  const [staff, setStaff] = useState<StaffUser[]>([]);
+  const { requests, resolve: resolveRequest } = useServiceRequests(branchId);
   const [actionOrder, setActionOrder] = useState<Order | null>(null);
   const [actionType, setActionType] = useState<ManagerAction | null>(null);
-
-  useEffect(() => {
-    api.getStaff().then(setStaff);
-  }, []);
 
   const activeOrders = useMemo(
     () =>
       orders
         .filter((o) => ACTIVE_STATUSES.has(o.status))
-        .sort(
-          (a, b) =>
-            new Date(a.placedAt).getTime() - new Date(b.placedAt).getTime(),
-        ),
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [orders],
   );
 
   const slaBreaches = useMemo(
-    () => activeOrders.filter((o) => isSlaBreached(o)),
+    () => activeOrders.filter((o) => isSlaBreached({ status: o.status, placedAt: o.createdAt })),
     [activeOrders],
   );
 
@@ -76,20 +70,24 @@ export function ManagerBoard() {
     action: ManagerAction;
     reason: string;
     status?: OrderStatus;
-    staffId?: string;
   }) => {
     if (!actionOrder) return;
-    if (payload.action === "cancel") {
-      await api.cancelOrder(actionOrder.id, payload.reason);
-      toast("Order cancelled", { tone: "success" });
-    } else if (payload.action === "override" && payload.status) {
-      await api.overrideOrder(actionOrder.id, payload.status, payload.reason);
-      toast("Status overridden", { tone: "success" });
-    } else if (payload.action === "reassign" && payload.staffId) {
-      await api.reassignOrder(actionOrder.id, payload.staffId, payload.reason);
-      toast("Order reassigned", { tone: "success" });
+    try {
+      if (payload.action === "cancel") {
+        await orderService.update(actionOrder.id, {
+          status: "cancelled",
+          cancellationReason: payload.reason,
+        });
+        toast("Order cancelled", { tone: "success" });
+      } else if (payload.action === "override" && payload.status) {
+        await orderService.update(actionOrder.id, { status: payload.status });
+        toast("Status overridden", { tone: "success" });
+      }
+      await refetch();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "Action failed", { tone: "error" });
+      throw err;
     }
-    await refresh();
   };
 
   if (loading) {
@@ -110,12 +108,18 @@ export function ManagerBoard() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">Floor overview</h1>
-          <p className="text-sm text-muted-foreground">
-            {activeBranch.name} · {activeOrders.length} active
-            orders
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+            {activeOrders.length} active orders ·
+            <span
+              className={cn(
+                "inline-block size-2 rounded-full",
+                connected ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/40",
+              )}
+            />
+            {connected ? "Live" : "Reconnecting…"}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refresh()}>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>
           <RefreshCw className="size-4" />
           Refresh
         </Button>
@@ -150,9 +154,9 @@ export function ManagerBoard() {
               <EscalationCard
                 key={order.id}
                 variant="sla"
-                title={`SLA breach · ${order.reference}`}
-                subtitle={orderTableLabel(order, activeBranch)}
-                since={order.placedAt}
+                title={`SLA breach · ${order.orderNumber}`}
+                subtitle={orderLocation(order)}
+                since={order.createdAt}
                 note="Unacknowledged for 5+ minutes"
                 onAction={() => openAction(order, "override")}
               />
@@ -162,7 +166,9 @@ export function ManagerBoard() {
                 key={req.id}
                 variant="manager"
                 title={`${req.type === "bill" ? "Ready to pay" : "Call waiter"} · Table ${req.tableLabel}`}
-                subtitle={req.type === "bill" ? "Guest is ready to pay" : "Guest requested a waiter"}
+                subtitle={
+                  req.type === "bill" ? "Guest is ready to pay" : "Guest requested a waiter"
+                }
                 since={req.createdAt}
                 onResolve={() => {
                   void resolveRequest(req.id);
@@ -178,7 +184,7 @@ export function ManagerBoard() {
       <section>
         <h2 className="mb-3 font-display text-lg font-semibold text-ink">Active orders</h2>
         {activeOrders.length === 0 ? (
-          <EmptyState title="Floor is quiet" description="No active orders at this branch." />
+          <EmptyState title="Floor is quiet" description="No active orders right now." />
         ) : (
           <Card>
             <div className="overflow-x-auto">
@@ -196,8 +202,7 @@ export function ManagerBoard() {
                 </thead>
                 <tbody>
                   {activeOrders.map((order) => {
-                    const sla = isSlaBreached(order);
-                    const assigned = staff.find((s) => s.id === order.assignedToStaffId);
+                    const sla = isSlaBreached({ status: order.status, placedAt: order.createdAt });
                     return (
                       <tr
                         key={order.id}
@@ -207,29 +212,30 @@ export function ManagerBoard() {
                         )}
                       >
                         <td className="px-4 py-3">
-                          <div className="font-medium text-ink">{order.reference}</div>
-                          <div className="text-xs text-muted-foreground">{order.customerName}</div>
-                          {assigned && (
-                            <div className="mt-0.5 text-xs text-brand">→ {assigned.name}</div>
-                          )}
+                          <div className="font-medium text-ink">{order.orderNumber}</div>
+                          <div className="text-xs text-muted-foreground">{orderName(order)}</div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {orderTableLabel(order, activeBranch)}
-                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{orderLocation(order)}</td>
                         <td className="px-4 py-3">
-                          <StatusPill tone={order.channel === "in-venue" ? "brand" : "amber"} dot={false}>
-                            {order.channel === "in-venue" ? "Dine-in" : "Online"}
+                          <StatusPill
+                            tone={order.orderType === "online" ? "amber" : "brand"}
+                            dot={false}
+                          >
+                            {order.orderType === "online" ? "Online" : "Dine-in"}
                           </StatusPill>
                         </td>
                         <td className="px-4 py-3">
                           <OrderStatusPill status={order.status} dot={false} />
                           {sla && (
-                            <AlertTriangle className="mt-1 inline size-3.5 text-red-500" aria-label="SLA breach" />
+                            <AlertTriangle
+                              className="mt-1 inline size-3.5 text-red-500"
+                              aria-label="SLA breach"
+                            />
                           )}
                         </td>
                         <td className="px-4 py-3">
                           <ElapsedTimer
-                            since={order.acceptedAt ?? order.placedAt}
+                            since={order.createdAt}
                             className="text-ink"
                             slaBreached={sla}
                           />
@@ -237,13 +243,6 @@ export function ManagerBoard() {
                         <td className="px-4 py-3 font-medium">{formatCurrency(order.total)}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openAction(order, "reassign")}
-                            >
-                              Reassign
-                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -274,7 +273,6 @@ export function ManagerBoard() {
       <OrderActionDialog
         order={actionOrder}
         action={actionType}
-        staff={staff}
         open={!!actionOrder && !!actionType}
         onOpenChange={(open) => {
           if (!open) {
@@ -327,8 +325,7 @@ function EscalationCard({
         <p className="text-sm text-muted-foreground">{subtitle}</p>
         {note && <p className="text-sm font-medium text-ink">{note}</p>}
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          Open{" "}
-          <ElapsedTimer since={since} className="text-ink" slaBreached={variant === "sla"} />
+          Open <ElapsedTimer since={since} className="text-ink" slaBreached={variant === "sla"} />
         </p>
         <div className="flex gap-2 pt-1">
           {onAction && (

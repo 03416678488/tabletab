@@ -26,9 +26,12 @@ function toClient(r: ApiServiceRequest): ServiceRequest {
 }
 
 export const serviceRequestService = {
-  listOpen: () =>
+  listOpen: (branchId?: string) =>
     httpClient
-      .get<ApiServiceRequest[]>("/service-requests", { auth: true })
+      .get<ApiServiceRequest[]>("/service-requests", {
+        auth: true,
+        params: branchId ? { branchId } : undefined,
+      })
       .then((r) => (r.data ?? []).map(toClient)),
 
   resolve: (id: string) =>

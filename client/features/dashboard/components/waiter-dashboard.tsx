@@ -11,12 +11,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/utils";
 import { useTableStats } from "@/features/order/hooks/use-table-stats";
 import { useTables } from "@/features/table/hooks/use-tables";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { StatTile } from "@/features/dashboard/components/stat-tile";
 
 export function WaiterDashboard() {
   const role = useParams<{ role: string }>().role;
   const { byTable } = useTableStats();
-  const { tables } = useTables();
+  const { tables } = useTables(useScopedBranchId());
 
   const { occupied, served, kot, toCollect, servedTables } = useMemo(() => {
     const stats = [...byTable.values()];

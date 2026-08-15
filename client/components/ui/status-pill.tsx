@@ -26,8 +26,7 @@ const statusPillVariants = cva(
 );
 
 export interface StatusPillProps
-  extends React.HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof statusPillVariants> {
+  extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof statusPillVariants> {
   /** Show a leading status dot. */
   dot?: boolean;
 }
@@ -43,10 +42,14 @@ function StatusPill({ className, tone, dark, dot = true, children, ...props }: S
 
 type Tone = NonNullable<StatusPillProps["tone"]>;
 
-const ORDER_STATUS_META: Record<OrderStatus, { label: string; tone: Tone }> = {
+// Covers both the legacy status set and the real order statuses (e.g. the
+// backend uses `confirmed` where the mock used `accepted`). Keyed by string so
+// an unknown status falls back gracefully instead of crashing.
+const ORDER_STATUS_META: Record<string, { label: string; tone: Tone }> = {
   pending_payment: { label: "Awaiting payment", tone: "neutral" },
   placed: { label: "Placed", tone: "amber" },
   accepted: { label: "Accepted", tone: "blue" },
+  confirmed: { label: "Confirmed", tone: "blue" },
   preparing: { label: "Preparing", tone: "purple" },
   ready: { label: "Ready", tone: "brand" },
   "out-for-delivery": { label: "Out for delivery", tone: "blue" },
@@ -59,8 +62,8 @@ const ORDER_STATUS_META: Record<OrderStatus, { label: string; tone: Tone }> = {
 function OrderStatusPill({
   status,
   ...props
-}: { status: OrderStatus } & Omit<StatusPillProps, "tone" | "children">) {
-  const meta = ORDER_STATUS_META[status];
+}: { status: OrderStatus | string } & Omit<StatusPillProps, "tone" | "children">) {
+  const meta = ORDER_STATUS_META[status] ?? { label: String(status), tone: "neutral" as Tone };
   return (
     <StatusPill tone={meta.tone} {...props}>
       {meta.label}
@@ -95,4 +98,10 @@ function ReservationStatusPill({
   );
 }
 
-export { StatusPill, OrderStatusPill, ReservationStatusPill, statusPillVariants, ORDER_STATUS_META };
+export {
+  StatusPill,
+  OrderStatusPill,
+  ReservationStatusPill,
+  statusPillVariants,
+  ORDER_STATUS_META,
+};

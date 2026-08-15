@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServiceRequests } from "@/features/service-request/hooks/use-service-requests";
 import { useOrderBoard } from "@/features/order/hooks/use-order-board";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { orderService } from "@/features/order/services/order.service";
 import { ApiError } from "@/lib/httpClient";
 import type { Order } from "@/features/order/types/order.types";
@@ -30,19 +31,23 @@ const STATUS_LABEL: Record<string, string> = {
   ready: "Ready",
 };
 
-const tableNameOf = (o: Order) =>
-  o.table?.name ?? o.customer?.name ?? o.customerName ?? "Table";
+const tableNameOf = (o: Order) => o.table?.name ?? o.customer?.name ?? o.customerName ?? "Table";
 
 export function WaiterBoard() {
+  // Follow the topbar branch switcher — "All branches" shows every branch.
+  const branchId = useScopedBranchId();
   // Live service-request queue (call waiter / ready to pay from QR scans).
-  const { requests, resolve: resolveRequest } = useServiceRequests();
-  // Real, live table orders from the order board (SSE + poll).
+  const { requests, resolve: resolveRequest } = useServiceRequests(branchId);
+  // Real, live table orders from the order board (SSE + poll; already scoped).
   const { orders, loading, error, refetch, connected } = useOrderBoard();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const tableOrders = useMemo(() => orders.filter((o) => o.orderType === "table"), [orders]);
   const readyOrders = useMemo(() => tableOrders.filter((o) => o.status === "ready"), [tableOrders]);
-  const activeOrders = useMemo(() => tableOrders.filter((o) => o.status !== "ready"), [tableOrders]);
+  const activeOrders = useMemo(
+    () => tableOrders.filter((o) => o.status !== "ready"),
+    [tableOrders],
+  );
 
   const openRequests = useMemo(
     () =>

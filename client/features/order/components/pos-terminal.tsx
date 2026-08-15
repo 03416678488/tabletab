@@ -91,7 +91,6 @@ export function PosTerminal() {
   // source as the business name — not the client branding store.
   const businessLogo = settings.get("theme", "logo");
   const { categories, loading: categoriesLoading } = useCategories();
-  const { tables } = useTables();
   const { taxes } = useTaxes();
   const { groups: taxGroups } = useTaxGroups();
   const { defaultTax } = useDefaultTax();
@@ -152,6 +151,7 @@ export function PosTerminal() {
   // Every POS order belongs to a branch: multi-branch roles use the topbar
   // selection (POS is gated by <RequireBranch>); staff use their home branch.
   const orderBranchId = useScopedBranchId();
+  const { tables } = useTables(orderBranchId);
   // When set, the cart is editing an existing order instead of creating one.
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderNumber, setEditingOrderNumber] = useState<string>("");

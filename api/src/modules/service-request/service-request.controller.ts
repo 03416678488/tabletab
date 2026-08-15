@@ -4,6 +4,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Sse,
   type MessageEvent,
 } from '@nestjs/common';
@@ -39,8 +40,11 @@ export class ServiceRequestController {
   }
 
   @Get()
-  listOpen(@CurrentUser() user: AuthenticatedUser) {
-    return this._service.listOpen(user);
+  listOpen(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this._service.listOpen(user, branchId);
   }
 
   @Post(':id/resolve')

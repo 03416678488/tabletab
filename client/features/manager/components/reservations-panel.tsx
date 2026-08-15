@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ReservationStatusPill, StatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { toast } from "@/hooks/use-toast";
 import {
   listReservations,
@@ -41,10 +42,9 @@ const ACTIVE_RESERVATION = new Set(["requested", "confirmed", "seated"]);
 
 export function ReservationsPanel() {
   const activeBranch = useSession((s) => s.activeBranch);
-  // Only scope to a branch when a real one is selected — "All branches" (null,
-  // or a non-UUID sentinel) lists every branch's reservations.
-  const branchId =
-    activeBranch?.id && /^[0-9a-f-]{36}$/i.test(activeBranch.id) ? activeBranch.id : undefined;
+  // Follow the topbar branch switcher — "All branches" → undefined lists every
+  // branch's reservations (per-branch settings just don't load in that view).
+  const branchId = useScopedBranchId();
   const [reservations, setReservations] = useState<StorefrontReservation[]>([]);
   // Reminder lead (mins) from the branch's settings; drives the reminder tasks.
   const [reminderLead, setReminderLead] = useState(30);

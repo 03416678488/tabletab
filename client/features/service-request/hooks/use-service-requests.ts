@@ -13,19 +13,19 @@ import type { ServiceRequest } from "@/lib/types";
  * Realtime via SSE (`/service-requests/stream`): a new or resolved request pushes
  * an event and we refetch the open list.
  */
-export function useServiceRequests() {
+export function useServiceRequests(branchId?: string) {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
     try {
-      setRequests(await serviceRequestService.listOpen());
+      setRequests(await serviceRequestService.listOpen(branchId));
     } catch {
       /* keep the last known list on a transient failure */
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [branchId]);
 
   useEffect(() => {
     void refetch();

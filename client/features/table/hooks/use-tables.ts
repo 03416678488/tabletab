@@ -7,7 +7,8 @@ import { tableService } from "@/features/table/services/table.service";
 import { useTablesStream } from "@/features/table/hooks/use-tables-stream";
 import type { DiningTable } from "@/features/table/types/table.types";
 
-export function useTables() {
+/** All tables, optionally scoped to one branch (undefined = all branches). */
+export function useTables(branchId?: string) {
   const [tables, setTables] = useState<DiningTable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,14 +17,14 @@ export function useTables() {
     setLoading(true);
     setError(null);
     try {
-      const data = await tableService.list({ perPage: 100 });
+      const data = await tableService.list({ perPage: 100, ...(branchId ? { branchId } : {}) });
       setTables(data.items);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load tables");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [branchId]);
 
   useEffect(() => {
     void refetch();

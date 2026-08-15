@@ -52,8 +52,13 @@ export class ServiceRequestService {
   /** Open queue, oldest first (what the waiter board renders). Managers see the
    *  whole queue; a waiter sees only requests assigned to them plus any still
    *  unassigned (the fallback pool). */
-  listOpen(user?: AuthenticatedUser): Promise<ServiceRequest[]> {
-    const base = { status: 'open' as const };
+  listOpen(
+    user?: AuthenticatedUser,
+    branchId?: string,
+  ): Promise<ServiceRequest[]> {
+    // Scope to the topbar branch when given (each request belongs to one table's
+    // branch); "All branches" (no branchId) shows the whole queue.
+    const base = { status: 'open' as const, ...(branchId ? { branchId } : {}) };
     const roles = new Set(user?.roleNames ?? []);
     const isManager =
       !user ||

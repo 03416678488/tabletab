@@ -19,7 +19,7 @@ import { ApiError } from "@/lib/httpClient";
 
 import { useTables } from "@/features/table/hooks/use-tables";
 import { TableFormDialog } from "@/features/table/components/table-form-dialog";
-import { useBranches } from "@/features/branch/hooks/use-branches";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { useAreas } from "@/features/area/hooks/use-areas";
 import { useTableStats } from "@/features/order/hooks/use-table-stats";
 import { orderService } from "@/features/order/services/order.service";
@@ -98,28 +98,27 @@ function relativeTime(iso: string): string {
 }
 
 export function TableManager() {
-  const { tables, loading, error, refetch } = useTables();
-  const { branches } = useBranches();
-  const { areas } = useAreas();
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
+  const { tables, loading, error, refetch } = useTables(branchId);
+  const { areas } = useAreas(branchId);
   const { byTable, refetch: refetchStats } = useTableStats();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [branchId, setBranchId] = useState<string>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [area, setArea] = useState<string>(ALL);
 
   const searched = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tables.filter((t) => {
-      if (branchId !== "all" && t.branchId !== branchId) return false;
       if (status === "active" && !t.isActive) return false;
       if (status === "inactive" && t.isActive) return false;
       if (q && !`${t.name} ${t.area?.name ?? ""}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [tables, search, branchId, status]);
+  }, [tables, search, status]);
 
   /** Count per area id (over the search/filter result, so tab counts track filters). */
   const countFor = (areaId: string) =>
@@ -133,13 +132,16 @@ export function TableManager() {
     return searched.filter((t) => t.areaId === area);
   }, [searched, area]);
 
-  const activeFilters = (branchId !== "all" ? 1 : 0) + (status !== "all" ? 1 : 0);
+  const activeFilters = status !== "all" ? 1 : 0;
 
-  const openCreate = () => setDialogOpen(true);
-  const clearFilters = () => {
-    setBranchId("all");
-    setStatus("all");
+  const openCreate = () => {
+    if (!branchId) {
+      toast("Select a branch first to add a table", { tone: "info" });
+      return;
+    }
+    setDialogOpen(true);
   };
+  const clearFilters = () => setStatus("all");
 
   const confirm = useConfirm();
 
@@ -206,20 +208,6 @@ export function TableManager() {
 
       {showFilters && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            Branch
-            <Dropdown
-              className="w-44"
-              value={branchId}
-              onChange={(v) => setBranchId(v)}
-              searchable
-              aria-label="Filter by branch"
-              options={[
-                { value: "all", label: "All" },
-                ...branches.map((b) => ({ value: b.id, label: b.name })),
-              ]}
-            />
-          </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Status
             <Dropdown
@@ -315,6 +303,7 @@ export function TableManager() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         table={null}
+        defaultBranchId={branchId}
         onSaved={refetch}
       />
     </div>

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dropdown } from "@/components/ui/dropdown";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -12,10 +11,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import type { Order, OrderStatus, StaffUser } from "@/lib/types";
+import type { Order, OrderStatus } from "@/features/order/types/order.types";
 import { cn } from "@/lib/utils";
 
-export type ManagerAction = "cancel" | "override" | "reassign";
+export type ManagerAction = "cancel" | "override";
 
 const OVERRIDE_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: "preparing", label: "Preparing" },
@@ -27,51 +26,41 @@ const OVERRIDE_STATUSES: { value: OrderStatus; label: string }[] = [
 interface OrderActionDialogProps {
   order: Order | null;
   action: ManagerAction | null;
-  staff: StaffUser[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (payload: {
     action: ManagerAction;
     reason: string;
     status?: OrderStatus;
-    staffId?: string;
   }) => Promise<void>;
 }
 
 export function OrderActionDialog({
   order,
   action,
-  staff,
   open,
   onOpenChange,
   onConfirm,
 }: OrderActionDialogProps) {
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState<OrderStatus>("preparing");
-  const [staffId, setStaffId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   const reset = () => {
     setReason("");
     setStatus("preparing");
-    setStaffId("");
     setError("");
   };
 
   const titles: Record<ManagerAction, string> = {
     cancel: "Cancel order",
     override: "Override status",
-    reassign: "Reassign order",
   };
 
   const handleSubmit = async () => {
     if (!action || !reason.trim()) {
-      setError("A reason is required for audit trail.");
-      return;
-    }
-    if (action === "reassign" && !staffId) {
-      setError("Select a staff member.");
+      setError("A reason is required for the audit trail.");
       return;
     }
     setSubmitting(true);
@@ -81,7 +70,6 @@ export function OrderActionDialog({
         action,
         reason: reason.trim(),
         status: action === "override" ? status : undefined,
-        staffId: action === "reassign" ? staffId : undefined,
       });
       reset();
       onOpenChange(false);
@@ -91,10 +79,6 @@ export function OrderActionDialog({
       setSubmitting(false);
     }
   };
-
-  const waiters = staff.filter(
-    (s) => s.role === "waiter" || s.role === "branch_manager" || s.role === "multi_branch_manager",
-  );
 
   return (
     <Sheet
@@ -108,7 +92,7 @@ export function OrderActionDialog({
         <SheetHeader>
           <SheetTitle>{action ? titles[action] : "Order action"}</SheetTitle>
           <SheetDescription>
-            {order?.reference} · {order?.customerName}
+            {order?.orderNumber} · {order?.customerName ?? order?.customer?.name ?? "Walk-in"}
           </SheetDescription>
         </SheetHeader>
 
@@ -133,24 +117,6 @@ export function OrderActionDialog({
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {action === "reassign" && (
-            <div className="space-y-2">
-              <Label htmlFor="staff">Assign to</Label>
-              <Dropdown
-                value={staffId}
-                onChange={(v) => setStaffId(v)}
-                searchable
-                placeholder="Select staff…"
-                aria-label="Assign to"
-                options={waiters.map((s) => ({
-                  value: s.id,
-                  label: s.name,
-                  sublabel: s.role,
-                }))}
-              />
             </div>
           )}
 
