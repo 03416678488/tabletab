@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 
 import { useOrders } from "@/features/order/hooks/use-orders";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type { Order } from "@/features/order/types/order.types";
 
 /** A delivery order is an online order with a delivery address. */
@@ -13,9 +14,14 @@ export function isDelivery(o: Order): boolean {
 /**
  * Delivery orders bucketed for the rider's dashboard + board. Backed by the
  * cached online-orders list with light polling so both screens stay in sync.
+ * Follows the topbar branch switcher — "All branches" shows every branch.
  */
 export function useDeliveryQueue() {
-  const { orders, loading, refetch } = useOrders({ orderType: "online" });
+  const branchId = useScopedBranchId();
+  const { orders, loading, refetch } = useOrders({
+    orderType: "online",
+    ...(branchId ? { branchId } : {}),
+  });
 
   // Keep the queue fresh without a dedicated stream.
   useEffect(() => {
