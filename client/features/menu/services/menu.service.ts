@@ -19,6 +19,7 @@ export const menuService = {
           search: params?.search,
           categoryId: params?.categoryId,
           isAvailable: params?.isAvailable,
+          branchId: params?.branchId,
         },
       })
       .then((res) => res.data);

@@ -5,6 +5,7 @@ import { Loader2, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,11 +24,128 @@ import { formatDateTime } from "@/lib/datetime";
 import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
-import { useRegister } from "@/features/register/hooks/use-register";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
+import { useRegister, useRegisterOverview } from "@/features/register/hooks/use-register";
 import { registerService } from "@/features/register/services/register.service";
 
 export function CashRegister() {
-  const { current, sessions, loading, refetch } = useRegister();
+  // Follow the topbar branch switcher: a branch → operate its drawer;
+  // "All branches" (undefined) → read-only cross-branch overview.
+  const branchId = useScopedBranchId();
+
+  return (
+    <div className="w-full">
+      <div>
+        <h1 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight text-ink">
+          <Wallet className="size-5 text-brand" /> Cash Register
+        </h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {branchId
+            ? "Open a shift, track cash, and reconcile the drawer at close."
+            : "Live drawer status across all branches — select a branch to open or manage one."}
+        </p>
+      </div>
+
+      {branchId ? <OperateRegister branchId={branchId} /> : <AllBranchesOverview />}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------- All-branches overview */
+
+function AllBranchesOverview() {
+  const { overview, loading, error } = useRegisterOverview();
+
+  return (
+    <Card className="mt-5 overflow-hidden p-0">
+      {loading ? (
+        <div className="space-y-2 p-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-11 w-full" />
+          ))}
+        </div>
+      ) : error || !overview ? (
+        <EmptyState
+          className="py-12"
+          icon={Wallet}
+          title="Couldn't load"
+          description={error ?? ""}
+        />
+      ) : overview.rows.length === 0 ? (
+        <EmptyState
+          className="py-12"
+          icon={Wallet}
+          title="No branches"
+          description="Add a branch to manage its cash drawer."
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 text-sm">
+            <span className="font-semibold text-ink">
+              {overview.totals.openDrawers} drawer{overview.totals.openDrawers === 1 ? "" : "s"}{" "}
+              open
+            </span>
+            <span className="text-muted-foreground">
+              Total expected cash on hand:{" "}
+              <span className="font-semibold text-ink tabular-nums">
+                {formatMoney(overview.totals.expectedCash)}
+              </span>
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Opening</TableHead>
+                  <TableHead className="text-right">Cash sales</TableHead>
+                  <TableHead className="text-right">In / Out</TableHead>
+                  <TableHead className="text-right">Expected cash</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overview.rows.map((r) => (
+                  <TableRow key={r.branchId}>
+                    <TableCell className="font-medium text-ink">{r.branchName}</TableCell>
+                    <TableCell>
+                      <StatusPill tone={r.status === "open" ? "green" : "neutral"}>
+                        {r.status === "open" ? "Open" : "Closed"}
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {r.openingBalance == null ? "—" : formatMoney(r.openingBalance)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {r.cashSales == null ? "—" : formatMoney(r.cashSales)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {r.status === "open"
+                        ? `${formatMoney(r.cashIn ?? 0)} / ${formatMoney(r.cashOut ?? 0)}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums text-ink">
+                      {r.expectedCash == null ? "—" : formatMoney(r.expectedCash)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+            A cash drawer is operated one branch at a time. Pick a branch in the top bar to open,
+            add cash, or close its drawer.
+          </p>
+        </>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------ Single-branch operate */
+
+function OperateRegister({ branchId }: { branchId: string }) {
+  const { current, sessions, loading, refetch } = useRegister(branchId);
   const session = current.session;
   const summary = current.summary;
 
@@ -53,13 +171,13 @@ export function CashRegister() {
 
   const openRegister = () =>
     run(async () => {
-      await registerService.open({ openingBalance: Number(opening) || 0 });
+      await registerService.open({ openingBalance: Number(opening) || 0, branchId });
       setOpening("");
     }, "Register opened");
 
   const closeRegister = () =>
     run(async () => {
-      const res = await registerService.close({ countedBalance: Number(counted) || 0 });
+      const res = await registerService.close({ countedBalance: Number(counted) || 0, branchId });
       const v = res.session.variance ?? 0;
       toast(
         v === 0
@@ -75,6 +193,7 @@ export function CashRegister() {
       await registerService.cash({
         type: cashKind,
         amount: Number(cashAmount) || 0,
+        branchId,
         note: cashNote || undefined,
       });
       setCashAmount("");
@@ -82,20 +201,10 @@ export function CashRegister() {
     }, "Cash movement recorded");
 
   return (
-    <div className="w-full">
-      <div>
-        <h1 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight text-ink">
-          <Wallet className="size-5 text-brand" /> Cash Register
-        </h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Open a shift, track cash, and reconcile the drawer at close.
-        </p>
-      </div>
-
+    <>
       {loading ? (
         <Skeleton className="mt-5 h-64 w-full rounded-2xl" />
       ) : !session ? (
-        /* No open session — open one */
         <Card className="mt-5 max-w-md p-5">
           <h2 className="font-semibold text-ink">Open register</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -116,7 +225,6 @@ export function CashRegister() {
           </Button>
         </Card>
       ) : (
-        /* Open session — summary + cash + close */
         <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
           <Card className="p-5">
             <div className="flex items-center justify-between">
@@ -143,7 +251,6 @@ export function CashRegister() {
               />
             </div>
 
-            {/* Cash in / out */}
             <div className="mt-5 border-t border-border pt-4">
               <p className="text-sm font-medium text-ink">Cash in / out</p>
               <div className="mt-2 flex flex-wrap items-end gap-2">
@@ -188,7 +295,6 @@ export function CashRegister() {
             </div>
           </Card>
 
-          {/* Close register */}
           <Card className="h-fit p-5">
             <h2 className="font-semibold text-ink">Close register</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -234,7 +340,6 @@ export function CashRegister() {
         </div>
       )}
 
-      {/* Past sessions */}
       <h2 className="mt-8 font-display text-lg font-semibold text-ink">Shift history</h2>
       <Card className="mt-3 overflow-hidden p-0">
         {sessions.filter((s) => s.status === "closed").length === 0 ? (
@@ -279,7 +384,7 @@ export function CashRegister() {
           </div>
         )}
       </Card>
-    </div>
+    </>
   );
 }
 

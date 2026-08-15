@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateTaxGroupDto {
@@ -26,6 +27,11 @@ export class CreateTaxGroupDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  /** Owning branch (from the topbar switcher). */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }
 
 export class UpdateTaxGroupDto extends PartialType(CreateTaxGroupDto) {}

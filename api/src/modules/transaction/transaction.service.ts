@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
@@ -21,6 +21,22 @@ import {
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
+/** Money-in transaction types (vs refund / cash_out which are money-out). */
+const MONEY_IN = new Set<string>([
+  'sale',
+  'cash_in',
+  'reservation_deposit',
+  'event_payment',
+]);
+
+export interface TransactionSummary {
+  count: number;
+  totalIn: number;
+  totalOut: number;
+  net: number;
+  byType: { type: string; count: number; sum: number }[];
+}
+
 @Injectable()
 export class TransactionService {
   constructor(
@@ -37,8 +53,13 @@ export class TransactionService {
     dto: CreateTransactionDto,
     userId?: string,
   ): Promise<Transaction> {
+    // Attach to the open drawer of the transaction's branch (registers are
+    // per-branch); fall back to any open drawer when no branch is given.
     const session = await this._sessionRepo.findOne({
-      where: { status: 'open' },
+      where: {
+        status: 'open',
+        ...(dto.branchId ? { branchId: dto.branchId } : {}),
+      },
       order: { openedAt: 'DESC' },
     });
     const saved = await this._repo.save(
@@ -95,6 +116,14 @@ export class TransactionService {
       base.createdAt = LessThanOrEqual(new Date(query.to));
     }
 
+    if (query.minAmount != null && query.maxAmount != null) {
+      base.amount = Between(query.minAmount, query.maxAmount);
+    } else if (query.minAmount != null) {
+      base.amount = MoreThanOrEqual(query.minAmount);
+    } else if (query.maxAmount != null) {
+      base.amount = LessThanOrEqual(query.maxAmount);
+    }
+
     // Branch scope: a transaction belongs to a branch either directly (ancillary
     // earnings carry their own branchId) or via its order (sales/refunds derive
     // it from the order). "All branches" (no branchId) applies no branch filter.
@@ -118,5 +147,82 @@ export class TransactionService {
         createdAt: 'DESC',
       },
     );
+  }
+
+  /**
+   * Aggregate the CURRENT filter into headline figures for the summary bar:
+   * count, money-in vs money-out totals, net, and a per-type breakdown. Mirrors
+   * getAll's filters (branch via own-branch OR the order's).
+   */
+  async summary(query: GetTransactionQueryDto): Promise<TransactionSummary> {
+    const qb = this._repo
+      .createQueryBuilder('t')
+      .leftJoin('t.order', 'o')
+      .select('t.type', 'type')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(t.amount), 0)', 'sum')
+      .groupBy('t.type');
+
+    if (query.type) qb.andWhere('t.type = :type', { type: query.type });
+    if (query.method)
+      qb.andWhere('t.method = :method', { method: query.method });
+    if (query.registerSessionId)
+      qb.andWhere('t."registerSessionId" = :rs', {
+        rs: query.registerSessionId,
+      });
+    if (query.from)
+      qb.andWhere('t."createdAt" >= :from', { from: new Date(query.from) });
+    if (query.to)
+      qb.andWhere('t."createdAt" <= :to', { to: new Date(query.to) });
+    if (query.minAmount != null)
+      qb.andWhere('t.amount >= :min', { min: query.minAmount });
+    if (query.maxAmount != null)
+      qb.andWhere('t.amount <= :max', { max: query.maxAmount });
+    if (query.branchId)
+      qb.andWhere('(t."branchId" = :b OR o."branchId" = :b)', {
+        b: query.branchId,
+      });
+
+    const rows = await qb.getRawMany<{
+      type: string;
+      count: string;
+      sum: string;
+    }>();
+
+    let count = 0;
+    let totalIn = 0;
+    let totalOut = 0;
+    const byType = rows.map((r) => {
+      const c = Number(r.count);
+      const sum = round2(Number(r.sum));
+      count += c;
+      if (MONEY_IN.has(r.type)) totalIn += sum;
+      else totalOut += sum;
+      return { type: r.type, count: c, sum };
+    });
+
+    return {
+      count,
+      totalIn: round2(totalIn),
+      totalOut: round2(totalOut),
+      net: round2(totalIn - totalOut),
+      byType,
+    };
+  }
+
+  /** Full detail for the transaction drawer (order lines, customer, register). */
+  async getById(id: string): Promise<Transaction> {
+    const txn = await this._repo.findOne({
+      where: { id },
+      relations: [
+        'order',
+        'order.items',
+        'order.assignedWaiter',
+        'order.customer',
+        'registerSession',
+      ],
+    });
+    if (!txn) throw new NotFoundException('Transaction not found');
+    return txn;
   }
 }

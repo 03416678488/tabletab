@@ -41,9 +41,19 @@ export class MenuValidatorService extends AbstractService<MenuItem> {
   ): Promise<void> {
     if (dto.categoryId) await this.ensureCategoryExists(dto.categoryId);
     if (dto.foodTypeIds?.length)
-      await this.ensureAllExist(this._foodTypeRepository, dto.foodTypeIds, 'foodTypeIds', 'food type');
+      await this.ensureAllExist(
+        this._foodTypeRepository,
+        dto.foodTypeIds,
+        'foodTypeIds',
+        'food type',
+      );
     if (dto.menuIds?.length)
-      await this.ensureAllExist(this._menuRepository, dto.menuIds, 'menuIds', 'menu');
+      await this.ensureAllExist(
+        this._menuRepository,
+        dto.menuIds,
+        'menuIds',
+        'menu',
+      );
   }
 
   /** Fetch a menu item with its relations or raise a 404. */

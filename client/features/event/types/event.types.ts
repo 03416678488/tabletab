@@ -9,6 +9,7 @@ export interface EventType {
   basePrice: string | null;
   sortOrder: number;
   isActive: boolean;
+  branchId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +60,7 @@ export interface CreateEventTypeInput {
   basePrice?: string;
   sortOrder?: number;
   isActive?: boolean;
+  branchId?: string;
 }
 export type UpdateEventTypeInput = Partial<CreateEventTypeInput>;
 
@@ -67,6 +69,7 @@ export interface ListEventTypesParams {
   perPage?: number;
   search?: string;
   isActive?: boolean;
+  branchId?: string;
 }
 
 export interface CreateEventInput {

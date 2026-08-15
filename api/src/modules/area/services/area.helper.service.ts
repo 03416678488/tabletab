@@ -10,18 +10,20 @@ import { toILikeContains } from '@cor/helpers/query.helper';
 @Injectable()
 export class AreaHelperService {
   resolveCreatePayload(dto: CreateAreaDto): Partial<Area> {
-    return { name: trimSpaces(dto.name) };
+    return { name: trimSpaces(dto.name), branchId: dto.branchId ?? null };
   }
 
   resolveUpdatePayload(dto: UpdateAreaDto): Partial<Area> {
     const payload: Partial<Area> = { ...dto };
-    if (typeof payload.name === 'string') payload.name = trimSpaces(payload.name);
+    if (typeof payload.name === 'string')
+      payload.name = trimSpaces(payload.name);
     return payload;
   }
 
   resolveListFilters(query: GetAreaQueryDto): FindOptionsWhere<Area> {
     const where: FindOptionsWhere<Area> = {};
     if (query.search) where.name = toILikeContains(trimSpaces(query.search));
+    if (query.branchId) where.branchId = query.branchId;
     return where;
   }
 }

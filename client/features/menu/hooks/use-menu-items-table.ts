@@ -10,6 +10,7 @@ interface Params {
   search?: string;
   categoryId?: string;
   isAvailable?: boolean;
+  branchId?: string;
   initialPerPage?: number;
 }
 
@@ -18,6 +19,7 @@ export function useMenuItemsTable({
   search,
   categoryId,
   isAvailable,
+  branchId,
   initialPerPage = 15,
 }: Params = {}) {
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -28,7 +30,7 @@ export function useMenuItemsTable({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${categoryId ?? ""}|${isAvailable ?? ""}|${perPage}`;
+  const key = `${search ?? ""}|${categoryId ?? ""}|${isAvailable ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -44,6 +46,7 @@ export function useMenuItemsTable({
           search: search || undefined,
           categoryId: categoryId && categoryId !== "all" ? categoryId : undefined,
           isAvailable,
+          branchId,
         });
         if (keyRef.current !== activeKey) return;
         setItems(data.items);

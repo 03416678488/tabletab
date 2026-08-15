@@ -19,12 +19,17 @@ export class AreaValidatorService extends AbstractService<Area> {
   }
 
   async validateCreate(dto: CreateAreaDto): Promise<void> {
-    await this.checkNameExists(dto.name);
+    await this.checkNameExists(dto.name, dto.branchId ?? null);
   }
 
   async validateUpdate(id: string, dto: UpdateAreaDto): Promise<void> {
-    await this.ensureExists(id);
-    if (dto.name) await this.checkNameExists(dto.name, id);
+    const area = await this.ensureExists(id);
+    if (dto.name) {
+      // Names are unique within a branch — check against the area's branch
+      // (or a newly-provided one).
+      const branchId = dto.branchId ?? area.branchId;
+      await this.checkNameExists(dto.name, branchId, id);
+    }
   }
 
   async ensureExists(id: string): Promise<Area> {
@@ -36,9 +41,17 @@ export class AreaValidatorService extends AbstractService<Area> {
     return area;
   }
 
-  private async checkNameExists(name: string, excludeId?: string): Promise<void> {
+  private async checkNameExists(
+    name: string,
+    branchId: string | null,
+    excludeId?: string,
+  ): Promise<void> {
     const exists = await this.repository.findOne({
-      where: { name, ...(excludeId ? { id: Not(excludeId) } : {}) },
+      where: {
+        name,
+        branchId: branchId ?? null,
+        ...(excludeId ? { id: Not(excludeId) } : {}),
+      },
     });
     if (exists) {
       this._errors.add('name', 'An area with this name already exists');

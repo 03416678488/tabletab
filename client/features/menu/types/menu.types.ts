@@ -40,6 +40,7 @@ export interface Paginated<T> {
 }
 
 export interface CreateMenuItemInput {
+  branchId?: string;
   name: string;
   description?: string;
   price: number;
@@ -62,4 +63,5 @@ export interface ListMenuItemsParams {
   search?: string;
   categoryId?: string;
   isAvailable?: boolean;
+  branchId?: string;
 }

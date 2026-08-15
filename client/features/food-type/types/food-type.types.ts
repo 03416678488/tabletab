@@ -21,6 +21,7 @@ export interface Paginated<T> {
 }
 
 export interface CreateFoodTypeInput {
+  branchId?: string;
   name: string;
   description?: string;
   imageUrl?: string;
@@ -35,4 +36,5 @@ export interface ListFoodTypesParams {
   perPage?: number;
   search?: string;
   isActive?: boolean;
+  branchId?: string;
 }

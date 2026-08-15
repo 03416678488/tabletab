@@ -463,6 +463,7 @@ export function PosTerminal() {
             method: payment.method,
             amount: total,
             orderId,
+            ...(orderBranchId ? { branchId: orderBranchId } : {}),
           });
         } catch {
           /* payment recorded on the order note regardless; non-fatal */

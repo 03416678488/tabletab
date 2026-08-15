@@ -6,7 +6,8 @@ import { ApiError } from "@/lib/httpClient";
 import { areaService } from "@/features/area/services/area.service";
 import type { Area } from "@/features/area/types/area.types";
 
-export function useAreas() {
+/** All areas, optionally scoped to one branch (areas are per-branch). */
+export function useAreas(branchId?: string) {
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,14 +16,14 @@ export function useAreas() {
     setLoading(true);
     setError(null);
     try {
-      const data = await areaService.list({ perPage: 100 });
+      const data = await areaService.list({ perPage: 100, ...(branchId ? { branchId } : {}) });
       setAreas(data.items);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load areas");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [branchId]);
 
   useEffect(() => {
     void refetch();

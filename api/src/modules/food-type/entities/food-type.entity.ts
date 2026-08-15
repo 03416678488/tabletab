@@ -1,7 +1,7 @@
 import { Column, Entity, Index } from 'typeorm';
 import { AbstractEntity } from '@cor/abstract/entity/abstract-entity.abstract';
 
-@Index(['name'], { unique: true })
+@Index(['branchId', 'name'], { unique: true })
 @Entity('food_types')
 export class FoodType extends AbstractEntity {
   @Column({ type: 'varchar' })
@@ -18,4 +18,8 @@ export class FoodType extends AbstractEntity {
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
+
+  /** Owning branch — each branch has its own catalog. Null = legacy/global. */
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
 }

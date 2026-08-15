@@ -19,12 +19,17 @@ export class FoodTypeValidatorService extends AbstractService<FoodType> {
   }
 
   async validateCreate(dto: CreateFoodTypeDto): Promise<void> {
-    await this.checkNameExists(dto.name);
+    await this.checkNameExists(dto.name, dto.branchId ?? null);
   }
 
   async validateUpdate(id: string, dto: UpdateFoodTypeDto): Promise<void> {
-    await this.ensureExists(id);
-    if (dto.name) await this.checkNameExists(dto.name, id);
+    const existing = await this.ensureExists(id);
+    if (dto.name)
+      await this.checkNameExists(
+        dto.name,
+        dto.branchId ?? existing.branchId,
+        id,
+      );
   }
 
   async ensureExists(id: string): Promise<FoodType> {
@@ -36,9 +41,17 @@ export class FoodTypeValidatorService extends AbstractService<FoodType> {
     return foodType;
   }
 
-  private async checkNameExists(name: string, excludeId?: string): Promise<void> {
+  private async checkNameExists(
+    name: string,
+    branchId: string | null,
+    excludeId?: string,
+  ): Promise<void> {
     const exists = await this.repository.findOne({
-      where: { name, ...(excludeId ? { id: Not(excludeId) } : {}) },
+      where: {
+        name,
+        branchId: branchId ?? null,
+        ...(excludeId ? { id: Not(excludeId) } : {}),
+      },
     });
     if (exists) {
       this._errors.add('name', 'A food type with this name already exists');

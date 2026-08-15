@@ -23,6 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedTables } from "@/features/table/hooks/use-paginated-tables";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { useTableStats } from "@/features/order/hooks/use-table-stats";
 import { tableService } from "@/features/table/services/table.service";
 import { TableFormDialog } from "@/features/table/components/table-form-dialog";
@@ -42,6 +43,8 @@ const OCCUPANCY: Record<
 /** Plain tabular listing of tables (config view). */
 export function TableListManager() {
   const [search, setSearch] = useState("");
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
   const {
     tables,
     loading,
@@ -53,7 +56,7 @@ export function TableListManager() {
     totalItems,
     goToPage,
     refetch,
-  } = usePaginatedTables({ search });
+  } = usePaginatedTables({ search, branchId });
   // Live per-table occupancy (active orders), scoped to the topbar branch and
   // reconciled over SSE — same source as the floor view.
   const { byTable } = useTableStats();
@@ -61,6 +64,10 @@ export function TableListManager() {
   const [editing, setEditing] = useState<DiningTable | null>(null);
 
   const openCreate = () => {
+    if (!branchId) {
+      toast("Select a branch first to add a table", { tone: "info" });
+      return;
+    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -132,9 +139,7 @@ export function TableListManager() {
             className="py-12"
             icon={Table2}
             title={search.trim() ? "No matches" : "No tables yet"}
-            description={
-              search.trim() ? "Try a different search." : "Add your first table."
-            }
+            description={search.trim() ? "Try a different search." : "Add your first table."}
             action={
               search.trim() ? undefined : (
                 <Button onClick={openCreate}>
@@ -174,7 +179,9 @@ export function TableListManager() {
                       return (
                         <StatusPill tone={tone}>
                           {label}
-                          {stat ? ` · ${stat.itemCount} item${stat.itemCount === 1 ? "" : "s"}` : ""}
+                          {stat
+                            ? ` · ${stat.itemCount} item${stat.itemCount === 1 ? "" : "s"}`
+                            : ""}
                         </StatusPill>
                       );
                     })()}
@@ -186,10 +193,20 @@ export function TableListManager() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => openEdit(t)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Edit"
+                        onClick={() => openEdit(t)}
+                      >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(t)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        onClick={() => remove(t)}
+                      >
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
@@ -217,6 +234,7 @@ export function TableListManager() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         table={editing}
+        defaultBranchId={branchId}
         onSaved={refetch}
       />
     </div>

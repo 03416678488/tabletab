@@ -20,7 +20,21 @@ export class QrCodeHelperService {
   }
 
   resolveCreatePayload(dto: CreateQrCodeDto): Partial<QrCode> {
+    const kind = dto.kind ?? 'table';
+    if (kind === 'custom') {
+      return {
+        kind: 'custom',
+        tableId: null,
+        branchId: dto.branchId ?? null,
+        label: trimSpaces(dto.label ?? '') || null,
+        customType: (dto.customType as QrCode['customType']) ?? 'url',
+        content: (dto.content ?? '').trim(),
+        isActive: dto.isActive ?? true,
+        slug: this.generateSlug(),
+      };
+    }
     return {
+      kind: 'table',
       tableId: dto.tableId,
       isActive: dto.isActive ?? true,
       slug: this.generateSlug(),
@@ -31,21 +45,35 @@ export class QrCodeHelperService {
     const payload: Partial<QrCode> = {};
     if (dto.tableId !== undefined) payload.tableId = dto.tableId;
     if (dto.isActive !== undefined) payload.isActive = dto.isActive;
+    if (dto.label !== undefined) payload.label = trimSpaces(dto.label) || null;
+    if (dto.customType !== undefined)
+      payload.customType = dto.customType as QrCode['customType'];
+    if (dto.content !== undefined) payload.content = dto.content.trim();
     return payload;
   }
 
-  resolveListFilters(query: GetQrCodeQueryDto): FindOptionsWhere<QrCode> {
-    const where: FindOptionsWhere<QrCode> = {};
-    if (query.search) where.slug = toILikeContains(trimSpaces(query.search));
-    if (query.tableId) where.tableId = query.tableId;
-    if (query.isActive !== undefined)
-      where.isActive = query.isActive === 'true';
+  resolveListFilters(
+    query: GetQrCodeQueryDto,
+  ): FindOptionsWhere<QrCode> | FindOptionsWhere<QrCode>[] {
+    const base: FindOptionsWhere<QrCode> = {};
+    if (query.search) base.slug = toILikeContains(trimSpaces(query.search));
+    if (query.tableId) base.tableId = query.tableId;
+    if (query.isActive !== undefined) base.isActive = query.isActive === 'true';
 
     const tableWhere: FindOptionsWhere<QrCode>['table'] = {};
     if (query.areaId) tableWhere.areaId = query.areaId;
     if (query.branchId) tableWhere.branchId = query.branchId;
-    if (Object.keys(tableWhere).length > 0) where.table = tableWhere;
+    if (Object.keys(tableWhere).length === 0) return base;
 
-    return where;
+    // Branch scope (OR'd): custom codes filter by their OWN branchId, table
+    // codes by their table's branch. A specific branch shows only its own codes
+    // (null-branch legacy customs show only under "All branches").
+    const clauses: FindOptionsWhere<QrCode>[] = [
+      { ...base, kind: 'table', table: tableWhere },
+    ];
+    if (query.branchId) {
+      clauses.push({ ...base, kind: 'custom', branchId: query.branchId });
+    }
+    return clauses;
   }
 }

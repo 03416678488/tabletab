@@ -78,4 +78,9 @@ export class CreateMenuItemDto {
   @Type(() => MenuOptionRowDto)
   @IsOptional()
   addOns?: MenuOptionRowDto[];
+
+  /** Owning branch — the branch this item belongs to. */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }

@@ -9,7 +9,11 @@ import { Paginated } from '@modules/common/pagination/interface/pagination.inter
 import { FoodType } from './entities/food-type.entity';
 import { FoodTypeValidatorService } from './services/food-type-validator.service';
 import { FoodTypeHelperService } from './services/food-type.helper.service';
-import { CreateFoodTypeDto, UpdateFoodTypeDto, GetFoodTypeQueryDto } from './dto';
+import {
+  CreateFoodTypeDto,
+  UpdateFoodTypeDto,
+  GetFoodTypeQueryDto,
+} from './dto';
 
 /** Main food-type flow only — validation + normalization live in the sibling services. */
 @Injectable()
@@ -26,9 +30,16 @@ export class FoodTypeService extends AbstractService<FoodType> {
 
   getAll(query: GetFoodTypeQueryDto): Promise<Paginated<FoodType>> {
     const where = this._helper.resolveListFilters(query);
-    return this.pagination.paginationQuery(query, this.repository, where, [], undefined, {
-      sortOrder: 'ASC',
-    });
+    return this.pagination.paginationQuery(
+      query,
+      this.repository,
+      where,
+      [],
+      undefined,
+      {
+        sortOrder: 'ASC',
+      },
+    );
   }
 
   getById(id: string): Promise<FoodType> {

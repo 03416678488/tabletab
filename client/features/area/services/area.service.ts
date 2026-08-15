@@ -17,15 +17,14 @@ export const areaService = {
           page: params?.page,
           perPage: params?.perPage,
           search: params?.search,
+          branchId: params?.branchId,
         },
       })
       .then((res) => res.data);
   },
 
   create(body: CreateAreaInput) {
-    return httpClient
-      .post<Area>(AREA_ENDPOINTS.base, body, { auth: true })
-      .then((res) => res.data);
+    return httpClient.post<Area>(AREA_ENDPOINTS.base, body, { auth: true }).then((res) => res.data);
   },
 
   update(id: string, body: UpdateAreaInput) {

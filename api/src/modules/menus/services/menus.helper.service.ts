@@ -22,7 +22,8 @@ export class MenusHelperService {
 
   resolveUpdatePayload(dto: UpdateMenuDto): Partial<Menu> {
     const payload: Partial<Menu> = { ...dto };
-    if (typeof payload.name === 'string') payload.name = trimSpaces(payload.name);
+    if (typeof payload.name === 'string')
+      payload.name = trimSpaces(payload.name);
     if (typeof payload.description === 'string')
       payload.description = trimSpaces(payload.description);
     return payload;
@@ -31,7 +32,9 @@ export class MenusHelperService {
   resolveListFilters(query: GetMenuQueryDto): FindOptionsWhere<Menu> {
     const where: FindOptionsWhere<Menu> = {};
     if (query.search) where.name = toILikeContains(trimSpaces(query.search));
-    if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
+    if (query.isActive !== undefined)
+      where.isActive = query.isActive === 'true';
+    if (query.branchId) where.branchId = query.branchId;
     return where;
   }
 }

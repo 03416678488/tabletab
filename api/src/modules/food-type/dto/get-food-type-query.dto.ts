@@ -1,4 +1,4 @@
-import { IsBooleanString, IsOptional, IsString } from 'class-validator';
+import { IsBooleanString, IsOptional, IsString, IsUUID } from 'class-validator';
 import { IntersectionType } from '@nestjs/mapped-types';
 import { PaginationQueryDto } from '@modules/common/pagination/dto/pagination-query.dto';
 
@@ -10,6 +10,10 @@ class GetFoodTypeFiltersDto {
   @IsBooleanString()
   @IsOptional()
   isActive?: string;
+
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }
 
 export class GetFoodTypeQueryDto extends IntersectionType(

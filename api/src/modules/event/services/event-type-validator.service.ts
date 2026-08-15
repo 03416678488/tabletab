@@ -19,12 +19,12 @@ export class EventTypeValidatorService extends AbstractService<EventType> {
   }
 
   async validateCreate(dto: CreateEventTypeDto): Promise<void> {
-    await this.checkNameExists(dto.name);
+    await this.checkNameExists(dto.name, dto.branchId ?? null);
   }
 
   async validateUpdate(id: string, dto: UpdateEventTypeDto): Promise<void> {
-    await this.ensureExists(id);
-    if (dto.name) await this.checkNameExists(dto.name, id);
+    const existing = await this.ensureExists(id);
+    if (dto.name) await this.checkNameExists(dto.name, existing.branchId, id);
   }
 
   async ensureExists(id: string): Promise<EventType> {
@@ -38,10 +38,15 @@ export class EventTypeValidatorService extends AbstractService<EventType> {
 
   private async checkNameExists(
     name: string,
+    branchId: string | null,
     excludeId?: string,
   ): Promise<void> {
     const exists = await this.repository.findOne({
-      where: { name, ...(excludeId ? { id: Not(excludeId) } : {}) },
+      where: {
+        name,
+        branchId: branchId ?? null,
+        ...(excludeId ? { id: Not(excludeId) } : {}),
+      },
     });
     if (exists) {
       this._errors.add('name', 'An event type with this name already exists');

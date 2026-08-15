@@ -1,4 +1,12 @@
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateMenuDto {
   @IsString()
@@ -21,4 +29,9 @@ export class CreateMenuDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  /** Owning branch — the branch this menu belongs to. */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }

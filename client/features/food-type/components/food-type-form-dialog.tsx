@@ -25,12 +25,11 @@ import {
 } from "@/features/food-type/schemas/food-type.schema";
 import { foodTypeService } from "@/features/food-type/services/food-type.service";
 import { ImagePickerField } from "@/features/media/components/image-picker-field";
-import type {
-  CreateFoodTypeInput,
-  FoodType,
-} from "@/features/food-type/types/food-type.types";
+import type { CreateFoodTypeInput, FoodType } from "@/features/food-type/types/food-type.types";
 
 interface FoodTypeFormDialogProps {
+  /** Owning branch for new records (create tags to this branch). */
+  branchId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   foodType: FoodType | null;
@@ -54,6 +53,7 @@ function toDefaults(foodType: FoodType | null): FoodTypeFormValues {
 }
 
 export function FoodTypeFormDialog({
+  branchId,
   open,
   onOpenChange,
   foodType,
@@ -92,7 +92,7 @@ export function FoodTypeFormDialog({
         await foodTypeService.update(foodType!.id, payload);
         toast("Food type updated", { tone: "success" });
       } else {
-        await foodTypeService.create(payload);
+        await foodTypeService.create({ ...payload, ...(branchId ? { branchId } : {}) });
         toast("Food type created", { tone: "success" });
       }
       onOpenChange(false);
@@ -111,9 +111,7 @@ export function FoodTypeFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit food type" : "Add food type"}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? "Update this food type's details."
-              : "Create a new food type."}
+            {isEdit ? "Update this food type's details." : "Create a new food type."}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,9 +119,7 @@ export function FoodTypeFormDialog({
           <div className="space-y-1.5">
             <Label>Name</Label>
             <Input {...register("name")} aria-invalid={!!errors.name} />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Description</Label>
@@ -138,10 +134,7 @@ export function FoodTypeFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Sort order</Label>
-            <Input
-              type="number"
-              {...register("sortOrder", { setValueAs: toOptionalNumber })}
-            />
+            <Input type="number" {...register("sortOrder", { setValueAs: toOptionalNumber })} />
           </div>
           <label className="flex items-center gap-2 pt-1 text-sm text-ink">
             <input

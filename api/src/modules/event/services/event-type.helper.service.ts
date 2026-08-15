@@ -22,6 +22,7 @@ export class EventTypeHelperService {
       basePrice: dto.basePrice ?? null,
       sortOrder: dto.sortOrder ?? 0,
       isActive: dto.isActive ?? true,
+      branchId: dto.branchId ?? null,
     };
   }
 
@@ -43,6 +44,7 @@ export class EventTypeHelperService {
     if (query.search) where.name = toILikeContains(trimSpaces(query.search));
     if (query.isActive !== undefined)
       where.isActive = query.isActive === 'true';
+    if (query.branchId) where.branchId = query.branchId;
     return where;
   }
 }

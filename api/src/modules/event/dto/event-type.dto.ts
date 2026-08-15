@@ -5,6 +5,7 @@ import {
   IsNumberString,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
 } from 'class-validator';
 import { IntersectionType } from '@nestjs/mapped-types';
@@ -35,6 +36,11 @@ export class CreateEventTypeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  /** Owning branch (from the topbar switcher). */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }
 
 export class UpdateEventTypeDto {
@@ -73,6 +79,11 @@ class GetEventTypeFiltersDto {
   @IsString()
   @IsOptional()
   isActive?: string;
+
+  /** Scope to one branch (topbar switcher). */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }
 
 export class GetEventTypeQueryDto extends IntersectionType(

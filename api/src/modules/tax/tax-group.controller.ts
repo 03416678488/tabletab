@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
@@ -20,8 +21,8 @@ export class TaxGroupController {
 
   @Public()
   @Get()
-  getAll() {
-    return this._service.getAll();
+  getAll(@Query('branchId') branchId?: string) {
+    return this._service.getAll(branchId);
   }
 
   @Post()
@@ -30,7 +31,10 @@ export class TaxGroupController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTaxGroupDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTaxGroupDto,
+  ) {
     return this._service.update(id, dto);
   }
 

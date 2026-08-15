@@ -44,6 +44,7 @@ import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
 
 import { usePaginatedEvents } from "@/features/event/hooks/use-paginated-events";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { eventService } from "@/features/event/services/event.service";
 import { EventFormDialog } from "@/features/event/components/event-form-dialog";
 import { EVENT_STATUSES } from "@/features/event/constants/event.constants";
@@ -66,6 +67,8 @@ const STATUS_LABEL: Record<EventStatus, string> = {
 type StatusFilter = "all" | EventStatus;
 
 export function EventManager() {
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -90,7 +93,7 @@ export function EventManager() {
     totalItems,
     goToPage,
     refetch,
-  } = usePaginatedEvents({ search, status: status === "all" ? undefined : status });
+  } = usePaginatedEvents({ search, status: status === "all" ? undefined : status, branchId });
 
   const activeFilters = status !== "all" ? 1 : 0;
   const filtersActive = Boolean(search.trim()) || status !== "all";

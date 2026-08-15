@@ -4,7 +4,10 @@ import { DataSource, In } from 'typeorm';
 import { Integration } from '@modules/integration/entities/integration.entity';
 import { IntegrationSyncLog } from '@modules/integration/entities/integration-sync-log.entity';
 import { writeSyncLog } from '@modules/integration/integration-sync-log.util';
-import { resolveOutboundTarget, targetHeaders } from '@modules/integration/aggregator-target';
+import {
+  resolveOutboundTarget,
+  targetHeaders,
+} from '@modules/integration/aggregator-target';
 import { ensureFreshToken } from '@modules/integration/oauth-refresh';
 import { openConfig } from '@cor/crypto/secret-cipher';
 
@@ -52,7 +55,10 @@ export class MenuSyncService {
     if (typeof entry.timer.unref === 'function') entry.timer.unref();
   }
 
-  private async pushDelta(dataSource: DataSource, ids: string[]): Promise<void> {
+  private async pushDelta(
+    dataSource: DataSource,
+    ids: string[],
+  ): Promise<void> {
     if (ids.length === 0) return;
 
     // Changed ids that still exist → upserts; the rest were deleted → removes.
@@ -75,7 +81,11 @@ export class MenuSyncService {
     const integrations = dataSource.getRepository(Integration);
     const rows = await integrations.find({ where: { status: 'connected' } });
     const logs = dataSource.getRepository(IntegrationSyncLog);
-    const meta = { upserts: upserts.length, removes: removes.length, delta: true };
+    const meta = {
+      upserts: upserts.length,
+      removes: removes.length,
+      delta: true,
+    };
     const body = JSON.stringify({ upserts, removes });
 
     for (const row of rows) {
@@ -103,7 +113,9 @@ export class MenuSyncService {
             meta,
           });
         } else {
-          this.logger.warn(`[${row.provider}] menu delta returned ${res.status}`);
+          this.logger.warn(
+            `[${row.provider}] menu delta returned ${res.status}`,
+          );
           await writeSyncLog(logs, {
             provider: row.provider,
             direction: 'menu_out',
@@ -113,7 +125,9 @@ export class MenuSyncService {
           });
         }
       } catch (err) {
-        this.logger.warn(`[${row.provider}] menu delta failed: ${(err as Error).message}`);
+        this.logger.warn(
+          `[${row.provider}] menu delta failed: ${(err as Error).message}`,
+        );
         await writeSyncLog(logs, {
           provider: row.provider,
           direction: 'menu_out',

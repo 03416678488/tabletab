@@ -1,13 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Download,
-  FileSpreadsheet,
-  Upload,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,8 +76,8 @@ export function MenuIoManager() {
             <h2 className="font-medium text-ink">Export</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Download all items as a CSV. Each row includes the item&apos;s id, so you can edit
-            and re-import to update them.
+            Download all items as a CSV. Each row includes the item&apos;s id, so you can edit and
+            re-import to update them.
           </p>
           <div>
             <Button onClick={doExport} disabled={exporting}>

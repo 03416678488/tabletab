@@ -40,12 +40,14 @@ import { useMenuItemsTable } from "@/features/menu/hooks/use-menu-items-table";
 import { Pagination } from "@/components/ui/pagination";
 import { menuService } from "@/features/menu/services/menu.service";
 import { MenuFormDialog } from "@/features/menu/components/menu-form-dialog";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { useCategories } from "@/features/category/hooks/use-categories";
 import type { MenuItem } from "@/features/menu/types/menu.types";
 
 type AvailFilter = "all" | "available" | "unavailable";
 
 export function MenuManager() {
+  const branchId = useScopedBranchId();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [categoryId, setCategoryId] = useState<string>("all");
@@ -66,6 +68,7 @@ export function MenuManager() {
     search,
     categoryId,
     isAvailable: avail === "all" ? undefined : avail === "available",
+    branchId,
   });
   const { categories } = useCategories();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -74,6 +77,10 @@ export function MenuManager() {
   const activeFilters = (categoryId !== "all" ? 1 : 0) + (avail !== "all" ? 1 : 0);
 
   const openCreate = () => {
+    if (!branchId) {
+      toast("Select a branch first to add an item", { tone: "info" });
+      return;
+    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -403,6 +410,7 @@ export function MenuManager() {
       )}
 
       <MenuFormDialog
+        branchId={branchId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         item={editing}

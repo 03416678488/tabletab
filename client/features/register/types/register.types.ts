@@ -3,6 +3,7 @@ export type RegisterStatus = "open" | "closed";
 export interface RegisterSession {
   id: string;
   status: RegisterStatus;
+  branchId: string | null;
   openingBalance: number;
   closingCountedBalance: number | null;
   expectedBalance: number | null;
@@ -29,4 +30,22 @@ export interface RegisterSummary {
 export interface CurrentRegister {
   session: RegisterSession | null;
   summary: RegisterSummary | null;
+}
+
+/** One branch's drawer state in the "All branches" overview. */
+export interface RegisterOverviewRow {
+  branchId: string;
+  branchName: string;
+  status: RegisterStatus;
+  openingBalance: number | null;
+  expectedCash: number | null;
+  cashSales: number | null;
+  cashIn: number | null;
+  cashOut: number | null;
+  openedAt: string | null;
+}
+
+export interface RegisterOverview {
+  rows: RegisterOverviewRow[];
+  totals: { openDrawers: number; expectedCash: number };
 }

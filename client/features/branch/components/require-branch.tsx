@@ -21,10 +21,11 @@ interface RequireBranchProps {
 }
 
 /**
- * Branch-scoping gate. Renders `children` only when a **specific** branch is
- * selected in the topbar. While "All branches" (or nothing) is active it blocks
- * with a prompt + inline picker, because the wrapped feature ties its data to a
- * single branch (e.g. every POS order belongs to one location).
+ * Branch-scoping gate. Shows a **non-dismissible popup** (no close ✕, no
+ * backdrop/Esc dismiss) whenever no specific branch is selected in the topbar.
+ * The popup does one thing: set the active branch. Everything downstream already
+ * watches the active branch (`useScopedBranchId`), so once it changes the popup
+ * disappears and the page re-scopes itself.
  *
  * Reusable — wrap any branch-scoped page:
  *   <RequireBranch feature="The POS"><PosTerminal /></RequireBranch>
@@ -47,7 +48,12 @@ export function RequireBranch({
   if (!needsBranch) return <>{children}</>;
 
   return (
-    <div className="flex min-h-[70vh] w-full items-center justify-center p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ?? "Select a branch to continue"}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+    >
       <Card className="w-full max-w-md p-6 text-center sm:p-8">
         <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-tint text-brand-deep">
           <Store className="size-7" />

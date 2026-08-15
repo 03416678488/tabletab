@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
@@ -20,8 +21,8 @@ export class TaxController {
 
   @Public()
   @Get()
-  getAll() {
-    return this._service.getAll();
+  getAll(@Query('branchId') branchId?: string) {
+    return this._service.getAll(branchId);
   }
 
   @Post()

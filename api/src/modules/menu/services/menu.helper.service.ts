@@ -10,7 +10,11 @@ import {
 import { trimSpaces } from '@cor/helpers';
 
 import { MenuItem, MenuOptionRow } from '../entities/menu-item.entity';
-import { CreateMenuItemDto, UpdateMenuItemDto, GetMenuItemQueryDto } from '../dto';
+import {
+  CreateMenuItemDto,
+  UpdateMenuItemDto,
+  GetMenuItemQueryDto,
+} from '../dto';
 import { toILikeContains } from '@cor/helpers/query.helper';
 
 /**
@@ -34,6 +38,7 @@ export class MenuHelperService {
       sizes: this.cleanRows(dto.sizes),
       variants: this.cleanRows(dto.variants),
       addOns: this.cleanRows(dto.addOns),
+      branchId: dto.branchId ?? null,
     };
   }
 
@@ -41,7 +46,9 @@ export class MenuHelperService {
     const payload: Partial<MenuItem> = {};
     if (dto.name !== undefined) payload.name = trimSpaces(dto.name);
     if (dto.description !== undefined)
-      payload.description = dto.description ? trimSpaces(dto.description) : null;
+      payload.description = dto.description
+        ? trimSpaces(dto.description)
+        : null;
     if (dto.price !== undefined) payload.price = dto.price;
     if (dto.images !== undefined) {
       payload.images = this.cleanImages(dto.images);
@@ -50,9 +57,11 @@ export class MenuHelperService {
       payload.imageUrl = dto.imageUrl;
     }
     if (dto.isAvailable !== undefined) payload.isAvailable = dto.isAvailable;
-    if (dto.categoryId !== undefined) payload.categoryId = dto.categoryId ?? null;
+    if (dto.categoryId !== undefined)
+      payload.categoryId = dto.categoryId ?? null;
     if (dto.sizes !== undefined) payload.sizes = this.cleanRows(dto.sizes);
-    if (dto.variants !== undefined) payload.variants = this.cleanRows(dto.variants);
+    if (dto.variants !== undefined)
+      payload.variants = this.cleanRows(dto.variants);
     if (dto.addOns !== undefined) payload.addOns = this.cleanRows(dto.addOns);
     return payload;
   }
@@ -82,6 +91,8 @@ export class MenuHelperService {
       where.price = Between(minPrice, maxPrice);
     else if (minPrice !== undefined) where.price = MoreThanOrEqual(minPrice);
     else if (maxPrice !== undefined) where.price = LessThanOrEqual(maxPrice);
+
+    if (query.branchId) where.branchId = query.branchId;
 
     return where;
   }

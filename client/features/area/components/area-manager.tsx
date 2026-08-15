@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedAreas } from "@/features/area/hooks/use-paginated-areas";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { Pagination } from "@/components/ui/pagination";
 import { areaService } from "@/features/area/services/area.service";
 import { AreaFormDialog } from "@/features/area/components/area-form-dialog";
@@ -28,6 +29,8 @@ import type { Area } from "@/features/area/types/area.types";
 
 export function AreaManager() {
   const [search, setSearch] = useState("");
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
   const {
     areas,
     loading,
@@ -39,11 +42,15 @@ export function AreaManager() {
     totalItems,
     goToPage,
     refetch,
-  } = usePaginatedAreas({ search });
+  } = usePaginatedAreas({ search, branchId });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Area | null>(null);
 
   const openCreate = () => {
+    if (!branchId) {
+      toast("Select a branch first to add an area", { tone: "info" });
+      return;
+    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -71,9 +78,7 @@ export function AreaManager() {
     <div className="mx-auto w-full max-w-2xl">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">
-            Areas
-          </h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-ink">Areas</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {totalItems} area{totalItems === 1 ? "" : "s"} · group tables by area.
           </p>
@@ -169,13 +174,22 @@ export function AreaManager() {
       </Card>
 
       {!loading && !error && areas.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} totalItems={totalItems} onPageChange={goToPage} perPage={perPage} onPerPageChange={setPerPage} className="mt-4" />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPageChange={goToPage}
+          perPage={perPage}
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
       )}
 
       <AreaFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         area={editing}
+        branchId={branchId}
         onSaved={refetch}
       />
     </div>

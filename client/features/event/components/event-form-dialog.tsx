@@ -80,9 +80,20 @@ export function EventFormDialog({ open, onOpenChange, onSaved }: Props) {
     const defaultBranchId = activeBranchId && activeBranchId !== ALL_BRANCHES ? activeBranchId : "";
     reset({ ...DEFAULTS, branchId: defaultBranchId });
     setCustomer(null);
+  }, [open, reset, activeBranchId]);
+
+  // Event types are per-branch — load the chosen location's catalogue (or all
+  // types when no location is set).
+  const selectedBranchId = watch("branchId");
+  useEffect(() => {
+    if (!open) return;
     let cancelled = false;
     eventTypeService
-      .list({ isActive: true, perPage: 100 })
+      .list({
+        isActive: true,
+        perPage: 100,
+        ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
+      })
       .then((res) => {
         if (!cancelled) setEventTypes(res.items);
       })
@@ -90,7 +101,7 @@ export function EventFormDialog({ open, onOpenChange, onSaved }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [open, reset, activeBranchId]);
+  }, [open, selectedBranchId]);
 
   const onSubmit = handleSubmit(async (values) => {
     const payload: CreateEventInput = {
@@ -154,7 +165,11 @@ export function EventFormDialog({ open, onOpenChange, onSaved }: Props) {
               <Label>Location</Label>
               <Dropdown
                 value={watch("branchId") ?? ""}
-                onChange={(v) => setValue("branchId", v, { shouldDirty: true })}
+                onChange={(v) => {
+                  setValue("branchId", v, { shouldDirty: true });
+                  // Event types are per-branch — drop a type from another branch.
+                  setValue("eventTypeId", "", { shouldDirty: true });
+                }}
                 searchable
                 placeholder="— Any —"
                 aria-label="Location"

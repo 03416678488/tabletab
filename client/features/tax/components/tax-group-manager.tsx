@@ -34,11 +34,18 @@ import { ApiError } from "@/lib/httpClient";
 import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useTaxGroups } from "@/features/tax/hooks/use-tax-groups";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
-import { taxGroupService, groupRate, type TaxGroup } from "@/features/tax/services/tax-group.service";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
+import {
+  taxGroupService,
+  groupRate,
+  type TaxGroup,
+} from "@/features/tax/services/tax-group.service";
 import { useClientPagination } from "@/hooks/use-client-pagination";
 
 export function TaxGroupManager() {
-  const { groups, loading, error, refetch } = useTaxGroups();
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
+  const { groups, loading, error, refetch } = useTaxGroups(branchId);
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -47,7 +54,7 @@ export function TaxGroupManager() {
   }, [groups, search]);
   const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
     useClientPagination(filtered);
-  const { taxes } = useTaxes();
+  const { taxes } = useTaxes(branchId);
   const { defaultTax, setDefault } = useDefaultTax();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TaxGroup | null>(null);
@@ -78,7 +85,7 @@ export function TaxGroupManager() {
     try {
       const body = { name, code: code || undefined, taxIds, isActive };
       if (editing) await taxGroupService.update(editing.id, body);
-      else await taxGroupService.create(body);
+      else await taxGroupService.create({ ...body, ...(branchId ? { branchId } : {}) });
       toast("Tax group saved", { tone: "success" });
       setOpen(false);
       refetch();
@@ -130,6 +137,10 @@ export function TaxGroupManager() {
           <Button
             size="sm"
             onClick={() => {
+              if (!branchId) {
+                toast("Select a branch first to add a tax group", { tone: "info" });
+                return;
+              }
               setEditing(null);
               setOpen(true);
             }}
@@ -213,7 +224,12 @@ export function TaxGroupManager() {
                       >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(g)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        onClick={() => remove(g)}
+                      >
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
@@ -250,7 +266,11 @@ export function TaxGroupManager() {
               </div>
               <div className="space-y-1.5">
                 <Label>Code</Label>
-                <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="optional" />
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="optional"
+                />
               </div>
             </div>
             <div className="space-y-1.5">

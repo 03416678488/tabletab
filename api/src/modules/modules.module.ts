@@ -25,7 +25,6 @@ import { SettingModule } from '@modules/setting/setting.module';
 import { CurrencyModule } from '@modules/currency/currency.module';
 import { TaxModule } from '@modules/tax/tax.module';
 import { LanguageModule } from '@modules/language/language.module';
-import { TranslationModule } from '@modules/translation/translation.module';
 import { KioskMachineModule } from '@modules/kiosk-machine/kiosk-machine.module';
 import { AnalyticsModule } from '@modules/analytics/analytics.module';
 import { DashboardModule } from '@modules/dashboard/dashboard.module';
@@ -73,7 +72,6 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     CurrencyModule,
     TaxModule,
     LanguageModule,
-    TranslationModule,
     KioskMachineModule,
     AnalyticsModule,
     DashboardModule,

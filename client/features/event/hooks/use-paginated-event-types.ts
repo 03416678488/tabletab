@@ -9,10 +9,11 @@ import type { EventType } from "@/features/event/types/event.types";
 interface Params {
   search?: string;
   isActive?: boolean;
+  branchId?: string;
 }
 
 /** Server-paginated event types for the management table. */
-export function usePaginatedEventTypes({ search, isActive }: Params = {}) {
+export function usePaginatedEventTypes({ search, isActive, branchId }: Params = {}) {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -21,7 +22,7 @@ export function usePaginatedEventTypes({ search, isActive }: Params = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${isActive ?? ""}|${perPage}`;
+  const key = `${search ?? ""}|${isActive ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -36,6 +37,7 @@ export function usePaginatedEventTypes({ search, isActive }: Params = {}) {
           perPage,
           search: search || undefined,
           isActive,
+          ...(branchId ? { branchId } : {}),
         });
         if (keyRef.current !== activeKey) return;
         setEventTypes(data.items);

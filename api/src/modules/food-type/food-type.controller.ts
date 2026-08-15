@@ -11,7 +11,11 @@ import {
 } from '@nestjs/common';
 
 import { FoodTypeService } from './food-type.service';
-import { CreateFoodTypeDto, UpdateFoodTypeDto, GetFoodTypeQueryDto } from './dto';
+import {
+  CreateFoodTypeDto,
+  UpdateFoodTypeDto,
+  GetFoodTypeQueryDto,
+} from './dto';
 
 @Controller('food-types')
 export class FoodTypeController {
@@ -33,7 +37,10 @@ export class FoodTypeController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateFoodTypeDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateFoodTypeDto,
+  ) {
     return this._foodTypeService.updateFoodType(id, dto);
   }
 

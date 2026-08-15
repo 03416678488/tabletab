@@ -9,10 +9,11 @@ import type { FoodType } from "@/features/food-type/types/food-type.types";
 interface Params {
   search?: string;
   isActive?: boolean;
+  branchId?: string;
 }
 
 /** Server-paginated food types for the management table. Debounces filter changes. */
-export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
+export function usePaginatedFoodTypes({ search, isActive, branchId }: Params = {}) {
   const [foodTypes, setFoodTypes] = useState<FoodType[]>([]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -21,7 +22,7 @@ export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${isActive ?? ""}|${perPage}`;
+  const key = `${search ?? ""}|${isActive ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -36,6 +37,7 @@ export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
           perPage,
           search: search || undefined,
           isActive,
+          branchId,
         });
         if (keyRef.current !== activeKey) return;
         setFoodTypes(data.items);
@@ -61,5 +63,16 @@ export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
   const refetch = useCallback(() => void fetchPage(page), [fetchPage, page]);
 
-  return { foodTypes, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch };
+  return {
+    foodTypes,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  };
 }

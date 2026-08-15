@@ -6,6 +6,7 @@ export interface Tax {
   code: string;
   rate: number;
   isActive: boolean;
+  branchId?: string | null;
 }
 
 export interface TaxInput {
@@ -13,11 +14,14 @@ export interface TaxInput {
   code: string;
   rate: number;
   isActive?: boolean;
+  branchId?: string;
 }
 
 export const taxService = {
-  list() {
-    return httpClient.get<Tax[]>("/taxes").then((r) => r.data);
+  list(branchId?: string) {
+    return httpClient
+      .get<Tax[]>("/taxes", { params: branchId ? { branchId } : undefined })
+      .then((r) => r.data);
   },
   create(body: TaxInput) {
     return httpClient.post<Tax>("/taxes", body, { auth: true }).then((r) => r.data);

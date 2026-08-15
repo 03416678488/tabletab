@@ -31,6 +31,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   eventType: EventType | null;
+  /** Branch a new event type belongs to (from the topbar switcher). */
+  branchId?: string;
   onSaved: () => void;
 }
 
@@ -51,7 +53,7 @@ function toDefaults(eventType: EventType | null): EventTypeFormValues {
   };
 }
 
-export function EventTypeFormDialog({ open, onOpenChange, eventType, onSaved }: Props) {
+export function EventTypeFormDialog({ open, onOpenChange, eventType, branchId, onSaved }: Props) {
   const isEdit = !!eventType;
   const form = useForm<EventTypeFormValues>({
     resolver: zodResolver(eventTypeSchema),
@@ -86,7 +88,7 @@ export function EventTypeFormDialog({ open, onOpenChange, eventType, onSaved }: 
         await eventTypeService.update(eventType!.id, payload);
         toast("Event type updated", { tone: "success" });
       } else {
-        await eventTypeService.create(payload);
+        await eventTypeService.create({ ...payload, ...(branchId ? { branchId } : {}) });
         toast("Event type created", { tone: "success" });
       }
       onOpenChange(false);

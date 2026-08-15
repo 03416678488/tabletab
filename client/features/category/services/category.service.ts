@@ -18,6 +18,7 @@ export const categoryService = {
           perPage: params?.perPage,
           search: params?.search,
           isActive: params?.isActive,
+          branchId: params?.branchId,
         },
       })
       .then((res) => res.data);

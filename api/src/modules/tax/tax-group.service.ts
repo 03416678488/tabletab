@@ -15,8 +15,11 @@ export class TaxGroupService {
     private readonly _taxRepo: Repository<Tax>,
   ) {}
 
-  getAll(): Promise<TaxGroup[]> {
-    return this._repo.find({ order: { id: 'ASC' } });
+  getAll(branchId?: string): Promise<TaxGroup[]> {
+    return this._repo.find({
+      where: branchId ? { branchId } : {},
+      order: { id: 'ASC' },
+    });
   }
 
   async getById(id: number): Promise<TaxGroup> {
@@ -26,7 +29,9 @@ export class TaxGroupService {
   }
 
   private taxesFor(ids: number[]): Promise<Tax[]> {
-    return ids.length ? this._taxRepo.find({ where: { id: In(ids) } }) : Promise.resolve([]);
+    return ids.length
+      ? this._taxRepo.find({ where: { id: In(ids) } })
+      : Promise.resolve([]);
   }
 
   async create(dto: CreateTaxGroupDto): Promise<TaxGroup> {
@@ -34,6 +39,7 @@ export class TaxGroupService {
       name: dto.name,
       code: dto.code ?? null,
       isActive: dto.isActive ?? true,
+      branchId: dto.branchId ?? null,
       taxes: await this.taxesFor(dto.taxIds),
     });
     return this._repo.save(group);

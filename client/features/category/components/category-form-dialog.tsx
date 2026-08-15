@@ -25,12 +25,11 @@ import {
 } from "@/features/category/schemas/category.schema";
 import { categoryService } from "@/features/category/services/category.service";
 import { ImagePickerField } from "@/features/media/components/image-picker-field";
-import type {
-  Category,
-  CreateCategoryInput,
-} from "@/features/category/types/category.types";
+import type { Category, CreateCategoryInput } from "@/features/category/types/category.types";
 
 interface CategoryFormDialogProps {
+  /** Owning branch for new records. */
+  branchId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   category: Category | null;
@@ -54,6 +53,7 @@ function toDefaults(category: Category | null): CategoryFormValues {
 }
 
 export function CategoryFormDialog({
+  branchId,
   open,
   onOpenChange,
   category,
@@ -92,7 +92,7 @@ export function CategoryFormDialog({
         await categoryService.update(category!.id, payload);
         toast("Category updated", { tone: "success" });
       } else {
-        await categoryService.create(payload);
+        await categoryService.create({ ...payload, ...(branchId ? { branchId } : {}) });
         toast("Category created", { tone: "success" });
       }
       onOpenChange(false);
@@ -111,9 +111,7 @@ export function CategoryFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit category" : "Add category"}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? "Update this category's details."
-              : "Create a new menu category."}
+            {isEdit ? "Update this category's details." : "Create a new menu category."}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,9 +119,7 @@ export function CategoryFormDialog({
           <div className="space-y-1.5">
             <Label>Name</Label>
             <Input {...register("name")} aria-invalid={!!errors.name} />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Description</Label>
@@ -138,10 +134,7 @@ export function CategoryFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Sort order</Label>
-            <Input
-              type="number"
-              {...register("sortOrder", { setValueAs: toOptionalNumber })}
-            />
+            <Input type="number" {...register("sortOrder", { setValueAs: toOptionalNumber })} />
           </div>
           <label className="flex items-center gap-2 pt-1 text-sm text-ink">
             <input

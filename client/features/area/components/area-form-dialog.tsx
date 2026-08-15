@@ -19,10 +19,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
-import {
-  areaSchema,
-  type AreaFormValues,
-} from "@/features/area/schemas/area.schema";
+import { areaSchema, type AreaFormValues } from "@/features/area/schemas/area.schema";
 import { areaService } from "@/features/area/services/area.service";
 import type { Area } from "@/features/area/types/area.types";
 
@@ -30,6 +27,8 @@ interface AreaFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   area: Area | null;
+  /** Scoped branch the new area belongs to (from the topbar switcher). */
+  branchId?: string;
   onSaved: () => void;
 }
 
@@ -37,6 +36,7 @@ export function AreaFormDialog({
   open,
   onOpenChange,
   area,
+  branchId,
   onSaved,
 }: AreaFormDialogProps) {
   const isEdit = !!area;
@@ -62,7 +62,7 @@ export function AreaFormDialog({
         await areaService.update(area!.id, values);
         toast("Area updated", { tone: "success" });
       } else {
-        await areaService.create(values);
+        await areaService.create({ ...values, ...(branchId ? { branchId } : {}) });
         toast("Area created", { tone: "success" });
       }
       onOpenChange(false);
@@ -80,18 +80,14 @@ export function AreaFormDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit area" : "Add area"}</DialogTitle>
-          <DialogDescription>
-            Areas group your tables (e.g. Patio, Main hall).
-          </DialogDescription>
+          <DialogDescription>Areas group your tables (e.g. Patio, Main hall).</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label>Name</Label>
             <Input {...register("name")} aria-invalid={!!errors.name} autoFocus />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
 
           <DialogFooter>

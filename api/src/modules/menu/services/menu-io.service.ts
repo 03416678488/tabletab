@@ -8,7 +8,14 @@ import { Category } from '@modules/category/entities/category.entity';
 import { MenuItem } from '../entities/menu-item.entity';
 
 /** CSV columns for item import/export (v1 = core fields). */
-const HEADERS = ['id', 'name', 'description', 'price', 'category', 'available'] as const;
+const HEADERS = [
+  'id',
+  'name',
+  'description',
+  'price',
+  'category',
+  'available',
+] as const;
 
 export interface ImportResult {
   created: number;
@@ -38,7 +45,8 @@ function parseAvailable(v: string | undefined): boolean {
 export class MenuIoService {
   constructor(
     @InjectRepository(MenuItem) private readonly _items: Repository<MenuItem>,
-    @InjectRepository(Category) private readonly _categories: Repository<Category>,
+    @InjectRepository(Category)
+    private readonly _categories: Repository<Category>,
   ) {}
 
   /** Structured menu snapshot for pushing to an external catalog (e.g. foodpanda). */
@@ -107,12 +115,16 @@ export class MenuIoService {
         bom: true,
       });
     } catch (err) {
-      throw new BadRequestException(`Could not parse CSV: ${(err as Error).message}`);
+      throw new BadRequestException(
+        `Could not parse CSV: ${(err as Error).message}`,
+      );
     }
 
     // Resolve category names once (case-insensitive).
     const categories = await this._categories.find();
-    const categoryByName = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]));
+    const categoryByName = new Map(
+      categories.map((c) => [c.name.toLowerCase(), c.id]),
+    );
 
     const result: ImportResult = { created: 0, updated: 0, errors: [] };
 
@@ -129,7 +141,10 @@ export class MenuIoService {
       const priceRaw = (row.price ?? '').trim();
       const price = Number(priceRaw);
       if (priceRaw === '' || Number.isNaN(price) || price < 0) {
-        result.errors.push({ row: line, message: `Invalid price "${priceRaw}"` });
+        result.errors.push({
+          row: line,
+          message: `Invalid price "${priceRaw}"`,
+        });
         continue;
       }
 
@@ -138,7 +153,10 @@ export class MenuIoService {
       if (categoryName) {
         const found = categoryByName.get(categoryName.toLowerCase());
         if (!found) {
-          result.errors.push({ row: line, message: `Category "${categoryName}" not found` });
+          result.errors.push({
+            row: line,
+            message: `Category "${categoryName}" not found`,
+          });
           continue;
         }
         categoryId = found;
@@ -152,7 +170,10 @@ export class MenuIoService {
         if (id) {
           const existing = await this._items.findOne({ where: { id } });
           if (!existing) {
-            result.errors.push({ row: line, message: `Item id ${id} not found` });
+            result.errors.push({
+              row: line,
+              message: `Item id ${id} not found`,
+            });
             continue;
           }
           existing.name = name;

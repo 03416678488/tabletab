@@ -19,18 +19,14 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
-import {
-  menuSchema,
-  type MenuFormValues,
-} from "@/features/menu-list/schemas/menu.schema";
+import { menuSchema, type MenuFormValues } from "@/features/menu-list/schemas/menu.schema";
 import { menusService } from "@/features/menu-list/services/menu.service";
 import { ImagePickerField } from "@/features/media/components/image-picker-field";
-import type {
-  CreateMenuInput,
-  Menu,
-} from "@/features/menu-list/types/menu.types";
+import type { CreateMenuInput, Menu } from "@/features/menu-list/types/menu.types";
 
 interface MenuFormDialogProps {
+  /** Owning branch for new records. */
+  branchId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   menu: Menu | null;
@@ -54,6 +50,7 @@ function toDefaults(menu: Menu | null): MenuFormValues {
 }
 
 export function MenuFormDialog({
+  branchId,
   open,
   onOpenChange,
   menu,
@@ -92,7 +89,7 @@ export function MenuFormDialog({
         await menusService.update(menu!.id, payload);
         toast("Menu updated", { tone: "success" });
       } else {
-        await menusService.create(payload);
+        await menusService.create({ ...payload, ...(branchId ? { branchId } : {}) });
         toast("Menu created", { tone: "success" });
       }
       onOpenChange(false);
@@ -119,9 +116,7 @@ export function MenuFormDialog({
           <div className="space-y-1.5">
             <Label>Name</Label>
             <Input {...register("name")} aria-invalid={!!errors.name} />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Description</Label>
@@ -136,10 +131,7 @@ export function MenuFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Sort order</Label>
-            <Input
-              type="number"
-              {...register("sortOrder", { setValueAs: toOptionalNumber })}
-            />
+            <Input type="number" {...register("sortOrder", { setValueAs: toOptionalNumber })} />
           </div>
           <label className="flex items-center gap-2 pt-1 text-sm text-ink">
             <input

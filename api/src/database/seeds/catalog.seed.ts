@@ -6,17 +6,21 @@ import { Category } from '@modules/category/entities/category.entity';
 import { Menu } from '@modules/menus/entities/menu.entity';
 import { MenuItem } from '@modules/menu/entities/menu-item.entity';
 import { FoodType } from '@modules/food-type/entities/food-type.entity';
+import { Branch } from '@modules/branch/entities/branch.entity';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 /**
- * Catalog seeder — FLUSHES all categories/menus/menu-items, then inserts a large
- * batch of realistic dummy data (default ~260 items) to load-test the system.
+ * Catalog seeder — FLUSHES all categories/menus/menu-items, then seeds a full
+ * per-branch catalog (each branch gets its own categories/menus/items, tagged
+ * with its branchId — the app's per-branch menu model). ~260 items PER BRANCH
+ * by default. If there are no branches, it falls back to a single null-branch
+ * catalog.
  *
  * Orders are preserved: `order_items.menuItemId` is ON DELETE SET NULL, and line
  * items keep their denormalized name/price. Run with:
  *   docker exec tabletap-api npm run db:seed:catalog
- * Override the item count with SEED_ITEMS (clamped 50–1000).
+ * Override the per-branch item count with SEED_ITEMS (clamped 50–1000).
  */
 
 const AppDataSource = new DataSource({
@@ -26,7 +30,7 @@ const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER || 'tabletap_user',
   password: process.env.POSTGRES_PASSWORD || 'secret',
   database: process.env.POSTGRES_DATABASE || 'tabletap_db',
-  entities: [Category, Menu, MenuItem, FoodType],
+  entities: [Category, Menu, MenuItem, FoodType, Branch],
   synchronize: false,
 });
 
@@ -53,9 +57,28 @@ const img = (i: number) =>
   `https://images.unsplash.com/photo-${FOOD_IMG[i % FOOD_IMG.length]}?auto=format&fit=crop&w=600&h=600&q=70`;
 
 const ADJ = [
-  'Classic', 'Spicy', 'Grilled', 'Crispy', 'House', 'Signature', 'Smoked', 'Truffle',
-  'Garlic', "Chef's", 'Creamy', 'Zesty', 'Loaded', 'Char-grilled', 'Peri Peri', 'BBQ',
-  'Honey', 'Tandoori', 'Cheesy', 'Golden', 'Rustic', 'Deluxe',
+  'Classic',
+  'Spicy',
+  'Grilled',
+  'Crispy',
+  'House',
+  'Signature',
+  'Smoked',
+  'Truffle',
+  'Garlic',
+  "Chef's",
+  'Creamy',
+  'Zesty',
+  'Loaded',
+  'Char-grilled',
+  'Peri Peri',
+  'BBQ',
+  'Honey',
+  'Tandoori',
+  'Cheesy',
+  'Golden',
+  'Rustic',
+  'Deluxe',
 ];
 
 interface CatDef {
@@ -66,32 +89,247 @@ interface CatDef {
 }
 
 const CATS: CatDef[] = [
-  { name: 'Starters', price: [5, 12], dishes: ['Bruschetta', 'Calamari Rings', 'Spring Rolls', 'Stuffed Mushrooms', 'Chicken Wings', 'Mozzarella Sticks', 'Nachos Supreme', 'Hummus Platter', 'Onion Rings', 'Chilli Garlic Prawns'] },
-  { name: 'Soups', price: [4, 9], dishes: ['Tomato Basil Soup', 'Chicken Corn Soup', 'Hot & Sour Soup', 'Minestrone', 'Lentil Soup', 'Mushroom Soup', 'Thai Coconut Soup'] },
-  { name: 'Salads', price: [6, 14], dishes: ['Caesar Salad', 'Greek Salad', 'Caprese Salad', 'Quinoa Bowl', 'Garden Salad', 'Chicken Avocado Salad', 'Nicoise Salad'] },
-  { name: 'Wood-Fired Pizza', price: [10, 24], dishes: ['Margherita', 'Pepperoni', 'Four Cheese', 'BBQ Chicken', 'Veggie Supreme', 'Prosciutto & Arugula', 'Mushroom Truffle', 'Hawaiian'], sizes: true },
-  { name: 'Pasta', price: [9, 20], dishes: ['Spaghetti Bolognese', 'Fettuccine Alfredo', 'Penne Arrabbiata', 'Lasagne', 'Carbonara', 'Pesto Linguine', 'Mac & Cheese', 'Seafood Marinara'] },
-  { name: 'Burgers', price: [8, 18], dishes: ['Cheeseburger', 'Double Beef Burger', 'Chicken Burger', 'Bacon Burger', 'Mushroom Swiss Burger', 'Veggie Burger', 'Smash Burger', 'Fish Burger'] },
-  { name: 'Sandwiches & Wraps', price: [6, 14], dishes: ['Club Sandwich', 'Chicken Shawarma Wrap', 'Falafel Wrap', 'Grilled Panini', 'BLT', 'Steak Sandwich', 'Tuna Melt', 'Veggie Wrap'] },
-  { name: 'Grill & BBQ', price: [12, 30], dishes: ['Ribeye Steak', 'BBQ Ribs', 'Grilled Chicken', 'Lamb Chops', 'Mixed Grill Platter', 'Beef Skewers', 'Chicken Tikka', 'Pulled Pork'] },
-  { name: 'Seafood', price: [12, 28], dishes: ['Grilled Salmon', 'Fish & Chips', 'Garlic Butter Shrimp', 'Seared Tuna', 'Crab Cakes', 'Lobster Roll', 'Fried Calamari', 'Grilled Prawns'] },
-  { name: 'Rice & Biryani', price: [8, 18], dishes: ['Chicken Biryani', 'Mutton Biryani', 'Vegetable Pulao', 'Egg Fried Rice', 'Prawn Biryani', 'Jeera Rice', 'Kabuli Pulao'] },
-  { name: 'Curries', price: [9, 18], dishes: ['Butter Chicken', 'Chicken Karahi', 'Palak Paneer', 'Beef Nihari', 'Daal Makhani', 'Chana Masala', 'Fish Curry', 'Chicken Korma'] },
-  { name: 'Sides', price: [3, 8], dishes: ['French Fries', 'Garlic Bread', 'Coleslaw', 'Mashed Potatoes', 'Steamed Veggies', 'Cheese Fries', 'Buttered Rice', 'Naan'] },
-  { name: 'Desserts', price: [4, 11], dishes: ['Chocolate Lava Cake', 'Cheesecake', 'Tiramisu', 'Gulab Jamun', 'Ice Cream Sundae', 'Fudge Brownie', 'Creme Brulee', 'Fruit Tart'] },
-  { name: 'Cold Beverages', price: [2, 7], dishes: ['Fresh Lemonade', 'Iced Tea', 'Mango Lassi', 'Cola', 'Sparkling Water', 'Fruit Smoothie', 'Iced Coffee', 'Mint Margarita'], sizes: true },
-  { name: 'Hot Drinks', price: [2, 6], dishes: ['Espresso', 'Cappuccino', 'Latte', 'Green Tea', 'Masala Chai', 'Hot Chocolate', 'Americano', 'Flat White'], sizes: true },
-  { name: 'Kids Menu', price: [4, 9], dishes: ['Mini Cheeseburger', 'Chicken Nuggets', 'Mini Mac & Cheese', 'Fish Fingers', 'Mini Pizza', 'Pancakes', 'Grilled Cheese'] },
+  {
+    name: 'Starters',
+    price: [5, 12],
+    dishes: [
+      'Bruschetta',
+      'Calamari Rings',
+      'Spring Rolls',
+      'Stuffed Mushrooms',
+      'Chicken Wings',
+      'Mozzarella Sticks',
+      'Nachos Supreme',
+      'Hummus Platter',
+      'Onion Rings',
+      'Chilli Garlic Prawns',
+    ],
+  },
+  {
+    name: 'Soups',
+    price: [4, 9],
+    dishes: [
+      'Tomato Basil Soup',
+      'Chicken Corn Soup',
+      'Hot & Sour Soup',
+      'Minestrone',
+      'Lentil Soup',
+      'Mushroom Soup',
+      'Thai Coconut Soup',
+    ],
+  },
+  {
+    name: 'Salads',
+    price: [6, 14],
+    dishes: [
+      'Caesar Salad',
+      'Greek Salad',
+      'Caprese Salad',
+      'Quinoa Bowl',
+      'Garden Salad',
+      'Chicken Avocado Salad',
+      'Nicoise Salad',
+    ],
+  },
+  {
+    name: 'Wood-Fired Pizza',
+    price: [10, 24],
+    dishes: [
+      'Margherita',
+      'Pepperoni',
+      'Four Cheese',
+      'BBQ Chicken',
+      'Veggie Supreme',
+      'Prosciutto & Arugula',
+      'Mushroom Truffle',
+      'Hawaiian',
+    ],
+    sizes: true,
+  },
+  {
+    name: 'Pasta',
+    price: [9, 20],
+    dishes: [
+      'Spaghetti Bolognese',
+      'Fettuccine Alfredo',
+      'Penne Arrabbiata',
+      'Lasagne',
+      'Carbonara',
+      'Pesto Linguine',
+      'Mac & Cheese',
+      'Seafood Marinara',
+    ],
+  },
+  {
+    name: 'Burgers',
+    price: [8, 18],
+    dishes: [
+      'Cheeseburger',
+      'Double Beef Burger',
+      'Chicken Burger',
+      'Bacon Burger',
+      'Mushroom Swiss Burger',
+      'Veggie Burger',
+      'Smash Burger',
+      'Fish Burger',
+    ],
+  },
+  {
+    name: 'Sandwiches & Wraps',
+    price: [6, 14],
+    dishes: [
+      'Club Sandwich',
+      'Chicken Shawarma Wrap',
+      'Falafel Wrap',
+      'Grilled Panini',
+      'BLT',
+      'Steak Sandwich',
+      'Tuna Melt',
+      'Veggie Wrap',
+    ],
+  },
+  {
+    name: 'Grill & BBQ',
+    price: [12, 30],
+    dishes: [
+      'Ribeye Steak',
+      'BBQ Ribs',
+      'Grilled Chicken',
+      'Lamb Chops',
+      'Mixed Grill Platter',
+      'Beef Skewers',
+      'Chicken Tikka',
+      'Pulled Pork',
+    ],
+  },
+  {
+    name: 'Seafood',
+    price: [12, 28],
+    dishes: [
+      'Grilled Salmon',
+      'Fish & Chips',
+      'Garlic Butter Shrimp',
+      'Seared Tuna',
+      'Crab Cakes',
+      'Lobster Roll',
+      'Fried Calamari',
+      'Grilled Prawns',
+    ],
+  },
+  {
+    name: 'Rice & Biryani',
+    price: [8, 18],
+    dishes: [
+      'Chicken Biryani',
+      'Mutton Biryani',
+      'Vegetable Pulao',
+      'Egg Fried Rice',
+      'Prawn Biryani',
+      'Jeera Rice',
+      'Kabuli Pulao',
+    ],
+  },
+  {
+    name: 'Curries',
+    price: [9, 18],
+    dishes: [
+      'Butter Chicken',
+      'Chicken Karahi',
+      'Palak Paneer',
+      'Beef Nihari',
+      'Daal Makhani',
+      'Chana Masala',
+      'Fish Curry',
+      'Chicken Korma',
+    ],
+  },
+  {
+    name: 'Sides',
+    price: [3, 8],
+    dishes: [
+      'French Fries',
+      'Garlic Bread',
+      'Coleslaw',
+      'Mashed Potatoes',
+      'Steamed Veggies',
+      'Cheese Fries',
+      'Buttered Rice',
+      'Naan',
+    ],
+  },
+  {
+    name: 'Desserts',
+    price: [4, 11],
+    dishes: [
+      'Chocolate Lava Cake',
+      'Cheesecake',
+      'Tiramisu',
+      'Gulab Jamun',
+      'Ice Cream Sundae',
+      'Fudge Brownie',
+      'Creme Brulee',
+      'Fruit Tart',
+    ],
+  },
+  {
+    name: 'Cold Beverages',
+    price: [2, 7],
+    dishes: [
+      'Fresh Lemonade',
+      'Iced Tea',
+      'Mango Lassi',
+      'Cola',
+      'Sparkling Water',
+      'Fruit Smoothie',
+      'Iced Coffee',
+      'Mint Margarita',
+    ],
+    sizes: true,
+  },
+  {
+    name: 'Hot Drinks',
+    price: [2, 6],
+    dishes: [
+      'Espresso',
+      'Cappuccino',
+      'Latte',
+      'Green Tea',
+      'Masala Chai',
+      'Hot Chocolate',
+      'Americano',
+      'Flat White',
+    ],
+    sizes: true,
+  },
+  {
+    name: 'Kids Menu',
+    price: [4, 9],
+    dishes: [
+      'Mini Cheeseburger',
+      'Chicken Nuggets',
+      'Mini Mac & Cheese',
+      'Fish Fingers',
+      'Mini Pizza',
+      'Pancakes',
+      'Grilled Cheese',
+    ],
+  },
 ];
 
 const MENUS = [
-  'Breakfast', 'Brunch', 'Lunch', 'Dinner', 'Late Night', 'Weekend Special', 'Family Feast', 'Drinks & Desserts',
+  'Breakfast',
+  'Brunch',
+  'Lunch',
+  'Dinner',
+  'Late Night',
+  'Weekend Special',
+  'Family Feast',
+  'Drinks & Desserts',
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 const rand = (n: number) => Math.floor(Math.random() * n);
-const pick = <T,>(arr: T[]) => arr[rand(arr.length)];
 
 /** Random price within [min,max], rounded to a friendly .49/.99 ending. */
 function priceIn([min, max]: [number, number]): number {
@@ -117,7 +355,10 @@ function assignMenus(menus: Menu[]): Menu[] {
 // ── Seed ────────────────────────────────────────────────────────────────────
 
 async function seed() {
-  const target = Math.min(1000, Math.max(50, parseInt(process.env.SEED_ITEMS || '260', 10)));
+  const target = Math.min(
+    1000,
+    Math.max(50, parseInt(process.env.SEED_ITEMS || '260', 10)),
+  );
   let connected = false;
 
   try {
@@ -138,84 +379,114 @@ async function seed() {
     const categoryRepo = AppDataSource.getRepository(Category);
     const menuRepo = AppDataSource.getRepository(Menu);
     const itemRepo = AppDataSource.getRepository(MenuItem);
+    const branchRepo = AppDataSource.getRepository(Branch);
 
-    // ── Categories ──
-    console.log(`🗂  Inserting ${CATS.length} categories…`);
-    const categories = await categoryRepo.save(
-      CATS.map((c, i) =>
-        categoryRepo.create({
-          name: c.name,
-          description: `${c.name} — freshly prepared favourites.`,
-          imageUrl: img(i),
-          sortOrder: i,
-          isActive: true,
-        }),
-      ),
+    // Seed a full catalog for every branch (each branch owns its own menu).
+    // No branches → one null-branch catalog so the seeder still works.
+    const branches = await branchRepo.find({ order: { name: 'ASC' } });
+    const scopes: { id: string | null; name: string }[] = branches.length
+      ? branches.map((b) => ({ id: b.id, name: b.name }))
+      : [{ id: null, name: 'default (no branch)' }];
+    console.log(
+      `🏬 Seeding catalog for ${scopes.length} branch(es): ${scopes
+        .map((s) => s.name)
+        .join(', ')}\n`,
     );
 
-    // ── Menus ──
-    console.log(`📖 Inserting ${MENUS.length} menus…`);
-    const menus = await menuRepo.save(
-      MENUS.map((name, i) =>
-        menuRepo.create({
-          name,
-          description: `${name} selection.`,
-          imageUrl: img(i + 3),
-          sortOrder: i,
-          isActive: true,
-        }),
-      ),
-    );
-
-    // ── Items ── generate `target` items spread across categories ──
-    console.log(`🍽  Generating ${target} menu items…`);
-    const perCat = Math.ceil(target / CATS.length);
-    const items: MenuItem[] = [];
     let imgIdx = 0;
+    let grandTotalItems = 0;
 
-    for (let ci = 0; ci < CATS.length && items.length < target; ci++) {
-      const def = CATS[ci];
-      const category = categories[ci];
-      const used = new Set<string>();
+    for (const scope of scopes) {
+      console.log(`🏬 ${scope.name}`);
 
-      for (let n = 0; n < perCat && items.length < target; n++) {
-        const dish = def.dishes[n % def.dishes.length];
-        const adj = ADJ[(n + ci) % ADJ.length];
-        let name = `${adj} ${dish}`;
-        // Keep names distinct within a category.
-        if (used.has(name)) name = `${name} #${n + 1}`;
-        used.add(name);
+      // ── Categories (this branch) ──
+      const categories = await categoryRepo.save(
+        CATS.map((c, i) =>
+          categoryRepo.create({
+            name: c.name,
+            description: `${c.name} — freshly prepared favourites.`,
+            imageUrl: img(i),
+            sortOrder: i,
+            isActive: true,
+            branchId: scope.id,
+          }),
+        ),
+      );
 
-        const price = priceIn(def.price);
-        const item = itemRepo.create({
-          name,
-          description: `${dish} with a ${adj.toLowerCase()} twist — a house favourite.`,
-          price,
-          imageUrl: img(imgIdx++),
-          images: [],
-          // ~12% of items are "86'd" to exercise availability handling.
-          isAvailable: Math.random() > 0.12,
-          categoryId: category.id,
-          menus: assignMenus(menus),
-          sizes: def.sizes ? sizesFor(price) : [],
-          variants: [],
-          addOns: [],
-        });
-        items.push(item);
+      // ── Menus (this branch) ──
+      const menus = await menuRepo.save(
+        MENUS.map((name, i) =>
+          menuRepo.create({
+            name,
+            description: `${name} selection.`,
+            imageUrl: img(i + 3),
+            sortOrder: i,
+            isActive: true,
+            branchId: scope.id,
+          }),
+        ),
+      );
+
+      // ── Items (this branch): `target` spread across its categories ──
+      const perCat = Math.ceil(target / CATS.length);
+      const items: MenuItem[] = [];
+
+      for (let ci = 0; ci < CATS.length && items.length < target; ci++) {
+        const def = CATS[ci];
+        const category = categories[ci];
+        const used = new Set<string>();
+
+        for (let n = 0; n < perCat && items.length < target; n++) {
+          const dish = def.dishes[n % def.dishes.length];
+          const adj = ADJ[(n + ci) % ADJ.length];
+          let name = `${adj} ${dish}`;
+          // Keep names distinct within a category.
+          if (used.has(name)) name = `${name} #${n + 1}`;
+          used.add(name);
+
+          const price = priceIn(def.price);
+          items.push(
+            itemRepo.create({
+              name,
+              description: `${dish} with a ${adj.toLowerCase()} twist — a house favourite.`,
+              price,
+              imageUrl: img(imgIdx++),
+              images: [],
+              // ~12% of items are "86'd" to exercise availability handling.
+              isAvailable: Math.random() > 0.12,
+              categoryId: category.id,
+              menus: assignMenus(menus),
+              sizes: def.sizes ? sizesFor(price) : [],
+              variants: [],
+              addOns: [],
+              branchId: scope.id,
+            }),
+          );
+        }
       }
+
+      await itemRepo.save(items, { chunk: 50 });
+      grandTotalItems += items.length;
+      console.log(
+        `   ✔ ${categories.length} categories · ${menus.length} menus · ${items.length} items`,
+      );
     }
 
-    console.log(`   💾 Saving ${items.length} items (chunked)…`);
-    await itemRepo.save(items, { chunk: 50 });
+    console.log(
+      `\n💾 Saved ${grandTotalItems} items across ${scopes.length} branch(es).`,
+    );
 
     // ── Summary ──
-    const [catCount, menuCount, itemCount, unavailable, joinCount] = await Promise.all([
-      categoryRepo.count(),
-      menuRepo.count(),
-      itemRepo.count(),
-      itemRepo.count({ where: { isAvailable: false } }),
-      AppDataSource.query('SELECT COUNT(*)::int AS c FROM "menu_item_menus"').then((r) => r[0].c),
-    ]);
+    const [catCount, menuCount, itemCount, unavailable, joinCount] =
+      await Promise.all([
+        categoryRepo.count(),
+        menuRepo.count(),
+        itemRepo.count(),
+        itemRepo.count({ where: { isAvailable: false } }),
+        AppDataSource.query(
+          'SELECT COUNT(*)::int AS c FROM "menu_item_menus"',
+        ).then((r) => r[0].c),
+      ]);
 
     console.log('\n✅ Catalog seeded:');
     console.log(`   • ${catCount} categories`);
@@ -223,7 +494,10 @@ async function seed() {
     console.log(`   • ${itemCount} items (${unavailable} marked unavailable)`);
     console.log(`   • ${joinCount} item↔menu links`);
   } catch (error) {
-    console.error('❌ Catalog seeding failed:', (error as Error).message || error);
+    console.error(
+      '❌ Catalog seeding failed:',
+      (error as Error).message || error,
+    );
     process.exitCode = 1;
   } finally {
     if (connected) await AppDataSource.destroy();

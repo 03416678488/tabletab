@@ -1,4 +1,12 @@
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateFoodTypeDto {
   @IsString()
@@ -21,4 +29,9 @@ export class CreateFoodTypeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  /** Owning branch — the branch this catalog entry belongs to. */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }

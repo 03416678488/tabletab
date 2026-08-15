@@ -1,11 +1,13 @@
-import { Column, Entity, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { AbstractEntity } from '@cor/abstract/entity/abstract-entity.abstract';
+import { Branch } from '@modules/branch/entities/branch.entity';
 
 /**
  * Admin-configurable catalogue of bookable event kinds (Birthday, Wedding,
  * Corporate, …). Managed under Events → Types; referenced by event bookings.
+ * Per-branch: each branch owns its own catalogue (name unique within a branch).
  */
-@Index(['name'], { unique: true })
+@Index(['branchId', 'name'], { unique: true })
 @Entity('event_types')
 export class EventType extends AbstractEntity {
   @Column({ type: 'varchar' })
@@ -26,4 +28,11 @@ export class EventType extends AbstractEntity {
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
+
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branchId' })
+  branch: Branch | null;
 }

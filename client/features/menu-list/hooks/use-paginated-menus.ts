@@ -9,10 +9,11 @@ import type { Menu } from "@/features/menu-list/types/menu.types";
 interface Params {
   search?: string;
   isActive?: boolean;
+  branchId?: string;
 }
 
 /** Server-paginated menus for the management table. Debounces filter changes. */
-export function usePaginatedMenus({ search, isActive }: Params = {}) {
+export function usePaginatedMenus({ search, isActive, branchId }: Params = {}) {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -22,7 +23,7 @@ export function usePaginatedMenus({ search, isActive }: Params = {}) {
   const [error, setError] = useState<string | null>(null);
 
   // Ignore out-of-order responses when filters change mid-flight.
-  const key = `${search ?? ""}|${isActive ?? ""}|${perPage}`;
+  const key = `${search ?? ""}|${isActive ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -37,6 +38,7 @@ export function usePaginatedMenus({ search, isActive }: Params = {}) {
           perPage,
           search: search || undefined,
           isActive,
+          branchId,
         });
         if (keyRef.current !== activeKey) return;
         setMenus(data.items);
@@ -63,5 +65,16 @@ export function usePaginatedMenus({ search, isActive }: Params = {}) {
   const goToPage = useCallback((p: number) => void fetchPage(p), [fetchPage]);
   const refetch = useCallback(() => void fetchPage(page), [fetchPage, page]);
 
-  return { menus, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch };
+  return {
+    menus,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  };
 }

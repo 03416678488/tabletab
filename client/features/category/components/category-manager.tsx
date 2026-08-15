@@ -30,11 +30,13 @@ import { ApiError } from "@/lib/httpClient";
 import { usePaginatedCategories } from "@/features/category/hooks/use-paginated-categories";
 import { categoryService } from "@/features/category/services/category.service";
 import { CategoryFormDialog } from "@/features/category/components/category-form-dialog";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type { Category } from "@/features/category/types/category.types";
 
 type StatusFilter = "all" | "active" | "inactive";
 
 export function CategoryManager() {
+  const branchId = useScopedBranchId();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
 
@@ -55,12 +57,16 @@ export function CategoryManager() {
     totalItems,
     goToPage,
     refetch,
-  } = usePaginatedCategories({ search, isActive });
+  } = usePaginatedCategories({ search, isActive, branchId });
 
   const activeFilters = status !== "all" ? 1 : 0;
   const filtersActive = Boolean(search.trim()) || status !== "all";
 
   const openCreate = () => {
+    if (!branchId) {
+      toast("Select a branch first to add a category", { tone: "info" });
+      return;
+    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -343,6 +349,7 @@ export function CategoryManager() {
       )}
 
       <CategoryFormDialog
+        branchId={branchId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         category={editing}

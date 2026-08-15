@@ -4,7 +4,11 @@ import { FindOptionsWhere } from 'typeorm';
 import { trimSpaces } from '@cor/helpers';
 
 import { Category } from '../entities/category.entity';
-import { CreateCategoryDto, UpdateCategoryDto, GetCategoryQueryDto } from '../dto';
+import {
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  GetCategoryQueryDto,
+} from '../dto';
 import { toILikeContains } from '@cor/helpers/query.helper';
 
 /**
@@ -25,7 +29,8 @@ export class CategoryHelperService {
 
   resolveUpdatePayload(dto: UpdateCategoryDto): Partial<Category> {
     const payload: Partial<Category> = { ...dto };
-    if (typeof payload.name === 'string') payload.name = trimSpaces(payload.name);
+    if (typeof payload.name === 'string')
+      payload.name = trimSpaces(payload.name);
     if (typeof payload.description === 'string')
       payload.description = trimSpaces(payload.description);
     return payload;
@@ -34,7 +39,9 @@ export class CategoryHelperService {
   resolveListFilters(query: GetCategoryQueryDto): FindOptionsWhere<Category> {
     const where: FindOptionsWhere<Category> = {};
     if (query.search) where.name = toILikeContains(trimSpaces(query.search));
-    if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
+    if (query.isActive !== undefined)
+      where.isActive = query.isActive === 'true';
+    if (query.branchId) where.branchId = query.branchId;
     return where;
   }
 }

@@ -12,8 +12,11 @@ export class TaxService {
     private readonly _repo: Repository<Tax>,
   ) {}
 
-  getAll(): Promise<Tax[]> {
-    return this._repo.find({ order: { id: 'ASC' } });
+  getAll(branchId?: string): Promise<Tax[]> {
+    return this._repo.find({
+      where: branchId ? { branchId } : {},
+      order: { id: 'ASC' },
+    });
   }
 
   async getById(id: number): Promise<Tax> {

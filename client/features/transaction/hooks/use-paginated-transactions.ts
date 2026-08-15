@@ -7,6 +7,7 @@ import { transactionService } from "@/features/transaction/services/transaction.
 import type {
   PaymentMethod,
   Transaction,
+  TransactionSummary,
   TransactionType,
 } from "@/features/transaction/types/transaction.types";
 
@@ -14,17 +15,26 @@ interface Params {
   type?: TransactionType;
   method?: PaymentMethod;
   branchId?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  from?: string;
+  to?: string;
   initialPerPage?: number;
 }
 
-/** Server-paginated transactions (type/method/branch filters). */
+/** Server-paginated transactions plus a filter-aware summary (type/method/branch/amount/date). */
 export function usePaginatedTransactions({
   type,
   method,
   branchId,
+  minAmount,
+  maxAmount,
+  from,
+  to,
   initialPerPage = 15,
 }: Params = {}) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(initialPerPage);
   const [totalPages, setTotalPages] = useState(1);
@@ -32,7 +42,16 @@ export function usePaginatedTransactions({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${type ?? ""}|${method ?? ""}|${branchId ?? ""}|${perPage}`;
+  const filters = {
+    ...(type ? { type } : {}),
+    ...(method ? { method } : {}),
+    ...(branchId ? { branchId } : {}),
+    ...(minAmount != null ? { minAmount } : {}),
+    ...(maxAmount != null ? { maxAmount } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+  };
+  const key = `${type ?? ""}|${method ?? ""}|${branchId ?? ""}|${minAmount ?? ""}|${maxAmount ?? ""}|${from ?? ""}|${to ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -42,15 +61,13 @@ export function usePaginatedTransactions({
       setLoading(true);
       setError(null);
       try {
-        const data = await transactionService.list({
-          page: p,
-          perPage,
-          ...(type ? { type } : {}),
-          ...(method ? { method } : {}),
-          ...(branchId ? { branchId } : {}),
-        });
+        const [data, summ] = await Promise.all([
+          transactionService.list({ page: p, perPage, ...filters }),
+          transactionService.summary(filters),
+        ]);
         if (keyRef.current !== activeKey) return;
         setTransactions(data.items);
+        setSummary(summ);
         setTotalPages(data.meta.totalPages);
         setTotalItems(data.meta.totalItems);
         setPage(p);
@@ -75,6 +92,7 @@ export function usePaginatedTransactions({
 
   return {
     transactions,
+    summary,
     loading,
     error,
     page,

@@ -8,11 +8,12 @@ import type { Area } from "@/features/area/types/area.types";
 
 interface Params {
   search?: string;
+  branchId?: string;
   initialPerPage?: number;
 }
 
-/** Server-paginated areas (search). */
-export function usePaginatedAreas({ search, initialPerPage = 15 }: Params = {}) {
+/** Server-paginated areas (search + branch scope). */
+export function usePaginatedAreas({ search, branchId, initialPerPage = 15 }: Params = {}) {
   const [areas, setAreas] = useState<Area[]>([]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(initialPerPage);
@@ -21,7 +22,7 @@ export function usePaginatedAreas({ search, initialPerPage = 15 }: Params = {}) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${perPage}`;
+  const key = `${search ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -31,7 +32,12 @@ export function usePaginatedAreas({ search, initialPerPage = 15 }: Params = {}) 
       setLoading(true);
       setError(null);
       try {
-        const data = await areaService.list({ page: p, perPage, search: search || undefined });
+        const data = await areaService.list({
+          page: p,
+          perPage,
+          search: search || undefined,
+          ...(branchId ? { branchId } : {}),
+        });
         if (keyRef.current !== activeKey) return;
         setAreas(data.items);
         setTotalPages(data.meta.totalPages);

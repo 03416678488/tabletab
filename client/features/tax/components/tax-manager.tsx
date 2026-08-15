@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Languages as LanguagesIcon, Pencil, Percent, Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Percent, Plus, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -32,14 +32,16 @@ import { ApiError } from "@/lib/httpClient";
 
 import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { taxService, type Tax } from "@/features/tax/services/tax.service";
-import { TranslationDialog } from "@/features/i18n/translation-dialog";
 import { useClientPagination } from "@/hooks/use-client-pagination";
 
 const empty = { name: "", code: "", rate: "0", isActive: true };
 
 export function TaxManager() {
-  const { taxes, loading, error, refetch } = useTaxes();
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
+  const { taxes, loading, error, refetch } = useTaxes(branchId);
   const [search, setSearch] = useState("");
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -53,13 +55,17 @@ export function TaxManager() {
   const [editing, setEditing] = useState<Tax | null>(null);
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
-  const [translating, setTranslating] = useState<Tax | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setForm(
       editing
-        ? { name: editing.name, code: editing.code, rate: String(editing.rate), isActive: editing.isActive }
+        ? {
+            name: editing.name,
+            code: editing.code,
+            rate: String(editing.rate),
+            isActive: editing.isActive,
+          }
         : empty,
     );
   }, [open, editing]);
@@ -74,7 +80,7 @@ export function TaxManager() {
         isActive: form.isActive,
       };
       if (editing) await taxService.update(editing.id, body);
-      else await taxService.create(body);
+      else await taxService.create({ ...body, ...(branchId ? { branchId } : {}) });
       toast("Tax saved", { tone: "success" });
       setOpen(false);
       refetch();
@@ -88,7 +94,8 @@ export function TaxManager() {
   const confirm = useConfirm();
 
   const remove = async (t: Tax) => {
-    if (!(await confirm({ title: `Delete ${t.name} (${t.code})?`, confirmLabel: "Delete" }))) return;
+    if (!(await confirm({ title: `Delete ${t.name} (${t.code})?`, confirmLabel: "Delete" })))
+      return;
     try {
       await taxService.remove(t.id);
       toast("Tax deleted", { tone: "success" });
@@ -121,6 +128,10 @@ export function TaxManager() {
           <Button
             size="sm"
             onClick={() => {
+              if (!branchId) {
+                toast("Select a branch first to add a tax", { tone: "info" });
+                return;
+              }
               setEditing(null);
               setOpen(true);
             }}
@@ -177,9 +188,6 @@ export function TaxManager() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="outline" size="sm" onClick={() => setTranslating(t)}>
-                        <LanguagesIcon className="size-4" /> Translations
-                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -191,7 +199,12 @@ export function TaxManager() {
                       >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(t)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        onClick={() => remove(t)}
+                      >
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
@@ -223,12 +236,18 @@ export function TaxManager() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Name</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Code</Label>
-                <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+                <Input
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Rate (%)</Label>
@@ -259,17 +278,6 @@ export function TaxManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {translating && (
-        <TranslationDialog
-          open={!!translating}
-          onOpenChange={(o) => !o && setTranslating(null)}
-          entity="tax"
-          entityId={translating.id}
-          fields={["name"]}
-          title={`Translations · ${translating.name}`}
-        />
-      )}
     </div>
   );
 }

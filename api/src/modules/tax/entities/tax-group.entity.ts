@@ -1,11 +1,14 @@
 import {
   Column,
   Entity,
+  JoinColumn,
   JoinTable,
   ManyToMany,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Tax } from './tax.entity';
+import { Branch } from '@modules/branch/entities/branch.entity';
 
 /** A bundle of taxes applied together; its effective rate is the sum of members. */
 @Entity('tax_groups')
@@ -21,6 +24,13 @@ export class TaxGroup {
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
+
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branchId' })
+  branch: Branch | null;
 
   @ManyToMany(() => Tax, { eager: true })
   @JoinTable({

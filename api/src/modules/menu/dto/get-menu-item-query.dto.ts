@@ -36,6 +36,10 @@ class GetMenuItemFiltersDto {
   @IsNumber()
   @Min(0)
   maxPrice?: number;
+
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
 }
 
 export class GetMenuItemQueryDto extends IntersectionType(

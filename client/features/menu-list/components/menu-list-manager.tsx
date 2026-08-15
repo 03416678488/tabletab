@@ -40,11 +40,13 @@ import { ApiError } from "@/lib/httpClient";
 import { usePaginatedMenus } from "@/features/menu-list/hooks/use-paginated-menus";
 import { menusService } from "@/features/menu-list/services/menu.service";
 import { MenuFormDialog } from "@/features/menu-list/components/menu-form-dialog";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type { Menu } from "@/features/menu-list/types/menu.types";
 
 type StatusFilter = "all" | "active" | "inactive";
 
 export function MenuListManager() {
+  const branchId = useScopedBranchId();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Menu | null>(null);
 
@@ -65,12 +67,16 @@ export function MenuListManager() {
     totalItems,
     goToPage,
     refetch,
-  } = usePaginatedMenus({ search, isActive });
+  } = usePaginatedMenus({ search, isActive, branchId });
 
   const activeFilters = status !== "all" ? 1 : 0;
   const filtersActive = Boolean(search.trim()) || status !== "all";
 
   const openCreate = () => {
+    if (!branchId) {
+      toast("Select a branch first to add a menu", { tone: "info" });
+      return;
+    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -351,6 +357,7 @@ export function MenuListManager() {
       )}
 
       <MenuFormDialog
+        branchId={branchId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         menu={editing}

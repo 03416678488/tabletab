@@ -5,13 +5,24 @@ export interface QrTableRef {
   branch?: { id: string; name: string } | null;
 }
 
-/** A table QR code as returned by the API (`data` of /qr-codes endpoints). */
+export type QrCodeKind = "table" | "custom";
+export type QrCustomType = "url" | "review" | "wifi" | "text" | "phone" | "email";
+
+/** A QR code as returned by the API (`data` of /qr-codes endpoints). */
 export interface QrCode {
   id: string;
   slug: string;
   isActive: boolean;
-  tableId: string;
+  kind: QrCodeKind;
+  /** Owning branch — set on custom codes; table codes derive branch from table. */
+  branchId?: string | null;
+  /** Table codes only. */
+  tableId: string | null;
   table?: QrTableRef | null;
+  /** Custom codes only. */
+  label?: string | null;
+  customType?: QrCustomType | null;
+  content?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -27,12 +38,29 @@ export interface Paginated<T> {
   links: Record<string, string>;
 }
 
-export interface CreateQrCodeInput {
+export interface CreateTableQrCodeInput {
+  kind?: "table";
   tableId: string;
   isActive?: boolean;
 }
 
-export type UpdateQrCodeInput = Partial<CreateQrCodeInput>;
+export interface CreateCustomQrCodeInput {
+  kind: "custom";
+  label: string;
+  customType: QrCustomType;
+  content: string;
+  branchId?: string;
+  isActive?: boolean;
+}
+
+export type CreateQrCodeInput = CreateTableQrCodeInput | CreateCustomQrCodeInput;
+
+export interface UpdateQrCodeInput {
+  isActive?: boolean;
+  label?: string;
+  customType?: QrCustomType;
+  content?: string;
+}
 
 export interface ListQrCodesParams {
   page?: number;

@@ -4,10 +4,15 @@ import { Repository } from 'typeorm';
 
 import { ErrorProvider } from '@modules/common/error/error.provider';
 import { Transaction } from '@modules/transaction/entities/transaction.entity';
+import { Branch } from '@modules/branch/entities/branch.entity';
 import { NotificationService } from '@modules/notification/notification.service';
 
 import { RegisterSession } from './entities/register-session.entity';
-import { CashMovementDto, CloseRegisterDto, OpenRegisterDto } from './dto/register.dto';
+import {
+  CashMovementDto,
+  CloseRegisterDto,
+  OpenRegisterDto,
+} from './dto/register.dto';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -24,6 +29,24 @@ export interface RegisterSummary {
   salesCount: number;
 }
 
+/** One branch's drawer state for the "All branches" overview. */
+export interface RegisterOverviewRow {
+  branchId: string;
+  branchName: string;
+  status: 'open' | 'closed';
+  openingBalance: number | null;
+  expectedCash: number | null;
+  cashSales: number | null;
+  cashIn: number | null;
+  cashOut: number | null;
+  openedAt: string | null;
+}
+
+export interface RegisterOverview {
+  rows: RegisterOverviewRow[];
+  totals: { openDrawers: number; expectedCash: number };
+}
+
 @Injectable()
 export class RegisterService {
   constructor(
@@ -31,6 +54,8 @@ export class RegisterService {
     private readonly _repo: Repository<RegisterSession>,
     @InjectRepository(Transaction)
     private readonly _txnRepo: Repository<Transaction>,
+    @InjectRepository(Branch)
+    private readonly _branchRepo: Repository<Branch>,
     private readonly _errors: ErrorProvider,
     private readonly _notifications: NotificationService,
   ) {}
@@ -41,28 +66,44 @@ export class RegisterService {
     title: string,
     body: string,
     data: Record<string, unknown>,
+    branchId?: string | null,
   ): Promise<void> {
     try {
       await this._notifications.notifyRoles(
         ['Owner', 'Multi Branch Manager', 'Branch Manager'],
-        { category: 'register', type, title, body, data, priority: 'normal' },
+        {
+          category: 'register',
+          type,
+          title,
+          body,
+          data,
+          priority: 'normal',
+          branchId: branchId ?? null,
+        },
       );
     } catch (err) {
-      console.warn('[notify] register notification failed', (err as Error).message);
+      console.warn(
+        '[notify] register notification failed',
+        (err as Error).message,
+      );
     }
   }
 
-  private getOpenSession(): Promise<RegisterSession | null> {
+  /**
+   * The open drawer for a branch. With a branchId it is that branch's drawer;
+   * without one (legacy / single-branch) it is any open drawer.
+   */
+  private getOpenSession(
+    branchId?: string | null,
+  ): Promise<RegisterSession | null> {
     return this._repo.findOne({
-      where: { status: 'open' },
+      where: { status: 'open', ...(branchId ? { branchId } : {}) },
       order: { openedAt: 'DESC' },
     });
   }
 
   /** Roll up a session's transactions for display + drawer reconciliation. */
-  private async summarize(
-    session: RegisterSession,
-  ): Promise<RegisterSummary> {
+  private async summarize(session: RegisterSession): Promise<RegisterSummary> {
     const txns = await this._txnRepo.find({
       where: { registerSessionId: session.id },
     });
@@ -104,25 +145,30 @@ export class RegisterService {
     return s;
   }
 
-  /** Current open session + its live summary (or null). */
-  async getCurrent(): Promise<{
+  /** Current open session + its live summary for a branch (or null). */
+  async getCurrent(branchId?: string): Promise<{
     session: RegisterSession | null;
     summary: RegisterSummary | null;
   }> {
-    const session = await this.getOpenSession();
+    const session = await this.getOpenSession(branchId);
     if (!session) return { session: null, summary: null };
     return { session, summary: await this.summarize(session) };
   }
 
   async open(dto: OpenRegisterDto, userId?: string): Promise<RegisterSession> {
-    const existing = await this.getOpenSession();
+    const branchId = dto.branchId ?? null;
+    const existing = await this.getOpenSession(branchId);
     if (existing) {
-      this._errors.add('register', 'A register session is already open');
+      this._errors.add(
+        'register',
+        'A register session is already open for this branch',
+      );
       this._errors.throwConflictErrorIfExists();
     }
     const opened = await this._repo.save(
       this._repo.create({
         status: 'open',
+        branchId,
         openingBalance: round2(dto.openingBalance),
         note: dto.note ?? null,
         openedBy: userId ?? null,
@@ -133,6 +179,7 @@ export class RegisterService {
       'Register opened',
       `Opening balance ${opened.openingBalance}`,
       { sessionId: opened.id },
+      branchId,
     );
     return opened;
   }
@@ -141,9 +188,9 @@ export class RegisterService {
     dto: CloseRegisterDto,
     userId?: string,
   ): Promise<{ session: RegisterSession; summary: RegisterSummary }> {
-    const session = await this.getOpenSession();
+    const session = await this.getOpenSession(dto.branchId ?? null);
     if (!session) {
-      this._errors.add('register', 'No open register session');
+      this._errors.add('register', 'No open register session for this branch');
       this._errors.throwNotFoundErrorIfExists();
     }
     const summary = await this.summarize(session);
@@ -160,13 +207,14 @@ export class RegisterService {
       'Register closed',
       `Variance ${saved.variance ?? 0}`,
       { sessionId: saved.id },
+      saved.branchId,
     );
     return { session: saved, summary };
   }
 
-  /** Record a cash-in / cash-out movement on the open session. */
+  /** Record a cash-in / cash-out movement on the branch's open session. */
   async addCash(dto: CashMovementDto, userId?: string): Promise<Transaction> {
-    const session = await this.getOpenSession();
+    const session = await this.getOpenSession(dto.branchId ?? null);
     if (!session) {
       this._errors.add('register', 'Open the register before adding cash');
       this._errors.throwNotFoundErrorIfExists();
@@ -177,14 +225,56 @@ export class RegisterService {
         method: 'cash',
         amount: round2(dto.amount),
         registerSessionId: session.id,
+        branchId: session.branchId,
         note: dto.note ?? null,
         createdBy: userId ?? null,
       }),
     );
   }
 
-  /** Past sessions, newest first. */
-  listSessions(): Promise<RegisterSession[]> {
-    return this._repo.find({ order: { openedAt: 'DESC' }, take: 100 });
+  /** Past sessions, newest first — optionally scoped to one branch. */
+  listSessions(branchId?: string): Promise<RegisterSession[]> {
+    return this._repo.find({
+      where: branchId ? { branchId } : {},
+      order: { openedAt: 'DESC' },
+      take: 100,
+    });
+  }
+
+  /**
+   * Cross-branch snapshot for the "All branches" view: each branch's current
+   * drawer status + cash figures, plus totals. Read-only — drawers are operated
+   * one branch at a time.
+   */
+  async overview(): Promise<RegisterOverview> {
+    const branches = await this._branchRepo.find({ order: { name: 'ASC' } });
+    const rows: RegisterOverviewRow[] = [];
+    let openDrawers = 0;
+    let expectedCashTotal = 0;
+
+    for (const b of branches) {
+      const session = await this.getOpenSession(b.id);
+      const summary = session ? await this.summarize(session) : null;
+      if (session) {
+        openDrawers += 1;
+        expectedCashTotal += summary?.expectedCash ?? 0;
+      }
+      rows.push({
+        branchId: b.id,
+        branchName: b.name,
+        status: session ? 'open' : 'closed',
+        openingBalance: session ? session.openingBalance : null,
+        expectedCash: summary?.expectedCash ?? null,
+        cashSales: summary?.cashSales ?? null,
+        cashIn: summary?.cashIn ?? null,
+        cashOut: summary?.cashOut ?? null,
+        openedAt: session ? String(session.openedAt) : null,
+      });
+    }
+
+    return {
+      rows,
+      totals: { openDrawers, expectedCash: round2(expectedCashTotal) },
+    };
   }
 }

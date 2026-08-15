@@ -16,6 +16,10 @@ export class RegisterSession {
   @Column({ type: 'varchar', default: 'open' })
   status: RegisterStatus;
 
+  /** The branch this drawer belongs to — a register is physical, per-branch. */
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
+
   @Column({ type: 'double precision', default: 0 })
   openingBalance: number;
 

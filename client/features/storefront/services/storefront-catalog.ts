@@ -90,9 +90,9 @@ function toMenuItem(i: ApiMenuItem): MenuItem {
 }
 
 /** All available products for the storefront menu (single flat fetch, capped). */
-export async function fetchStorefrontProducts(): Promise<MenuItem[]> {
+export async function fetchStorefrontProducts(branchId?: string | null): Promise<MenuItem[]> {
   const res = await httpClient.get<{ items?: ApiMenuItem[] } | ApiMenuItem[]>("/menu-items", {
-    params: { perPage: 200 },
+    params: { perPage: 200, branchId: branchId ?? undefined },
   });
   return unwrap(res.data)
     .filter((i) => i.isAvailable !== false)
@@ -124,8 +124,9 @@ export async function fetchStorefrontProductsPage(params: {
   categoryIds?: string[];
   minPrice?: number;
   maxPrice?: number;
+  branchId?: string | null;
 }): Promise<CatalogPage> {
-  const { page, perPage = 48, search, categoryIds, minPrice, maxPrice } = params;
+  const { page, perPage = 48, search, categoryIds, minPrice, maxPrice, branchId } = params;
   const res = await httpClient.get<ApiPaginated<ApiMenuItem>>("/menu-items", {
     params: {
       page,
@@ -135,6 +136,7 @@ export async function fetchStorefrontProductsPage(params: {
       ...(categoryIds && categoryIds.length ? { categoryIds: categoryIds.join(",") } : {}),
       ...(minPrice != null ? { minPrice } : {}),
       ...(maxPrice != null ? { maxPrice } : {}),
+      ...(branchId ? { branchId } : {}),
     },
   });
   const data = res.data;
@@ -147,9 +149,9 @@ export async function fetchStorefrontProductsPage(params: {
 }
 
 /** Menu categories (for grouping/filtering the storefront menu). */
-export async function fetchStorefrontCategories(): Promise<MenuCategory[]> {
+export async function fetchStorefrontCategories(branchId?: string | null): Promise<MenuCategory[]> {
   const res = await httpClient.get<{ items?: ApiCategory[] } | ApiCategory[]>("/categories", {
-    params: { perPage: 100 },
+    params: { perPage: 100, branchId: branchId ?? undefined },
   });
   return unwrap(res.data)
     .map((c) => ({

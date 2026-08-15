@@ -2,6 +2,7 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchStorefrontProductsPage } from "@/features/storefront/services/storefront-catalog";
+import { useLocationStore } from "@/hooks/use-location-store";
 import type { MenuItem } from "@/lib/types";
 
 const PER_PAGE = 48;
@@ -37,6 +38,7 @@ export function useCatalogInfinite(filters: CatalogFilters): CatalogInfinite {
   // Sort so key is order-independent (same set of categories → same cache entry).
   const categoryIds = [...filters.categoryIds].sort();
   const { minPrice, maxPrice } = filters;
+  const branchId = useLocationStore((s) => s.branchId);
 
   const query = useInfiniteQuery({
     queryKey: [
@@ -46,6 +48,7 @@ export function useCatalogInfinite(filters: CatalogFilters): CatalogInfinite {
       categoryIds.join(","),
       minPrice ?? "",
       maxPrice ?? "",
+      branchId ?? "",
     ],
     queryFn: ({ pageParam }) =>
       fetchStorefrontProductsPage({
@@ -55,6 +58,7 @@ export function useCatalogInfinite(filters: CatalogFilters): CatalogInfinite {
         categoryIds,
         minPrice,
         maxPrice,
+        branchId,
       }),
     initialPageParam: 1,
     getNextPageParam: (last) =>

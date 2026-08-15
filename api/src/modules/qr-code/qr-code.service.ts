@@ -10,6 +10,8 @@ import { AbstractService } from '@cor/abstract/service/abstract-service.service'
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
 
+import { Table } from '@modules/table/entities/table.entity';
+
 import { QrCode } from './entities/qr-code.entity';
 import { QrCodeValidatorService } from './services/qr-code-validator.service';
 import { QrCodeHelperService } from './services/qr-code.helper.service';
@@ -50,6 +52,8 @@ export class QrCodeService extends AbstractService<QrCode> {
   constructor(
     @InjectRepository(QrCode)
     protected readonly repository: Repository<QrCode>,
+    @InjectRepository(Table)
+    private readonly _tables: Repository<Table>,
     protected readonly pagination: PaginationProvider,
     private readonly _validator: QrCodeValidatorService,
     private readonly _helper: QrCodeHelperService,
@@ -149,13 +153,51 @@ export class QrCodeService extends AbstractService<QrCode> {
     };
   }
 
-  getAll(query: GetQrCodeQueryDto): Promise<Paginated<QrCode>> {
+  async getAll(query: GetQrCodeQueryDto): Promise<Paginated<QrCode>> {
+    // Every table gets a scannable code automatically — materialize any that
+    // are missing before listing, so the admin never has to create table codes
+    // by hand (custom codes are still user-created).
+    await this.ensureTableCodes();
     const where = this._helper.resolveListFilters(query);
     return this.pagination.paginationQuery(query, this.repository, where, [
       'table',
       'table.area',
       'table.branch',
     ]);
+  }
+
+  /**
+   * Create a table-kind QR for any table that doesn't have one yet. Idempotent
+   * and safe to call on every list — it only inserts the gaps. A unique-index
+   * clash (a concurrent insert) is swallowed, since the row now exists either
+   * way.
+   */
+  private async ensureTableCodes(): Promise<void> {
+    const [tables, existing] = await Promise.all([
+      this._tables.find({ select: { id: true } }),
+      this.repository.find({
+        where: { kind: 'table' },
+        select: { tableId: true },
+      }),
+    ]);
+    const covered = new Set(existing.map((q) => q.tableId));
+    const missing = tables.filter((t) => !covered.has(t.id));
+    if (missing.length === 0) return;
+
+    for (const table of missing) {
+      try {
+        await this.repository.save(
+          this.repository.create({
+            kind: 'table',
+            tableId: table.id,
+            isActive: true,
+            slug: this._helper.generateSlug(),
+          }),
+        );
+      } catch {
+        // Another request already created it — the code exists, move on.
+      }
+    }
   }
 
   getById(id: string): Promise<QrCode> {

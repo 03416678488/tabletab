@@ -19,12 +19,17 @@ export class CategoryValidatorService extends AbstractService<Category> {
   }
 
   async validateCreate(dto: CreateCategoryDto): Promise<void> {
-    await this.checkNameExists(dto.name);
+    await this.checkNameExists(dto.name, dto.branchId ?? null);
   }
 
   async validateUpdate(id: string, dto: UpdateCategoryDto): Promise<void> {
-    await this.ensureExists(id);
-    if (dto.name) await this.checkNameExists(dto.name, id);
+    const existing = await this.ensureExists(id);
+    if (dto.name)
+      await this.checkNameExists(
+        dto.name,
+        dto.branchId ?? existing.branchId,
+        id,
+      );
   }
 
   async ensureExists(id: string): Promise<Category> {
@@ -36,9 +41,17 @@ export class CategoryValidatorService extends AbstractService<Category> {
     return category;
   }
 
-  private async checkNameExists(name: string, excludeId?: string): Promise<void> {
+  private async checkNameExists(
+    name: string,
+    branchId: string | null,
+    excludeId?: string,
+  ): Promise<void> {
     const exists = await this.repository.findOne({
-      where: { name, ...(excludeId ? { id: Not(excludeId) } : {}) },
+      where: {
+        name,
+        branchId: branchId ?? null,
+        ...(excludeId ? { id: Not(excludeId) } : {}),
+      },
     });
     if (exists) {
       this._errors.add('name', 'A category with this name already exists');

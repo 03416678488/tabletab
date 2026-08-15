@@ -35,6 +35,8 @@ import type {
 } from "@/features/menu/types/menu.types";
 
 interface MenuFormDialogProps {
+  /** Owning branch for new records. */
+  branchId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: MenuItem | null;
@@ -65,7 +67,13 @@ function toDefaults(item: MenuItem | null): MenuItemFormValues {
 const cleanRows = (rows: MenuOptionRow[]): MenuOptionRow[] =>
   rows.filter((r) => r.name.trim()).map((r) => ({ name: r.name.trim(), price: toNumber(r.price) }));
 
-export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDialogProps) {
+export function MenuFormDialog({
+  branchId,
+  open,
+  onOpenChange,
+  item,
+  onSaved,
+}: MenuFormDialogProps) {
   const isEdit = !!item;
   const { categories } = useCategories();
   const { foodTypes } = useFoodTypes();
@@ -124,7 +132,7 @@ export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDi
         await menuService.update(item!.id, payload);
         toast("Menu item updated", { tone: "success" });
       } else {
-        await menuService.create(payload);
+        await menuService.create({ ...payload, ...(branchId ? { branchId } : {}) });
         toast("Menu item created", { tone: "success" });
       }
       onOpenChange(false);

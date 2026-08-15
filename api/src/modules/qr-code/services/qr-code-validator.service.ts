@@ -22,6 +22,14 @@ export class QrCodeValidatorService extends AbstractService<QrCode> {
   }
 
   async validateCreate(dto: CreateQrCodeDto): Promise<void> {
+    const kind = dto.kind ?? 'table';
+    if (kind === 'custom') {
+      if (!dto.content?.trim()) {
+        this._errors.add('content', 'QR content is required');
+        this._errors.throwBadRequestErrorIfExists();
+      }
+      return;
+    }
     await this.ensureTableExists(dto.tableId);
     await this.checkTableHasNoQr(dto.tableId);
   }
@@ -47,7 +55,11 @@ export class QrCodeValidatorService extends AbstractService<QrCode> {
     return qrCode;
   }
 
-  private async ensureTableExists(tableId: string): Promise<void> {
+  private async ensureTableExists(tableId?: string): Promise<void> {
+    if (!tableId) {
+      this._errors.addAndThrowBadRequestError('tableId', 'Table is required');
+      return;
+    }
     const table = await this._tableRepository.findOne({
       where: { id: tableId },
     });
@@ -58,9 +70,10 @@ export class QrCodeValidatorService extends AbstractService<QrCode> {
   }
 
   private async checkTableHasNoQr(
-    tableId: string,
+    tableId?: string,
     excludeId?: string,
   ): Promise<void> {
+    if (!tableId) return;
     const exists = await this.repository.findOne({
       where: {
         tableId,

@@ -68,4 +68,8 @@ export class MenuItem extends AbstractEntity {
 
   @Column({ type: 'jsonb', default: () => "'[]'" })
   addOns: MenuOptionRow[];
+
+  /** Owning branch — each branch has its own catalog. Null = legacy/global. */
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
 }

@@ -12,7 +12,8 @@ export class ReportController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('branchId') branchId?: string,
+    @Query('granularity') granularity?: string,
   ) {
-    return this._service.getSalesReport(from, to, branchId);
+    return this._service.getSalesReport(from, to, branchId, granularity);
   }
 }

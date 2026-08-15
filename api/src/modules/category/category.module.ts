@@ -13,7 +13,11 @@ import { PaginationModule } from '@modules/common/pagination/pagination.module';
 import { ErrorModule } from '@modules/common/error/error.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Category]), PaginationModule, ErrorModule],
+  imports: [
+    TypeOrmModule.forFeature([Category]),
+    PaginationModule,
+    ErrorModule,
+  ],
   controllers: [CategoryController],
   providers: [
     CategoryService,

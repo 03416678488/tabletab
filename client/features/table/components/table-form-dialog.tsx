@@ -30,6 +30,8 @@ interface TableFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   table: DiningTable | null;
+  /** Branch a new table defaults to (from the topbar switcher). */
+  defaultBranchId?: string;
   onSaved: () => void;
 }
 
@@ -38,24 +40,29 @@ function toNumber(value: unknown): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
-function toDefaults(table: DiningTable | null): TableFormValues {
+function toDefaults(table: DiningTable | null, defaultBranchId?: string): TableFormValues {
   return {
     name: table?.name ?? "",
     areaId: table?.areaId ?? "",
     capacity: table?.capacity ?? 2,
-    branchId: table?.branchId ?? "",
+    branchId: table?.branchId ?? defaultBranchId ?? "",
     isActive: table?.isActive ?? true,
   };
 }
 
-export function TableFormDialog({ open, onOpenChange, table, onSaved }: TableFormDialogProps) {
+export function TableFormDialog({
+  open,
+  onOpenChange,
+  table,
+  defaultBranchId,
+  onSaved,
+}: TableFormDialogProps) {
   const isEdit = !!table;
   const { branches } = useBranches();
-  const { areas } = useAreas();
 
   const form = useForm<TableFormValues>({
     resolver: zodResolver(tableSchema),
-    defaultValues: toDefaults(table),
+    defaultValues: toDefaults(table, defaultBranchId),
   });
   const {
     register,
@@ -67,9 +74,13 @@ export function TableFormDialog({ open, onOpenChange, table, onSaved }: TableFor
     formState: { errors, isSubmitting },
   } = form;
 
+  // Areas are per-branch — only offer areas belonging to the chosen branch.
+  const selectedBranchId = watch("branchId");
+  const { areas } = useAreas(selectedBranchId || undefined);
+
   useEffect(() => {
-    if (open) reset(toDefaults(table));
-  }, [open, table, reset]);
+    if (open) reset(toDefaults(table, defaultBranchId));
+  }, [open, table, defaultBranchId, reset]);
 
   const onSubmit = handleSubmit(async (values) => {
     const payload: CreateTableInput = {
@@ -146,7 +157,11 @@ export function TableFormDialog({ open, onOpenChange, table, onSaved }: TableFor
             <Label>Branch</Label>
             <Dropdown
               value={watch("branchId") ?? ""}
-              onChange={(v) => setValue("branchId", v, { shouldDirty: true })}
+              onChange={(v) => {
+                setValue("branchId", v, { shouldDirty: true });
+                // A branch's areas are its own — drop any area from another branch.
+                setValue("areaId", "", { shouldDirty: true });
+              }}
               searchable
               placeholder="— No branch —"
               aria-label="Branch"

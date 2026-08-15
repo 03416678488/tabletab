@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IntersectionType } from '@nestjs/mapped-types';
 import {
   IsIn,
@@ -70,6 +71,18 @@ class GetTransactionFiltersDto {
   @IsString()
   @IsOptional()
   to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minAmount?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  maxAmount?: number;
 }
 
 export class GetTransactionQueryDto extends IntersectionType(

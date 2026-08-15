@@ -6,6 +6,7 @@ export interface TaxGroup {
   name: string;
   code: string | null;
   isActive: boolean;
+  branchId?: string | null;
   taxes: Tax[];
 }
 
@@ -14,6 +15,7 @@ export interface TaxGroupInput {
   code?: string;
   taxIds: number[];
   isActive?: boolean;
+  branchId?: string;
 }
 
 /** Combined rate of a group = sum of its member tax rates. */
@@ -22,8 +24,10 @@ export function groupRate(g: TaxGroup): number {
 }
 
 export const taxGroupService = {
-  list() {
-    return httpClient.get<TaxGroup[]>("/tax-groups").then((r) => r.data);
+  list(branchId?: string) {
+    return httpClient
+      .get<TaxGroup[]>("/tax-groups", { params: branchId ? { branchId } : undefined })
+      .then((r) => r.data);
   },
   create(body: TaxGroupInput) {
     return httpClient.post<TaxGroup>("/tax-groups", body, { auth: true }).then((r) => r.data);

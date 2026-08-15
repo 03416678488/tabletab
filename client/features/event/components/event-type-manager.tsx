@@ -27,12 +27,15 @@ import { formatCurrency } from "@/lib/utils";
 import { usePaginatedEventTypes } from "@/features/event/hooks/use-paginated-event-types";
 import { eventTypeService } from "@/features/event/services/event-type.service";
 import { EventTypeFormDialog } from "@/features/event/components/event-type-form-dialog";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type { EventType } from "@/features/event/types/event.types";
 
 export function EventTypeManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EventType | null>(null);
   const [search, setSearch] = useState("");
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
 
   const {
     eventTypes,
@@ -45,11 +48,15 @@ export function EventTypeManager() {
     totalItems,
     goToPage,
     refetch,
-  } = usePaginatedEventTypes({ search });
+  } = usePaginatedEventTypes({ search, branchId });
 
   const filtersActive = Boolean(search.trim());
 
   const openCreate = () => {
+    if (!branchId) {
+      toast("Select a branch first to add an event type", { tone: "info" });
+      return;
+    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -221,6 +228,7 @@ export function EventTypeManager() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         eventType={editing}
+        branchId={branchId}
         onSaved={refetch}
       />
     </div>
