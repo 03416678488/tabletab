@@ -44,6 +44,7 @@ export interface ListTransactionsParams {
   type?: TransactionType;
   method?: PaymentMethod;
   registerSessionId?: string;
+  branchId?: string;
   from?: string;
   to?: string;
 }

@@ -38,14 +38,22 @@ export class ReportService {
     private readonly _txnRepo: Repository<Transaction>,
   ) {}
 
-  async getSalesReport(fromStr?: string, toStr?: string): Promise<SalesReport> {
+  async getSalesReport(
+    fromStr?: string,
+    toStr?: string,
+    branchId?: string,
+  ): Promise<SalesReport> {
     const from = fromStr
       ? new Date(fromStr)
       : new Date(Date.now() - 30 * 864e5);
     const to = toStr ? new Date(toStr) : new Date();
 
     const orders = await this._orderRepo.find({
-      where: { createdAt: Between(from, to), status: Not('cancelled') },
+      where: {
+        createdAt: Between(from, to),
+        status: Not('cancelled'),
+        ...(branchId ? { branchId } : {}),
+      },
       relations: ['items'],
     });
 
@@ -83,16 +91,35 @@ export class ReportService {
     }
 
     // Payment-method breakdown from earning transactions in range — order sales
-    // plus reservation deposits and event payments (all money taken in).
+    // plus reservation deposits and event payments (all money taken in). Sale
+    // transactions have no branch of their own (they derive it from the order),
+    // so branch-scope them by joining the order; ancillary earnings carry their
+    // own branchId.
+    const salesQb = this._txnRepo
+      .createQueryBuilder('t')
+      .where('t.type = :type', { type: 'sale' })
+      .andWhere('t."createdAt" BETWEEN :from AND :to', { from, to });
+    if (branchId) {
+      salesQb
+        .innerJoin(Order, 'o', 'o.id = t."orderId"')
+        .andWhere('o."branchId" = :branchId', { branchId });
+    }
+
     const [sales, deposits, eventPayments] = await Promise.all([
+      salesQb.getMany(),
       this._txnRepo.find({
-        where: { type: 'sale', createdAt: Between(from, to) },
+        where: {
+          type: 'reservation_deposit',
+          createdAt: Between(from, to),
+          ...(branchId ? { branchId } : {}),
+        },
       }),
       this._txnRepo.find({
-        where: { type: 'reservation_deposit', createdAt: Between(from, to) },
-      }),
-      this._txnRepo.find({
-        where: { type: 'event_payment', createdAt: Between(from, to) },
+        where: {
+          type: 'event_payment',
+          createdAt: Between(from, to),
+          ...(branchId ? { branchId } : {}),
+        },
       }),
     ]);
     const byMethod = new Map<string, { count: number; total: number }>();

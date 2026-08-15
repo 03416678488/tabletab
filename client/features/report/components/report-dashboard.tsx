@@ -20,6 +20,7 @@ import { formatMoney } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 import { useSalesReport } from "@/features/report/hooks/use-sales-report";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 
 function isoDay(offsetDays = 0): string {
   const d = new Date();
@@ -41,7 +42,9 @@ export function ReportDashboard() {
 
   const from = `${fromDay}T00:00:00`;
   const to = `${toDay}T23:59:59`;
-  const { report, loading, error } = useSalesReport(from, to);
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
+  const { report, loading, error } = useSalesReport(from, to, branchId);
 
   const maxDay = useMemo(
     () => Math.max(1, ...(report?.byDay.map((d) => d.total) ?? [1])),

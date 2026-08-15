@@ -17,6 +17,7 @@ export const transactionService = {
           type: params?.type,
           method: params?.method,
           registerSessionId: params?.registerSessionId,
+          branchId: params?.branchId,
           from: params?.from,
           to: params?.to,
         },
@@ -25,8 +26,6 @@ export const transactionService = {
   },
 
   create(body: CreateTransactionInput) {
-    return httpClient
-      .post<Transaction>("/transactions", body, { auth: true })
-      .then((r) => r.data);
+    return httpClient.post<Transaction>("/transactions", body, { auth: true }).then((r) => r.data);
   },
 };

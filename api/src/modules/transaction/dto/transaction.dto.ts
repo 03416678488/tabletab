@@ -57,6 +57,11 @@ class GetTransactionFiltersDto {
   @IsOptional()
   registerSessionId?: string;
 
+  /** Scope to one branch — matches the transaction's own branch or its order's. */
+  @IsUUID()
+  @IsOptional()
+  branchId?: string;
+
   /** ISO date bounds (inclusive). */
   @IsString()
   @IsOptional()

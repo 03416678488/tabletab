@@ -80,19 +80,32 @@ export class TransactionService {
   }
 
   getAll(query: GetTransactionQueryDto): Promise<Paginated<Transaction>> {
-    const where: FindOptionsWhere<Transaction> = {};
-    if (query.type) where.type = query.type as Transaction['type'];
-    if (query.method) where.method = query.method as Transaction['method'];
+    // Filters common to every branch of the (possible) OR below.
+    const base: FindOptionsWhere<Transaction> = {};
+    if (query.type) base.type = query.type as Transaction['type'];
+    if (query.method) base.method = query.method as Transaction['method'];
     if (query.registerSessionId)
-      where.registerSessionId = query.registerSessionId;
+      base.registerSessionId = query.registerSessionId;
 
     if (query.from && query.to) {
-      where.createdAt = Between(new Date(query.from), new Date(query.to));
+      base.createdAt = Between(new Date(query.from), new Date(query.to));
     } else if (query.from) {
-      where.createdAt = MoreThanOrEqual(new Date(query.from));
+      base.createdAt = MoreThanOrEqual(new Date(query.from));
     } else if (query.to) {
-      where.createdAt = LessThanOrEqual(new Date(query.to));
+      base.createdAt = LessThanOrEqual(new Date(query.to));
     }
+
+    // Branch scope: a transaction belongs to a branch either directly (ancillary
+    // earnings carry their own branchId) or via its order (sales/refunds derive
+    // it from the order). "All branches" (no branchId) applies no branch filter.
+    const where:
+      FindOptionsWhere<Transaction> | FindOptionsWhere<Transaction>[] =
+      query.branchId
+        ? [
+            { ...base, branchId: query.branchId },
+            { ...base, order: { branchId: query.branchId } },
+          ]
+        : base;
 
     return this._pagination.paginationQuery(
       query,

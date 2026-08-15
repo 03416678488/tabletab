@@ -13,11 +13,17 @@ import type {
 interface Params {
   type?: TransactionType;
   method?: PaymentMethod;
+  branchId?: string;
   initialPerPage?: number;
 }
 
-/** Server-paginated transactions (type/method filters). */
-export function usePaginatedTransactions({ type, method, initialPerPage = 15 }: Params = {}) {
+/** Server-paginated transactions (type/method/branch filters). */
+export function usePaginatedTransactions({
+  type,
+  method,
+  branchId,
+  initialPerPage = 15,
+}: Params = {}) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(initialPerPage);
@@ -26,7 +32,7 @@ export function usePaginatedTransactions({ type, method, initialPerPage = 15 }: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${type ?? ""}|${method ?? ""}|${perPage}`;
+  const key = `${type ?? ""}|${method ?? ""}|${branchId ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -41,6 +47,7 @@ export function usePaginatedTransactions({ type, method, initialPerPage = 15 }: 
           perPage,
           ...(type ? { type } : {}),
           ...(method ? { method } : {}),
+          ...(branchId ? { branchId } : {}),
         });
         if (keyRef.current !== activeKey) return;
         setTransactions(data.items);

@@ -21,6 +21,7 @@ import { formatMoney } from "@/lib/currency";
 import { formatDateTime } from "@/lib/datetime";
 
 import { usePaginatedTransactions } from "@/features/transaction/hooks/use-paginated-transactions";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type {
   PaymentMethod,
   TransactionType,
@@ -47,6 +48,8 @@ const METHOD_LABEL: Record<PaymentMethod, string> = {
 export function TransactionManager() {
   const [type, setType] = useState("");
   const [method, setMethod] = useState("");
+  // Follow the topbar branch switcher — "All branches" scopes to undefined.
+  const branchId = useScopedBranchId();
   const {
     transactions,
     loading,
@@ -61,6 +64,7 @@ export function TransactionManager() {
   } = usePaginatedTransactions({
     ...(type ? { type: type as TransactionType } : {}),
     ...(method ? { method: method as PaymentMethod } : {}),
+    ...(branchId ? { branchId } : {}),
   });
 
   return (
