@@ -10,6 +10,7 @@ import { AbstractEntity } from '@cor/abstract/entity/abstract-entity.abstract';
 import { Table } from '@modules/table/entities/table.entity';
 import { Branch } from '@modules/branch/entities/branch.entity';
 import { Customer } from '@modules/customer/entities/customer.entity';
+import { User } from '@modules/user/entities/users.entity';
 import { OrderItem } from './order-item.entity';
 
 /** Where the order originated. */
@@ -79,6 +80,11 @@ export class Order extends AbstractEntity {
   /** Assigned waiter — set when a dine-in/pickup order is ready. */
   @Column({ type: 'uuid', nullable: true })
   assignedWaiterId: string | null;
+
+  /** The waiter who served the order (resolved from assignedWaiterId). */
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'assignedWaiterId' })
+  assignedWaiter: User | null;
 
   /** Assigned delivery rider — set when a delivery order is ready. */
   @Column({ type: 'uuid', nullable: true })

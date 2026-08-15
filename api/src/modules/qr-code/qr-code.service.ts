@@ -18,6 +18,7 @@ import { CreateTableOrderDto } from './dto/create-table-order.dto';
 import { OrderService } from '@modules/order/order.service';
 import { Order } from '@modules/order/entities/order.entity';
 import { ServiceRequestService } from '@modules/service-request/service-request.service';
+import { TableSessionService } from './table-session.service';
 
 /**
  * Idempotency store for guest dine-in submits — module-level so it survives the
@@ -27,13 +28,20 @@ import { ServiceRequestService } from '@modules/service-request/service-request.
  * would back this with Redis — noted as a follow-up.)
  */
 const IDEMPOTENCY_TTL_MS = 60_000;
-const recentSubmits = new Map<string, { orderId: string; at: number }>();
-function rememberSubmit(key: string, orderId: string): void {
+const recentSubmits = new Map<
+  string,
+  { orderId: string; sessionToken: string; at: number }
+>();
+function rememberSubmit(
+  key: string,
+  orderId: string,
+  sessionToken: string,
+): void {
   const now = Date.now();
   for (const [k, v] of recentSubmits) {
     if (now - v.at > IDEMPOTENCY_TTL_MS) recentSubmits.delete(k);
   }
-  recentSubmits.set(key, { orderId, at: now });
+  recentSubmits.set(key, { orderId, sessionToken, at: now });
 }
 
 /** Main QR-code flow only — validation + normalization live in the sibling services. */
@@ -47,6 +55,7 @@ export class QrCodeService extends AbstractService<QrCode> {
     private readonly _helper: QrCodeHelperService,
     private readonly _orders: OrderService,
     private readonly _serviceRequests: ServiceRequestService,
+    private readonly _tableSessions: TableSessionService,
   ) {
     super(repository, pagination);
   }
@@ -62,12 +71,15 @@ export class QrCodeService extends AbstractService<QrCode> {
   async createTableOrder(
     slug: string,
     dto: CreateTableOrderDto,
-  ): Promise<Order> {
+  ): Promise<{ order: Order; sessionToken: string }> {
     const key = dto.idempotencyKey?.trim();
     if (key) {
       const hit = recentSubmits.get(key);
       if (hit && Date.now() - hit.at < IDEMPOTENCY_TTL_MS) {
-        return this._orders.getById(hit.orderId);
+        return {
+          order: await this._orders.getById(hit.orderId),
+          sessionToken: hit.sessionToken,
+        };
       }
     }
 
@@ -81,6 +93,14 @@ export class QrCodeService extends AbstractService<QrCode> {
     if (table.branch && table.branch.isOpen === false) {
       throw new BadRequestException('This location is currently closed.');
     }
+
+    // Gate ordering on the per-sitting token: a stale token (previous sitting)
+    // is rejected here, so a past customer's saved link can't add to the bill.
+    const session = await this._tableSessions.resolveForOrder(
+      table.id,
+      table.branchId ?? null,
+      dto.sessionToken,
+    );
 
     // Per-branch payment timing: prepay ('pay_first') holds the order in
     // `pending_payment` (off the kitchen board / not occupying the table) until
@@ -102,8 +122,9 @@ export class QrCodeService extends AbstractService<QrCode> {
       { initialStatus: prepay ? 'pending_payment' : 'placed' },
     );
 
-    if (key) rememberSubmit(key, order.id);
-    return order;
+    await this._tableSessions.touch(session.id);
+    if (key) rememberSubmit(key, order.id, session.token);
+    return { order, sessionToken: session.token };
   }
 
   /** Queue a service request from the table — lands live on the staff board + bell. */

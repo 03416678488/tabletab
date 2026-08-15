@@ -43,4 +43,13 @@ export class CreateTableOrderDto {
   @IsString()
   @IsOptional()
   idempotencyKey?: string;
+
+  /**
+   * Per-sitting session token from a prior order at this table. Omitted on the
+   * first order of a sitting; required to keep adding to the same bill. A stale
+   * token (from a previous, settled sitting) is rejected.
+   */
+  @IsString()
+  @IsOptional()
+  sessionToken?: string;
 }

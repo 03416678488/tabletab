@@ -42,6 +42,7 @@ import {
   placeDineInOrder,
 } from "@/features/storefront/services/storefront-orders";
 import { validatePromotionCode } from "@/features/promotion/services/storefront-promotions";
+import { ApiError } from "@/lib/httpClient";
 import type { Address } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -255,24 +256,40 @@ function CheckoutContent() {
       // Stable key for this attempt so a double-tap / retry can't double-order.
       idempotencyRef.current ??= crypto.randomUUID();
       try {
-        const order = await placeDineInOrder(dineIn.slug, {
+        const { order, sessionToken } = await placeDineInOrder(dineIn.slug, {
           items,
           customerName: name,
           customerPhone: phone,
           promotionCode: appliedPromo?.code,
           idempotencyKey: idempotencyRef.current,
+          sessionToken: dineIn.sessionToken,
           notes:
             [`Dine-in · ${tableLabel(dineIn.tableName)}`, note.trim()].filter(Boolean).join("\n") ||
             undefined,
         });
         idempotencyRef.current = null;
+        // Keep the sitting active (cart only is cleared) and remember its token
+        // so more rounds go on the same bill until staff settle the table.
+        dineIn.setSessionToken(sessionToken);
         clear();
         flash("Order sent to the kitchen!", { tone: "success" });
         router.push(`/track/${order.id}`);
       } catch (e) {
-        flash(e instanceof Error ? e.message : "Could not place order — please try again", {
-          tone: "error",
-        });
+        // 410 Gone / 409 Conflict = the sitting ended or belongs to another
+        // device: drop the stale dine-in context and ask the guest to re-scan.
+        const code = e instanceof ApiError ? e.statusCode : 0;
+        if (code === 410 || code === 409) {
+          idempotencyRef.current = null;
+          dineIn.clear();
+          flash(e instanceof Error ? e.message : "This table session has ended.", {
+            tone: "error",
+            description: "Please scan the table QR code again to start a new order.",
+          });
+        } else {
+          flash(e instanceof Error ? e.message : "Could not place order — please try again", {
+            tone: "error",
+          });
+        }
       } finally {
         setPaying(false);
       }

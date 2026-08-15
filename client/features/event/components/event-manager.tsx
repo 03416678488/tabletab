@@ -122,11 +122,14 @@ export function EventManager() {
   const confirmCancel = async () => {
     if (!cancelling || !reason.trim()) return;
     setSavingCancel(true);
-    const ok = await applyStatus(cancelling, "cancelled", reason.trim());
-    setSavingCancel(false);
-    if (ok) {
-      setCancelling(null);
-      setReason("");
+    try {
+      const ok = await applyStatus(cancelling, "cancelled", reason.trim());
+      if (ok) {
+        setCancelling(null);
+        setReason("");
+      }
+    } finally {
+      setSavingCancel(false);
     }
   };
 

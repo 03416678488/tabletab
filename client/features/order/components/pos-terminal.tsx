@@ -85,7 +85,11 @@ interface PersistedCart {
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export function PosTerminal() {
-  const businessName = useSettings().get("company", "name");
+  const settings = useSettings();
+  const businessName = settings.get("company", "name");
+  // Logo lives in the Theme settings group (Settings → Theme → Logo), the same
+  // source as the business name — not the client branding store.
+  const businessLogo = settings.get("theme", "logo");
   const { categories, loading: categoriesLoading } = useCategories();
   const { tables } = useTables();
   const { taxes } = useTaxes();
@@ -466,6 +470,7 @@ export function PosTerminal() {
         printReceipt({
           orderNumber,
           businessName,
+          logoUrl: businessLogo,
           lines: cart.map((l) => ({
             name: l.name,
             qty: l.quantity,

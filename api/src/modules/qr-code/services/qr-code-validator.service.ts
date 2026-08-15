@@ -48,7 +48,9 @@ export class QrCodeValidatorService extends AbstractService<QrCode> {
   }
 
   private async ensureTableExists(tableId: string): Promise<void> {
-    const table = await this._tableRepository.findOne({ where: { id: tableId } });
+    const table = await this._tableRepository.findOne({
+      where: { id: tableId },
+    });
     if (!table) {
       this._errors.add('tableId', 'Table not found');
       this._errors.throwNotFoundErrorIfExists();

@@ -34,8 +34,6 @@ import { RegisterModule } from '@modules/register/register.module';
 import { ShiftModule } from '@modules/shift/shift.module';
 import { TransactionModule } from '@modules/transaction/transaction.module';
 import { ReportModule } from '@modules/report/report.module';
-import { IncomeModule } from '@modules/income/income.module';
-import { ExpenseModule } from '@modules/expense/expense.module';
 import { WebsiteModule } from '@modules/website/website.module';
 import { PromotionModule } from '@modules/promotion/promotion.module';
 import { CampaignModule } from '@modules/campaign/campaign.module';
@@ -84,8 +82,6 @@ import { ResponseModule } from '@cor/filters/exceptions/response.module';
     ShiftModule,
     TransactionModule,
     ReportModule,
-    IncomeModule,
-    ExpenseModule,
     WebsiteModule,
     PromotionModule,
     CampaignModule,

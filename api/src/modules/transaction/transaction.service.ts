@@ -98,7 +98,8 @@ export class TransactionService {
       query,
       this._repo,
       where,
-      ['order'],
+      // Load the order's assigned waiter so the list can show who served it.
+      ['order', 'order.assignedWaiter'],
       undefined,
       {
         createdAt: 'DESC',

@@ -4,8 +4,6 @@ import { Between, Not, Repository } from 'typeorm';
 
 import { Order } from '@modules/order/entities/order.entity';
 import { Transaction } from '@modules/transaction/entities/transaction.entity';
-import { Income } from '@modules/income/entities/income.entity';
-import { Expense } from '@modules/expense/entities/expense.entity';
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -19,8 +17,6 @@ export interface SalesReport {
     subtotalTotal: number;
     discountTotal: number;
     taxTotal: number;
-    incomeTotal: number;
-    expenseTotal: number;
     reservationTotal: number;
     reservationCount: number;
     eventTotal: number;
@@ -40,10 +36,6 @@ export class ReportService {
     private readonly _orderRepo: Repository<Order>,
     @InjectRepository(Transaction)
     private readonly _txnRepo: Repository<Transaction>,
-    @InjectRepository(Income)
-    private readonly _incomeRepo: Repository<Income>,
-    @InjectRepository(Expense)
-    private readonly _expenseRepo: Repository<Expense>,
   ) {}
 
   async getSalesReport(fromStr?: string, toStr?: string): Promise<SalesReport> {
@@ -116,15 +108,8 @@ export class ReportService {
     const eventTotal = eventPayments.reduce((sum, e) => sum + e.amount, 0);
     const eventCount = eventPayments.length;
 
-    // Income / expense recorded in range (all payment types, not just cash).
-    const [incomes, expenses] = await Promise.all([
-      this._incomeRepo.find({ where: { createdAt: Between(from, to) } }),
-      this._expenseRepo.find({ where: { createdAt: Between(from, to) } }),
-    ]);
-    const incomeTotal = incomes.reduce((s, i) => s + Number(i.amount), 0);
-    const expenseTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
-    const netProfit =
-      salesTotal + incomeTotal + reservationTotal + eventTotal - expenseTotal;
+    // Total money taken in across sales and ancillary earnings in range.
+    const netProfit = salesTotal + reservationTotal + eventTotal;
 
     const ordersCount = orders.length;
     return {
@@ -137,8 +122,6 @@ export class ReportService {
         subtotalTotal: round2(subtotalTotal),
         discountTotal: round2(discountTotal),
         taxTotal: round2(taxTotal),
-        incomeTotal: round2(incomeTotal),
-        expenseTotal: round2(expenseTotal),
         reservationTotal: round2(reservationTotal),
         reservationCount,
         eventTotal: round2(eventTotal),

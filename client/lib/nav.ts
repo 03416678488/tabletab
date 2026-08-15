@@ -1,11 +1,9 @@
 import {
   Armchair,
-  ArrowDownCircle,
   Bell,
   Bike,
   CalendarCheck,
   ArrowLeftRight,
-  ArrowUpCircle,
   BarChart3,
   ChefHat,
   ConciergeBell,
@@ -202,27 +200,6 @@ export const navItems: NavItem[] = [
     section: "Finance",
     module: "reports",
   },
-  {
-    label: "Income",
-    icon: ArrowDownCircle,
-    roles: MANAGERS,
-    section: "Finance",
-    children: [
-      { label: "Income List", slug: "income", roles: MANAGERS },
-      { label: "Income Categories", slug: "income-categories", roles: MANAGERS },
-    ],
-  },
-  {
-    label: "Expense",
-    icon: ArrowUpCircle,
-    roles: MANAGERS,
-    section: "Finance",
-    children: [
-      { label: "Expense List", slug: "expense", roles: MANAGERS },
-      { label: "Expense Categories", slug: "expense-categories", roles: MANAGERS },
-    ],
-  },
-
   {
     label: "Menu",
     icon: UtensilsCrossed,

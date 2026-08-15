@@ -11,7 +11,12 @@ export interface Transaction {
   registerSessionId: string | null;
   note: string | null;
   createdAt: string;
-  order?: { id: string; orderNumber: string } | null;
+  order?: {
+    id: string;
+    orderNumber: string;
+    /** The waiter who served the order, when one was assigned. */
+    assignedWaiter?: { firstName: string | null; lastName: string | null } | null;
+  } | null;
 }
 
 export interface CreateTransactionInput {

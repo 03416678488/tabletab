@@ -8,8 +8,6 @@ export interface SalesReport {
     subtotalTotal: number;
     discountTotal: number;
     taxTotal: number;
-    incomeTotal: number;
-    expenseTotal: number;
     reservationTotal: number;
     reservationCount: number;
     eventTotal: number;

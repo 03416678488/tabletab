@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
   BarChart3,
   CalendarCheck,
   PartyPopper,
@@ -117,14 +115,8 @@ export function ReportDashboard() {
             />
           </div>
 
-          {/* Income / reservation deposits / event payments / expense / profit */}
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <Kpi
-              icon={ArrowDownCircle}
-              label="Income"
-              value={formatMoney(report.totals.incomeTotal)}
-              tone="up"
-            />
+          {/* Reservation deposits / event payments / total earnings */}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Kpi
               icon={CalendarCheck}
               label="Reservation deposits"
@@ -142,14 +134,8 @@ export function ReportDashboard() {
               tone="up"
             />
             <Kpi
-              icon={ArrowUpCircle}
-              label="Expense"
-              value={formatMoney(report.totals.expenseTotal)}
-              tone="down"
-            />
-            <Kpi
               icon={Wallet}
-              label="Net Profit"
+              label="Total earnings"
               value={formatMoney(report.totals.netProfit)}
               tone={report.totals.netProfit < 0 ? "down" : "up"}
             />

@@ -136,6 +136,7 @@ export function TransactionManager() {
                   <TableHead>Type</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Order</TableHead>
+                  <TableHead>Waiter</TableHead>
                   <TableHead>Note</TableHead>
                   <TableHead>Time</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -144,6 +145,9 @@ export function TransactionManager() {
               <TableBody>
                 {transactions.map((t) => {
                   const meta = TYPE_META[t.type];
+                  const w = t.order?.assignedWaiter;
+                  const waiterName =
+                    [w?.firstName, w?.lastName].filter(Boolean).join(" ").trim() || "—";
                   return (
                     <TableRow key={t.id}>
                       <TableCell>
@@ -155,6 +159,7 @@ export function TransactionManager() {
                       <TableCell className="text-muted-foreground">
                         {t.order?.orderNumber ?? "—"}
                       </TableCell>
+                      <TableCell className="text-muted-foreground">{waiterName}</TableCell>
                       <TableCell className="max-w-[220px] truncate text-muted-foreground">
                         {t.note ?? "—"}
                       </TableCell>

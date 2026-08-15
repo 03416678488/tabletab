@@ -19,6 +19,7 @@ import { Paginated } from '@modules/common/pagination/interface/pagination.inter
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { MenuItem } from '@modules/menu/entities/menu-item.entity';
+import { TableSession } from '@modules/qr-code/entities/table-session.entity';
 import { AuthenticatedUser } from '@modules/auth/strategies/jwt.strategy';
 import { OrderValidatorService } from './services/order-validator.service';
 import { OrderHelperService } from './services/order.helper.service';
@@ -117,6 +118,8 @@ export class OrderService extends AbstractService<Order> {
     private readonly _statusSync: OrderStatusSyncService,
     private readonly _assignment: StaffAssignmentService,
     private readonly _transactionService: TransactionService,
+    @InjectRepository(TableSession)
+    private readonly _tableSessions: Repository<TableSession>,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -673,6 +676,12 @@ export class OrderService extends AbstractService<Order> {
         { tableId },
       );
     }
+    // End the dine-in sitting: invalidate its per-sitting token so a returning
+    // customer's saved link can no longer add to this (now settled) table.
+    await this._tableSessions.update(
+      { tableId, status: 'open' },
+      { status: 'closed', closedAt: new Date() },
+    );
     return { closed: orders.length, total };
   }
 

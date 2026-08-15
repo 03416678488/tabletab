@@ -53,10 +53,6 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   reports: MANAGER_ROLES,
   transactions: MANAGER_ROLES,
   "cash-register": MANAGER_ROLES,
-  income: MANAGER_ROLES,
-  "income-categories": MANAGER_ROLES,
-  expense: MANAGER_ROLES,
-  "expense-categories": MANAGER_ROLES,
 
   // Management
   menus: MANAGER_ROLES,

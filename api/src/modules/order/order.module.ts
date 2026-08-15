@@ -10,6 +10,7 @@ import { MenuItem } from '@modules/menu/entities/menu-item.entity';
 import { Integration } from '@modules/integration/entities/integration.entity';
 import { IntegrationSyncLog } from '@modules/integration/entities/integration-sync-log.entity';
 import { UserRolePermissions } from '@modules/role/entities/user-role-permissions.entity';
+import { TableSession } from '@modules/qr-code/entities/table-session.entity';
 
 import { OrderController } from './order.controller';
 import { OrderService } from './order.service';
@@ -37,6 +38,7 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
       Integration,
       IntegrationSyncLog,
       UserRolePermissions,
+      TableSession,
     ]),
     PaginationModule,
     ErrorModule,
@@ -54,6 +56,7 @@ import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.pro
     tenantRepositoryProvider(Integration),
     tenantRepositoryProvider(IntegrationSyncLog),
     tenantRepositoryProvider(UserRolePermissions),
+    tenantRepositoryProvider(TableSession),
     // Tenant-aware: order reads/writes (and the tables/branches they validate
     // against) resolve to the current request's tenant database. Relations
     // (items, customer) load through the Order connection automatically.

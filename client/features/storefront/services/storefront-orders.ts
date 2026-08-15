@@ -225,6 +225,14 @@ export interface PlaceDineInInput {
   promotionCode?: string;
   /** Per-submit key so a double-tap / retry doesn't create a second order. */
   idempotencyKey?: string;
+  /** Per-sitting token from a prior order at this table (omit on the first). */
+  sessionToken?: string | null;
+}
+
+export interface PlaceDineInResult {
+  order: StorefrontOrder;
+  /** The sitting's token — store it to add further rounds on the same bill. */
+  sessionToken: string;
 }
 
 /**
@@ -235,16 +243,20 @@ export interface PlaceDineInInput {
 export async function placeDineInOrder(
   slug: string,
   input: PlaceDineInInput,
-): Promise<StorefrontOrder> {
-  const res = await httpClient.post<ApiOrder>(`/qr-codes/${slug}/orders`, {
-    customerName: input.customerName,
-    customerPhone: input.customerPhone,
-    notes: input.notes,
-    promotionCode: input.promotionCode,
-    idempotencyKey: input.idempotencyKey,
-    items: input.items.map(toApiItem),
-  });
-  return toOrder(res.data);
+): Promise<PlaceDineInResult> {
+  const res = await httpClient.post<{ order: ApiOrder; sessionToken: string }>(
+    `/qr-codes/${slug}/orders`,
+    {
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      notes: input.notes,
+      promotionCode: input.promotionCode,
+      idempotencyKey: input.idempotencyKey,
+      sessionToken: input.sessionToken ?? undefined,
+      items: input.items.map(toApiItem),
+    },
+  );
+  return { order: toOrder(res.data.order), sessionToken: res.data.sessionToken };
 }
 
 /** Fetch an order for the tracking page. */

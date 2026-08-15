@@ -13,7 +13,10 @@ import { toILikeContains } from '@cor/helpers/query.helper';
 export class QrCodeHelperService {
   /** Short, URL-safe token for the scan link (base36, ~12 chars). */
   generateSlug(): string {
-    return randomBytes(9).toString('base64url').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return randomBytes(9)
+      .toString('base64url')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
   }
 
   resolveCreatePayload(dto: CreateQrCodeDto): Partial<QrCode> {
@@ -35,7 +38,8 @@ export class QrCodeHelperService {
     const where: FindOptionsWhere<QrCode> = {};
     if (query.search) where.slug = toILikeContains(trimSpaces(query.search));
     if (query.tableId) where.tableId = query.tableId;
-    if (query.isActive !== undefined) where.isActive = query.isActive === 'true';
+    if (query.isActive !== undefined)
+      where.isActive = query.isActive === 'true';
 
     const tableWhere: FindOptionsWhere<QrCode>['table'] = {};
     if (query.areaId) tableWhere.areaId = query.areaId;
