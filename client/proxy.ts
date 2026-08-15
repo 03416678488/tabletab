@@ -29,6 +29,8 @@ const RESERVED_SEGMENTS = new Set([
   "branches",
   // Auth
   "login",
+  // Public marketing
+  "landing",
   // Built-in public storefront routes
   "order",
   "account",
