@@ -42,57 +42,64 @@ export function RequireBranch({
   const role = useParams()?.role as StaffRole | undefined;
 
   // Only multi-branch roles pick a branch; single-branch staff are never gated.
-  if (!usesBranchSwitcher(role)) return <>{children}</>;
-
-  const needsBranch = !activeBranchId || isAllBranches(activeBranchId);
-  if (!needsBranch) return <>{children}</>;
+  const needsBranch =
+    usesBranchSwitcher(role) && (!activeBranchId || isAllBranches(activeBranchId));
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title ?? "Select a branch to continue"}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
-    >
-      <Card className="w-full max-w-md p-6 text-center sm:p-8">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-tint text-brand-deep">
-          <Store className="size-7" />
-        </div>
-        <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
-          {title ?? "Select a branch to continue"}
-        </h2>
-        <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
-          {description ??
-            `${feature} works on one branch at a time — each order is tied to a single location. Choose a branch to continue.`}
-        </p>
+    <>
+      {/* Keep the page mounted underneath so it renders once (while the popup is
+          up) instead of rebuilding from scratch on every selection — picking a
+          branch then just drops the overlay to reveal an already-rendered page. */}
+      {children}
 
-        <div className="mt-6 text-left">
-          <label className="mb-1.5 block text-sm font-medium text-ink">Branch</label>
-          {loading && !branches.length ? (
-            <Skeleton className="h-10 w-full rounded-xl" />
-          ) : branches.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
-              No branches found. Add a branch first, then come back.
+      {needsBranch && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title ?? "Select a branch to continue"}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+        >
+          <Card className="w-full max-w-md p-6 text-center sm:p-8">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-tint text-brand-deep">
+              <Store className="size-7" />
+            </div>
+            <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
+              {title ?? "Select a branch to continue"}
+            </h2>
+            <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
+              {description ??
+                `${feature} works on one branch at a time — each order is tied to a single location. Choose a branch to continue.`}
             </p>
-          ) : (
-            <Dropdown
-              value=""
-              onChange={(v) => setActiveBranchId(v)}
-              searchable={branches.length > 8}
-              placeholder="Choose a branch…"
-              aria-label="Select a branch"
-              options={branches.map((b) => ({
-                value: b.id,
-                label: b.name,
-                sublabel: b.city || undefined,
-              }))}
-            />
-          )}
-          <p className="mt-3 text-xs text-muted-foreground">
-            You can switch branches anytime from the selector in the top bar.
-          </p>
+
+            <div className="mt-6 text-left">
+              <label className="mb-1.5 block text-sm font-medium text-ink">Branch</label>
+              {loading && !branches.length ? (
+                <Skeleton className="h-10 w-full rounded-xl" />
+              ) : branches.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
+                  No branches found. Add a branch first, then come back.
+                </p>
+              ) : (
+                <Dropdown
+                  value=""
+                  onChange={(v) => setActiveBranchId(v)}
+                  searchable={branches.length > 8}
+                  placeholder="Choose a branch…"
+                  aria-label="Select a branch"
+                  options={branches.map((b) => ({
+                    value: b.id,
+                    label: b.name,
+                    sublabel: b.city || undefined,
+                  }))}
+                />
+              )}
+              <p className="mt-3 text-xs text-muted-foreground">
+                You can switch branches anytime from the selector in the top bar.
+              </p>
+            </div>
+          </Card>
         </div>
-      </Card>
-    </div>
+      )}
+    </>
   );
 }

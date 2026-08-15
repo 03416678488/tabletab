@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Ban,
   Loader2,
@@ -133,6 +133,10 @@ export function PosTerminal() {
       return true;
     });
   }, [catalog, categoryId, search]);
+
+  // Stable handler so memoized MenuCards don't re-render on every POS state change
+  // (branch switch, cart edits, search) — only when their own item changes.
+  const handleAddItem = useCallback((it: MenuItem) => setCustomizing(it), [setCustomizing]);
 
   const [orderType, setOrderType] = useState<OrderType>("table");
   const [tableId, setTableId] = useState("");
@@ -588,7 +592,7 @@ export function PosTerminal() {
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
                 {items.map((it) => (
-                  <MenuCard key={it.id} item={it} onAdd={() => setCustomizing(it)} />
+                  <MenuCard key={it.id} item={it} onAdd={handleAddItem} />
                 ))}
               </div>
             )}
@@ -983,12 +987,18 @@ function CategoryCard({
   );
 }
 
-function MenuCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
+const MenuCard = memo(function MenuCard({
+  item,
+  onAdd,
+}: {
+  item: MenuItem;
+  onAdd: (item: MenuItem) => void;
+}) {
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
       <button
         type="button"
-        onClick={onAdd}
+        onClick={() => onAdd(item)}
         disabled={!item.isAvailable}
         className="relative aspect-[4/3] w-full overflow-hidden bg-secondary disabled:opacity-60"
       >
@@ -1016,7 +1026,7 @@ function MenuCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
           <span className="text-[15px] font-semibold text-ink">{formatMoney(item.price)}</span>
           <button
             type="button"
-            onClick={onAdd}
+            onClick={() => onAdd(item)}
             disabled={!item.isAvailable}
             className="inline-flex items-center gap-1 rounded-lg bg-brand px-2.5 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-deep disabled:opacity-40"
           >
@@ -1026,4 +1036,4 @@ function MenuCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
       </div>
     </div>
   );
-}
+});
