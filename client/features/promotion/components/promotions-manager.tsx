@@ -19,8 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
 
 import { usePaginatedPromotions } from "@/features/promotion/hooks/use-paginated-promotions";
@@ -40,7 +38,9 @@ function promoStatus(p: Promotion): { label: string; tone: Tone } {
 }
 
 function discountLabel(p: Promotion): string {
-  return p.discountType === "percentage" ? `${p.discountValue}% off` : `${formatCurrency(p.discountValue)} off`;
+  return p.discountType === "percentage"
+    ? `${p.discountValue}% off`
+    : `${formatCurrency(p.discountValue)} off`;
 }
 
 export function PromotionsManager() {
@@ -48,8 +48,18 @@ export function PromotionsManager() {
   const [editing, setEditing] = useState<Promotion | null>(null);
   const [search, setSearch] = useState("");
 
-  const { promotions, loading, error, page, perPage, setPerPage, totalPages, totalItems, goToPage, refetch } =
-    usePaginatedPromotions({ search });
+  const {
+    promotions,
+    loading,
+    error,
+    page,
+    perPage,
+    setPerPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    refetch,
+  } = usePaginatedPromotions({ search });
 
   const filtersActive = Boolean(search.trim());
 
@@ -68,14 +78,9 @@ export function PromotionsManager() {
     if (!(await confirm({ title: `Delete "${promotion.title}"?`, confirmLabel: "Delete" }))) return;
     try {
       await promotionService.remove(promotion.id);
-      toast("Promotion deleted", { tone: "success" });
       if (promotions.length === 1 && page > 1) goToPage(page - 1);
       else refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete promotion", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   return (
@@ -210,9 +215,14 @@ export function PromotionsManager() {
       </Card>
 
       {!loading && !error && promotions.length > 0 && (
-        <Pagination page={page} totalPages={totalPages} onPageChange={goToPage}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={goToPage}
           perPage={perPage}
-          onPerPageChange={setPerPage} className="mt-4" />
+          onPerPageChange={setPerPage}
+          className="mt-4"
+        />
       )}
 
       <PromotionFormDialog

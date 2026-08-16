@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
-import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
+import { applyApiErrorToForm } from "@/lib/httpClient";
 import { ImagePickerField } from "@/features/media/components/image-picker-field";
 import {
   promotionSchema,
@@ -122,16 +121,13 @@ export function PromotionFormDialog({
     try {
       if (isEdit) {
         await promotionService.update(promotion!.id, payload);
-        toast("Promotion updated", { tone: "success" });
       } else {
         await promotionService.create(payload);
-        toast("Promotion created", { tone: "success" });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "title", ["title", "slug", "code"]);
-      if (!(err instanceof ApiError)) toast("Something went wrong", { tone: "error" });
     }
   });
 

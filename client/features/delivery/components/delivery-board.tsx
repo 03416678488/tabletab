@@ -8,8 +8,6 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { cn, formatCurrency } from "@/lib/utils";
 import { orderService } from "@/features/order/services/order.service";
 import { useDeliveryQueue } from "@/features/delivery/hooks/use-delivery-queue";
@@ -31,8 +29,7 @@ export function DeliveryBoard() {
     try {
       await orderService.update(order.id, { status: next });
       await refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
+    } catch {
     } finally {
       inFlight.current.delete(order.id);
       setBusyId(null);

@@ -28,8 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useCurrencies } from "@/features/currency/hooks/use-currencies";
 import { currencyService } from "@/features/currency/services/currency.service";
@@ -112,11 +110,9 @@ export function CurrencyManager() {
           isActive,
         });
       }
-      toast("Currency saved", { tone: "success" });
       setOpen(false);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -126,28 +122,21 @@ export function CurrencyManager() {
     try {
       await currencyService.update(c.id, { autoUpdate: !c.autoUpdate });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   const toggleActive = async (c: Currency) => {
     try {
       await currencyService.update(c.id, { isActive: !c.isActive });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   const setDefault = async (c: Currency) => {
     try {
       await settingsService.saveGroup("site", { default_currency: c.code });
       await refresh(); // re-apply the app-wide currency symbol/position/decimals
-      toast(`${c.code} set as default currency`, { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to set default", { tone: "error" });
-    }
+    } catch {}
   };
 
   const confirm = useConfirm();
@@ -156,11 +145,8 @@ export function CurrencyManager() {
     if (!(await confirm({ title: `Delete ${c.name}?`, confirmLabel: "Delete" }))) return;
     try {
       await currencyService.remove(c.id);
-      toast("Currency deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (

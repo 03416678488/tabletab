@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
 import { useBranches } from "@/features/branch/hooks/use-branches";
@@ -94,17 +93,14 @@ export function TableFormDialog({
     try {
       if (isEdit) {
         await tableService.update(table!.id, payload);
-        toast("Table updated", { tone: "success" });
       } else {
         await tableService.create(payload);
-        toast("Table created", { tone: "success" });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "name", ["name", "branchId"]);
       if (!(err instanceof ApiError)) {
-        toast("Something went wrong", { tone: "error" });
       }
     }
   });

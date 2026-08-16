@@ -8,16 +8,24 @@ import { FileText, Globe, Home, Loader2, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { ApiError } from "@/lib/httpClient";
-import { toast } from "@/hooks/use-toast";
 import { createPageSchema, type GeneralForm } from "@/features/website-builder/schemas/blocks";
-import { type PageSummary, websiteService } from "@/features/website-builder/services/website.service";
+import {
+  type PageSummary,
+  websiteService,
+} from "@/features/website-builder/services/website.service";
 
 const slugify = (s: string) =>
   s
@@ -34,7 +42,11 @@ export function PagesList() {
   const [pages, setPages] = useState<PageSummary[] | null>(null);
   const [open, setOpen] = useState(false);
 
-  const load = () => websiteService.list().then(setPages).catch(() => setPages([]));
+  const load = () =>
+    websiteService
+      .list()
+      .then(setPages)
+      .catch(() => setPages([]));
   useEffect(() => {
     load();
   }, []);
@@ -156,7 +168,6 @@ function CreatePageDialog({
   const onSubmit = handleSubmit(async (data) => {
     try {
       const page = await websiteService.create(data.title, data.slug);
-      toast("Page created", { tone: "success" });
       onCreated(page.slug);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Couldn't create the page";

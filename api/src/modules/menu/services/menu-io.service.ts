@@ -61,12 +61,12 @@ export class MenuIoService {
     }[];
   }> {
     const items = await this._items.find({
-      relations: ['category'],
+      relations: ['categories'],
       order: { name: 'ASC' },
     });
     const categoryNames = new Set<string>();
     const mapped = items.map((it) => {
-      const category = it.category?.name ?? null;
+      const category = it.categories?.[0]?.name ?? null;
       if (category) categoryNames.add(category);
       return {
         name: it.name,
@@ -84,7 +84,7 @@ export class MenuIoService {
 
   async exportCsv(): Promise<{ csv: string; count: number }> {
     const items = await this._items.find({
-      relations: ['category'],
+      relations: ['categories'],
       order: { name: 'ASC' },
     });
     const lines = [HEADERS.join(',')];
@@ -95,7 +95,7 @@ export class MenuIoService {
           it.name,
           it.description ?? '',
           it.price,
-          it.category?.name ?? '',
+          it.categories?.[0]?.name ?? '',
           it.isAvailable ? 'yes' : 'no',
         ]
           .map(cell)
@@ -168,7 +168,10 @@ export class MenuIoService {
 
       try {
         if (id) {
-          const existing = await this._items.findOne({ where: { id } });
+          const existing = await this._items.findOne({
+            where: { id },
+            relations: ['categories'],
+          });
           if (!existing) {
             result.errors.push({
               row: line,
@@ -179,7 +182,9 @@ export class MenuIoService {
           existing.name = name;
           existing.description = description;
           existing.price = price;
-          existing.categoryId = categoryId;
+          existing.categories = categoryId
+            ? [{ id: categoryId } as Category]
+            : [];
           existing.isAvailable = isAvailable;
           await this._items.save(existing);
           result.updated++;
@@ -188,7 +193,7 @@ export class MenuIoService {
             name,
             description,
             price,
-            categoryId,
+            categories: categoryId ? [{ id: categoryId } as Category] : [],
             isAvailable,
             images: [],
             sizes: [],

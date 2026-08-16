@@ -32,8 +32,6 @@ import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useQrCodes } from "@/features/qr-code/hooks/use-qr-codes";
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
@@ -90,7 +88,6 @@ export function QrCodeManager() {
 
   const openCreate = () => {
     if (!branchId) {
-      toast("Select a branch first to add a custom QR code", { tone: "info" });
       return;
     }
     setEditing(null);
@@ -111,24 +108,15 @@ export function QrCodeManager() {
     if (!ok) return;
     try {
       await qrCodeService.remove(qr.id);
-      toast("QR code deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete QR code", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   const toggleActive = async (qr: QrCode) => {
     try {
       await qrCodeService.update(qr.id, { isActive: !qr.isActive });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't update QR code", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   return (
@@ -286,11 +274,8 @@ function QrCard({
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      toast(isCustom ? "Content copied" : "Link copied", { tone: "success" });
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast("Couldn't copy", { tone: "error" });
-    }
+    } catch {}
   };
 
   /** Open a print-ready page (QR + label) and trigger the print dialog. */
@@ -300,7 +285,6 @@ function QrCard({
     const dataUrl = canvas.toDataURL("image/png");
     const win = window.open("", "_blank", "width=460,height=680");
     if (!win) {
-      toast("Allow pop-ups to print", { tone: "error" });
       return;
     }
     const esc = (s: string) => s.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);

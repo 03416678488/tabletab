@@ -28,8 +28,6 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { cn } from "@/lib/utils";
 
 import { useMedia } from "@/features/media/hooks/use-media";
@@ -119,15 +117,12 @@ export function ImageGalleryDialog({
     if (!file) return;
     try {
       const uploaded = await upload(file);
-      toast("Image uploaded", { tone: "success" });
       if (multiple) setChosen((prev) => new Set(prev).add(uploaded.url));
       else {
         onSelect([uploaded]);
         onOpenChange(false);
       }
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Upload failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   const onTileClick = (file: MediaFile) => {
@@ -165,9 +160,7 @@ export function ImageGalleryDialog({
         next.delete(file.url);
         return next;
       });
-      toast("Image deleted", { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete image", { tone: "error" });
+    } catch {
     } finally {
       setDeletingId(null);
     }
@@ -186,10 +179,7 @@ export function ImageGalleryDialog({
     if (!ok) return;
     try {
       await deleteFolder(folder.id);
-      toast("Folder deleted", { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't delete folder", { tone: "error" });
-    }
+    } catch {}
   };
 
   const startCreate = (e: React.MouseEvent, parentId: string | null) => {
@@ -212,9 +202,7 @@ export function ImageGalleryDialog({
       const created = await createFolder(name, creatingParentId);
       cancelCreate();
       openFolder(created.id);
-      toast("Folder created", { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't create folder", { tone: "error" });
+    } catch {
     } finally {
       setSavingFolder(false);
     }

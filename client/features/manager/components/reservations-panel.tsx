@@ -25,7 +25,6 @@ import { ReservationStatusPill, StatusPill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
-import { toast } from "@/hooks/use-toast";
 import {
   listReservations,
   setReservationStatus,
@@ -113,7 +112,6 @@ export function ReservationsPanel() {
 
   const dismissTask = (id: string) => {
     setDismissed((prev) => new Set(prev).add(id));
-    toast("Task dismissed", { tone: "success" });
   };
 
   const tableLabel = (tableId: string) =>
@@ -127,11 +125,7 @@ export function ReservationsPanel() {
       setDepositMethod("cash");
       setConfirmFor(r);
     } else {
-      void runAction(
-        r.id,
-        () => setReservationStatus(r.id, "confirmed"),
-        "Reservation confirmed — table held",
-      );
+      void runAction(r.id, () => setReservationStatus(r.id, "confirmed"));
     }
   };
 
@@ -140,28 +134,21 @@ export function ReservationsPanel() {
     if (!r) return;
     const amount = withDeposit ? Number(depositAmount) || 0 : 0;
     setConfirmFor(null);
-    await runAction(
-      r.id,
-      () =>
-        setReservationStatus(
-          r.id,
-          "confirmed",
-          amount > 0 ? { depositAmount: amount, depositMethod } : undefined,
-        ),
-      amount > 0
-        ? `Confirmed — ${formatCurrency(amount)} deposit recorded`
-        : "Reservation confirmed — table held",
+    await runAction(r.id, () =>
+      setReservationStatus(
+        r.id,
+        "confirmed",
+        amount > 0 ? { depositAmount: amount, depositMethod } : undefined,
+      ),
     );
   };
 
-  const runAction = async (id: string, action: () => Promise<unknown>, message: string) => {
+  const runAction = async (id: string, action: () => Promise<unknown>) => {
     setBusyId(id);
     try {
       await action();
-      toast(message, { tone: "success" });
       await refresh();
     } catch {
-      toast("Action failed", { tone: "error" });
     } finally {
       setBusyId(null);
     }
@@ -311,11 +298,7 @@ export function ReservationsPanel() {
                           variant="outline"
                           disabled={busyId === r.id}
                           onClick={() =>
-                            runAction(
-                              r.id,
-                              () => setReservationStatus(r.id, "seated"),
-                              "Guest seated",
-                            )
+                            runAction(r.id, () => setReservationStatus(r.id, "seated"))
                           }
                         >
                           <UserCheck className="size-4" />
@@ -328,11 +311,7 @@ export function ReservationsPanel() {
                           variant="outline"
                           disabled={busyId === r.id}
                           onClick={() =>
-                            runAction(
-                              r.id,
-                              () => setReservationStatus(r.id, "completed"),
-                              "Completed",
-                            )
+                            runAction(r.id, () => setReservationStatus(r.id, "completed"))
                           }
                         >
                           Complete
@@ -346,11 +325,7 @@ export function ReservationsPanel() {
                             className="text-destructive"
                             disabled={busyId === r.id}
                             onClick={() =>
-                              runAction(
-                                r.id,
-                                () => setReservationStatus(r.id, "no-show"),
-                                "Marked no-show",
-                              )
+                              runAction(r.id, () => setReservationStatus(r.id, "no-show"))
                             }
                           >
                             No-show
@@ -360,11 +335,7 @@ export function ReservationsPanel() {
                             variant="ghost"
                             disabled={busyId === r.id}
                             onClick={() =>
-                              runAction(
-                                r.id,
-                                () => setReservationStatus(r.id, "cancelled"),
-                                "Cancelled",
-                              )
+                              runAction(r.id, () => setReservationStatus(r.id, "cancelled"))
                             }
                           >
                             <X className="size-4" />

@@ -1,38 +1,17 @@
 import { DataSource } from 'typeorm';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
 
 import { Category } from '@modules/category/entities/category.entity';
 import { Menu } from '@modules/menus/entities/menu.entity';
 import { MenuItem } from '@modules/menu/entities/menu-item.entity';
-import { FoodType } from '@modules/food-type/entities/food-type.entity';
 import { Branch } from '@modules/branch/entities/branch.entity';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-
 /**
- * Catalog seeder — FLUSHES all categories/menus/menu-items, then seeds a full
- * per-branch catalog (each branch gets its own categories/menus/items, tagged
- * with its branchId — the app's per-branch menu model). ~260 items PER BRANCH
- * by default. If there are no branches, it falls back to a single null-branch
- * catalog.
- *
- * Orders are preserved: `order_items.menuItemId` is ON DELETE SET NULL, and line
- * items keep their denormalized name/price. Run with:
- *   docker exec tabletap-api npm run db:seed:catalog
- * Override the per-branch item count with SEED_ITEMS (clamped 50–1000).
+ * Seed a full demo catalogue. Categories + menus are PER-BRANCH; the item
+ * catalogue is GLOBAL — each item is created once and placed into every branch's
+ * matching category, so every branch carries it (no duplication). Flushes the
+ * existing catalogue first. This is a module invoked by the main `db:seed` (not a
+ * standalone script). Override the item count with SEED_ITEMS (clamped 50–1000).
  */
-
-const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.POSTGRES_HOST || 'tabletap-postgres',
-  port: parseInt(process.env.POSTGRES_PORT, 10) || 5432,
-  username: process.env.POSTGRES_USER || 'tabletap_user',
-  password: process.env.POSTGRES_PASSWORD || 'secret',
-  database: process.env.POSTGRES_DATABASE || 'tabletap_db',
-  entities: [Category, Menu, MenuItem, FoodType, Branch],
-  synchronize: false,
-});
 
 // ── Reference data ──────────────────────────────────────────────────────────
 
@@ -354,155 +333,128 @@ function assignMenus(menus: Menu[]): Menu[] {
 
 // ── Seed ────────────────────────────────────────────────────────────────────
 
-async function seed() {
+export async function seedCatalog(dataSource: DataSource): Promise<void> {
   const target = Math.min(
     1000,
     Math.max(50, parseInt(process.env.SEED_ITEMS || '260', 10)),
   );
-  let connected = false;
 
-  try {
-    console.log('🔌 Connecting to database…');
-    await AppDataSource.initialize();
-    connected = true;
-    console.log('📦 Connected\n');
+  // ── Flush (order matters; orders/order_items are preserved) ──
+  console.log('\n🍽️  Seeding catalogue…');
+  console.log('🧹 Flushing categories, menus, and items…');
+  await dataSource.query('DELETE FROM "menu_item_categories"');
+  await dataSource.query('DELETE FROM "menu_item_menus"');
+  await dataSource.query('DELETE FROM "menu_item_food_types"');
+  await dataSource.query('DELETE FROM "menu_items"'); // order_items.menuItemId → NULL
+  await dataSource.query('DELETE FROM "menus"');
+  await dataSource.query('DELETE FROM "categories"');
+  console.log('   ✔ cleared\n');
 
-    // ── Flush (order matters; orders/order_items are preserved) ──
-    console.log('🧹 Flushing categories, menus, and items…');
-    await AppDataSource.query('DELETE FROM "menu_item_menus"');
-    await AppDataSource.query('DELETE FROM "menu_item_food_types"');
-    await AppDataSource.query('DELETE FROM "menu_items"'); // order_items.menuItemId → NULL
-    await AppDataSource.query('DELETE FROM "menus"');
-    await AppDataSource.query('DELETE FROM "categories"');
-    console.log('   ✔ cleared\n');
+  const categoryRepo = dataSource.getRepository(Category);
+  const menuRepo = dataSource.getRepository(Menu);
+  const itemRepo = dataSource.getRepository(MenuItem);
+  const branchRepo = dataSource.getRepository(Branch);
 
-    const categoryRepo = AppDataSource.getRepository(Category);
-    const menuRepo = AppDataSource.getRepository(Menu);
-    const itemRepo = AppDataSource.getRepository(MenuItem);
-    const branchRepo = AppDataSource.getRepository(Branch);
+  // Categories + menus are PER-BRANCH; items are GLOBAL. Build each branch's
+  // categories/menus first, then create each item once and place it into the
+  // same-named category at every branch (so every branch carries it).
+  const branches = await branchRepo.find({ order: { name: 'ASC' } });
+  const scopes: { id: string | null; name: string }[] = branches.length
+    ? branches.map((b) => ({ id: b.id, name: b.name }))
+    : [{ id: null, name: 'default (no branch)' }];
+  console.log(
+    `🏬 Seeding per-branch categories/menus for ${scopes.length} branch(es): ${scopes
+      .map((s) => s.name)
+      .join(', ')}\n`,
+  );
 
-    // Seed a full catalog for every branch (each branch owns its own menu).
-    // No branches → one null-branch catalog so the seeder still works.
-    const branches = await branchRepo.find({ order: { name: 'ASC' } });
-    const scopes: { id: string | null; name: string }[] = branches.length
-      ? branches.map((b) => ({ id: b.id, name: b.name }))
-      : [{ id: null, name: 'default (no branch)' }];
-    console.log(
-      `🏬 Seeding catalog for ${scopes.length} branch(es): ${scopes
-        .map((s) => s.name)
-        .join(', ')}\n`,
+  const perBranch: { categories: Category[]; menus: Menu[] }[] = [];
+  for (const scope of scopes) {
+    const categories = await categoryRepo.save(
+      CATS.map((c, i) =>
+        categoryRepo.create({
+          name: c.name,
+          description: `${c.name} — freshly prepared favourites.`,
+          imageUrl: img(i),
+          sortOrder: i,
+          isActive: true,
+          branchId: scope.id,
+        }),
+      ),
     );
+    const menus = await menuRepo.save(
+      MENUS.map((name, i) =>
+        menuRepo.create({
+          name,
+          description: `${name} selection.`,
+          imageUrl: img(i + 3),
+          sortOrder: i,
+          isActive: true,
+          branchId: scope.id,
+        }),
+      ),
+    );
+    perBranch.push({ categories, menus });
+    console.log(
+      `   ✔ ${scope.name}: ${categories.length} categories · ${menus.length} menus`,
+    );
+  }
 
-    let imgIdx = 0;
-    let grandTotalItems = 0;
+  // ── Items (GLOBAL): created once, carried at every branch ──
+  let imgIdx = 0;
+  const perCat = Math.ceil(target / CATS.length);
+  const items: MenuItem[] = [];
+  for (let ci = 0; ci < CATS.length && items.length < target; ci++) {
+    const def = CATS[ci];
+    const used = new Set<string>();
+    for (let n = 0; n < perCat && items.length < target; n++) {
+      const dish = def.dishes[n % def.dishes.length];
+      const adj = ADJ[(n + ci) % ADJ.length];
+      let name = `${adj} ${dish}`;
+      if (used.has(name)) name = `${name} #${n + 1}`;
+      used.add(name);
 
-    for (const scope of scopes) {
-      console.log(`🏬 ${scope.name}`);
-
-      // ── Categories (this branch) ──
-      const categories = await categoryRepo.save(
-        CATS.map((c, i) =>
-          categoryRepo.create({
-            name: c.name,
-            description: `${c.name} — freshly prepared favourites.`,
-            imageUrl: img(i),
-            sortOrder: i,
-            isActive: true,
-            branchId: scope.id,
-          }),
-        ),
-      );
-
-      // ── Menus (this branch) ──
-      const menus = await menuRepo.save(
-        MENUS.map((name, i) =>
-          menuRepo.create({
-            name,
-            description: `${name} selection.`,
-            imageUrl: img(i + 3),
-            sortOrder: i,
-            isActive: true,
-            branchId: scope.id,
-          }),
-        ),
-      );
-
-      // ── Items (this branch): `target` spread across its categories ──
-      const perCat = Math.ceil(target / CATS.length);
-      const items: MenuItem[] = [];
-
-      for (let ci = 0; ci < CATS.length && items.length < target; ci++) {
-        const def = CATS[ci];
-        const category = categories[ci];
-        const used = new Set<string>();
-
-        for (let n = 0; n < perCat && items.length < target; n++) {
-          const dish = def.dishes[n % def.dishes.length];
-          const adj = ADJ[(n + ci) % ADJ.length];
-          let name = `${adj} ${dish}`;
-          // Keep names distinct within a category.
-          if (used.has(name)) name = `${name} #${n + 1}`;
-          used.add(name);
-
-          const price = priceIn(def.price);
-          items.push(
-            itemRepo.create({
-              name,
-              description: `${dish} with a ${adj.toLowerCase()} twist — a house favourite.`,
-              price,
-              imageUrl: img(imgIdx++),
-              images: [],
-              // ~12% of items are "86'd" to exercise availability handling.
-              isAvailable: Math.random() > 0.12,
-              categoryId: category.id,
-              menus: assignMenus(menus),
-              sizes: def.sizes ? sizesFor(price) : [],
-              variants: [],
-              addOns: [],
-              branchId: scope.id,
-            }),
-          );
-        }
-      }
-
-      await itemRepo.save(items, { chunk: 50 });
-      grandTotalItems += items.length;
-      console.log(
-        `   ✔ ${categories.length} categories · ${menus.length} menus · ${items.length} items`,
+      const price = priceIn(def.price);
+      items.push(
+        itemRepo.create({
+          name,
+          description: `${dish} with a ${adj.toLowerCase()} twist — a house favourite.`,
+          price,
+          imageUrl: img(imgIdx++),
+          images: [],
+          // ~12% of items are "86'd" to exercise availability handling.
+          isAvailable: Math.random() > 0.12,
+          // Carried at every branch via that branch's matching category.
+          categories: perBranch.map((b) => b.categories[ci]),
+          menus: perBranch.flatMap((b) => assignMenus(b.menus)),
+          sizes: def.sizes ? sizesFor(price) : [],
+          variants: [],
+          addOns: [],
+        }),
       );
     }
-
-    console.log(
-      `\n💾 Saved ${grandTotalItems} items across ${scopes.length} branch(es).`,
-    );
-
-    // ── Summary ──
-    const [catCount, menuCount, itemCount, unavailable, joinCount] =
-      await Promise.all([
-        categoryRepo.count(),
-        menuRepo.count(),
-        itemRepo.count(),
-        itemRepo.count({ where: { isAvailable: false } }),
-        AppDataSource.query(
-          'SELECT COUNT(*)::int AS c FROM "menu_item_menus"',
-        ).then((r) => r[0].c),
-      ]);
-
-    console.log('\n✅ Catalog seeded:');
-    console.log(`   • ${catCount} categories`);
-    console.log(`   • ${menuCount} menus`);
-    console.log(`   • ${itemCount} items (${unavailable} marked unavailable)`);
-    console.log(`   • ${joinCount} item↔menu links`);
-  } catch (error) {
-    console.error(
-      '❌ Catalog seeding failed:',
-      (error as Error).message || error,
-    );
-    process.exitCode = 1;
-  } finally {
-    if (connected) await AppDataSource.destroy();
-    process.exit(process.exitCode ?? 0);
   }
-}
+  await itemRepo.save(items, { chunk: 50 });
+  const grandTotalItems = items.length;
+  console.log(
+    `\n💾 Saved ${grandTotalItems} GLOBAL items, each carried at ${scopes.length} branch(es).`,
+  );
 
-seed();
+  // ── Summary ──
+  const [catCount, menuCount, itemCount, unavailable, joinCount] =
+    await Promise.all([
+      categoryRepo.count(),
+      menuRepo.count(),
+      itemRepo.count(),
+      itemRepo.count({ where: { isAvailable: false } }),
+      dataSource
+        .query('SELECT COUNT(*)::int AS c FROM "menu_item_menus"')
+        .then((r) => r[0].c),
+    ]);
+
+  console.log('\n✅ Catalogue seeded:');
+  console.log(`   • ${catCount} categories`);
+  console.log(`   • ${menuCount} menus`);
+  console.log(`   • ${itemCount} items (${unavailable} marked unavailable)`);
+  console.log(`   • ${joinCount} item↔menu links`);
+}

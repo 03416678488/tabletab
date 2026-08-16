@@ -19,8 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedTables } from "@/features/table/hooks/use-paginated-tables";
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
@@ -65,7 +63,6 @@ export function TableListManager() {
 
   const openCreate = () => {
     if (!branchId) {
-      toast("Select a branch first to add a table", { tone: "info" });
       return;
     }
     setEditing(null);
@@ -82,11 +79,8 @@ export function TableListManager() {
     if (!(await confirm({ title: `Delete "${t.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await tableService.remove(t.id);
-      toast("Table deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete table", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (

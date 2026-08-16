@@ -38,7 +38,6 @@ export class FoodTypeHelperService {
     if (query.search) where.name = toILikeContains(trimSpaces(query.search));
     if (query.isActive !== undefined)
       where.isActive = query.isActive === 'true';
-    if (query.branchId) where.branchId = query.branchId;
     return where;
   }
 }

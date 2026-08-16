@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
 import { formatDateTime } from "@/lib/datetime";
 import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { useRegister, useRegisterOverview } from "@/features/register/hooks/use-register";
@@ -156,14 +155,12 @@ function OperateRegister({ branchId }: { branchId: string }) {
   const [cashAmount, setCashAmount] = useState("");
   const [cashNote, setCashNote] = useState("");
 
-  const run = async (fn: () => Promise<unknown>, ok: string) => {
+  const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     try {
       await fn();
-      toast(ok, { tone: "success" });
       await refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Action failed", { tone: "error" });
+    } catch {
     } finally {
       setBusy(false);
     }
@@ -173,7 +170,7 @@ function OperateRegister({ branchId }: { branchId: string }) {
     run(async () => {
       await registerService.open({ openingBalance: Number(opening) || 0, branchId });
       setOpening("");
-    }, "Register opened");
+    });
 
   const closeRegister = () =>
     run(async () => {
@@ -186,7 +183,7 @@ function OperateRegister({ branchId }: { branchId: string }) {
         { tone: v === 0 ? "success" : "error" },
       );
       setCounted("");
-    }, "Register closed");
+    });
 
   const addCash = () =>
     run(async () => {
@@ -198,7 +195,7 @@ function OperateRegister({ branchId }: { branchId: string }) {
       });
       setCashAmount("");
       setCashNote("");
-    }, "Cash movement recorded");
+    });
 
   return (
     <>

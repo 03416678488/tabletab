@@ -34,8 +34,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedMenus } from "@/features/menu-list/hooks/use-paginated-menus";
 import { menusService } from "@/features/menu-list/services/menu.service";
@@ -74,7 +72,6 @@ export function MenuListManager() {
 
   const openCreate = () => {
     if (!branchId) {
-      toast("Select a branch first to add a menu", { tone: "info" });
       return;
     }
     setEditing(null);
@@ -91,15 +88,10 @@ export function MenuListManager() {
     if (!(await confirm({ title: `Delete "${menu.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await menusService.remove(menu.id);
-      toast("Menu deleted", { tone: "success" });
       // Step back a page if we just removed the last row on it.
       if (menus.length === 1 && page > 1) goToPage(page - 1);
       else refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete menu", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   // Bulk selection + actions.
@@ -117,11 +109,9 @@ export function MenuListManager() {
     setBulkBusy(true);
     try {
       await menusService.bulkRemove(sel.ids);
-      toast(`Deleted ${sel.count} menu${sel.count === 1 ? "" : "s"}`, { tone: "success" });
       sel.clear();
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Bulk delete failed", { tone: "error" });
+    } catch {
     } finally {
       setBulkBusy(false);
     }
@@ -131,11 +121,9 @@ export function MenuListManager() {
     setBulkBusy(true);
     try {
       await menusService.bulkSetActive(sel.ids, next);
-      toast(`${next ? "Activated" : "Deactivated"} ${sel.count}`, { tone: "success" });
       sel.clear();
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Bulk update failed", { tone: "error" });
+    } catch {
     } finally {
       setBulkBusy(false);
     }

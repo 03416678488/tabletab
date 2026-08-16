@@ -17,8 +17,7 @@ import {
 import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
-import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
+import { applyApiErrorToForm } from "@/lib/httpClient";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useActiveBranch, ALL_BRANCHES } from "@/features/branch/hooks/use-active-branch";
 import { CustomerSelect } from "@/features/customer/components/customer-select";
@@ -122,12 +121,10 @@ export function EventFormDialog({ open, onOpenChange, onSaved }: Props) {
 
     try {
       await eventService.create(payload);
-      toast("Booking created", { tone: "success" });
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "title", ["title"]);
-      if (!(err instanceof ApiError)) toast("Something went wrong", { tone: "error" });
     }
   });
 

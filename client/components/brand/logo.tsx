@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { UtensilsCrossed } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeImageSrc } from "@/lib/utils";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
 
 interface LogoProps {
@@ -16,7 +16,7 @@ interface LogoProps {
 export function Logo({ href = "/", className, dark = false, showWordmark = true }: LogoProps) {
   const { get, loading } = useSettings();
   // Whitelabel: logo from Settings → Branding, name + tagline from Business Info.
-  const logoUrl = get("theme", "logo");
+  const logoUrl = safeImageSrc(get("theme", "logo"));
   const name = get("company", "name");
   const tagline = get("company", "tagline");
 
@@ -36,7 +36,11 @@ export function Logo({ href = "/", className, dark = false, showWordmark = true 
         // Plain <img>: the uploaded file is served by our API (the next/image
         // optimizer refuses localhost hosts) and the logo has no fixed size.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt={`${name} logo`} className="h-9 w-auto max-w-[120px] shrink-0 object-contain" />
+        <img
+          src={logoUrl}
+          alt={`${name} logo`}
+          className="h-9 w-auto max-w-[120px] shrink-0 object-contain"
+        />
       ) : (
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-sm">
           <UtensilsCrossed className="size-5" aria-hidden />
@@ -54,7 +58,10 @@ export function Logo({ href = "/", className, dark = false, showWordmark = true 
           </span>
           {tagline && (
             <span
-              className={cn("truncate text-[11px]", dark ? "text-slate-400" : "text-muted-foreground")}
+              className={cn(
+                "truncate text-[11px]",
+                dark ? "text-slate-400" : "text-muted-foreground",
+              )}
             >
               {tagline}
             </span>

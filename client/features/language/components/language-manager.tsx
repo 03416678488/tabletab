@@ -27,8 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useLanguages } from "@/features/language/hooks/use-languages";
 import { languageService, type Language } from "@/features/language/services/language.service";
@@ -55,7 +53,12 @@ export function LanguageManager() {
     if (!open) return;
     setForm(
       editing
-        ? { name: editing.name, code: editing.code, isActive: editing.isActive, isDefault: editing.isDefault }
+        ? {
+            name: editing.name,
+            code: editing.code,
+            isActive: editing.isActive,
+            isDefault: editing.isDefault,
+          }
         : empty,
     );
   }, [open, editing]);
@@ -65,11 +68,9 @@ export function LanguageManager() {
     try {
       if (editing) await languageService.update(editing.id, form);
       else await languageService.create(form);
-      toast("Language saved", { tone: "success" });
       setOpen(false);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -79,17 +80,13 @@ export function LanguageManager() {
 
   const remove = async (l: Language) => {
     if (l.isDefault) {
-      toast("Can't delete the default language", { tone: "error" });
       return;
     }
     if (!(await confirm({ title: `Delete ${l.name}?`, confirmLabel: "Delete" }))) return;
     try {
       await languageService.remove(l.id);
-      toast("Language deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (
@@ -168,7 +165,12 @@ export function LanguageManager() {
                       >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(l)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        onClick={() => remove(l)}
+                      >
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
@@ -201,7 +203,10 @@ export function LanguageManager() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Code</Label>

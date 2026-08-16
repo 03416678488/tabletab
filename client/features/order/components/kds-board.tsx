@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/lib/datetime";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { useNewArrivals } from "@/features/order/hooks/use-new-arrivals";
@@ -139,8 +137,7 @@ export function KdsBoard() {
     try {
       await orderService.update(order.id, { status: next });
       await refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
+    } catch {
     } finally {
       inFlight.current.delete(order.id);
       setBusyId(null);
@@ -158,9 +155,7 @@ export function KdsBoard() {
         paymentMethod: paymentMethodLabel(result),
       });
       await refetch();
-      toast(`${order.orderNumber} paid & completed`, { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
+    } catch {
     } finally {
       setBusyId(null);
     }

@@ -27,8 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useDefaultTax } from "@/features/tax/hooks/use-default-tax";
@@ -81,11 +79,9 @@ export function TaxManager() {
       };
       if (editing) await taxService.update(editing.id, body);
       else await taxService.create({ ...body, ...(branchId ? { branchId } : {}) });
-      toast("Tax saved", { tone: "success" });
       setOpen(false);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -98,11 +94,8 @@ export function TaxManager() {
       return;
     try {
       await taxService.remove(t.id);
-      toast("Tax deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (
@@ -129,7 +122,6 @@ export function TaxManager() {
             size="sm"
             onClick={() => {
               if (!branchId) {
-                toast("Select a branch first to add a tax", { tone: "info" });
                 return;
               }
               setEditing(null);

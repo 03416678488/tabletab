@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useSettingsStore } from "@/hooks/use-settings-store";
-import { toast } from "@/hooks/use-toast";
 import { groupTablesByFloor } from "@/lib/table-utils";
 import type { Branch } from "@/lib/types";
 
@@ -59,11 +58,9 @@ export function SettingsManager() {
   const handleSaveBranch = (input: Parameters<typeof addBranch>[0]) => {
     if (editingBranch) {
       updateBranch(editingBranch.id, input);
-      toast("Branch updated", { tone: "success" });
     } else {
       const created = addBranch(input);
       setQrBranchId(created.id);
-      toast("Branch created", { tone: "success" });
     }
   };
 
@@ -295,7 +292,6 @@ export function SettingsManager() {
                       table={t}
                       onRemove={() => {
                         removeTable(qrBranch.id, t.id);
-                        toast("Table removed", { tone: "success" });
                       }}
                     />
                   ))}
@@ -328,11 +324,9 @@ export function SettingsManager() {
               <Button
                 onClick={() => {
                   if (!newTableFloor.trim()) {
-                    toast("Enter a floor name", { tone: "error" });
                     return;
                   }
                   addTable(qrBranch.id, newTableFloor.trim(), newTableSeats);
-                  toast("Table added with new QR token", { tone: "success" });
                 }}
               >
                 <Plus className="size-4" />

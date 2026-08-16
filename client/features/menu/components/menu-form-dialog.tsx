@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Dropdown } from "@/components/ui/dropdown";
 import {
   Sheet,
   SheetContent,
@@ -17,13 +16,14 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
-import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { applyApiErrorToForm } from "@/lib/httpClient";
 import { cn } from "@/lib/utils";
 
 import { useCategories } from "@/features/category/hooks/use-categories";
 import { useFoodTypes } from "@/features/food-type/hooks/use-food-types";
 import { useMenus } from "@/features/menu-list/hooks/use-menus";
+import { useBranches } from "@/features/branch/hooks/use-branches";
 import { ImagesField } from "@/features/media/components/images-field";
 import { menuItemSchema, type MenuItemFormValues } from "@/features/menu/schemas/menu.schema";
 import { menuService } from "@/features/menu/services/menu.service";
@@ -36,7 +36,6 @@ import type {
 
 interface MenuFormDialogProps {
   /** Owning branch for new records. */
-  branchId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: MenuItem | null;
@@ -54,7 +53,7 @@ function toDefaults(item: MenuItem | null): MenuItemFormValues {
     description: item?.description ?? "",
     price: item?.price ?? 0,
     images: item?.images ?? (item?.imageUrl ? [item.imageUrl] : []),
-    categoryId: item?.categoryId ?? "",
+    categoryIds: item?.categories?.map((c) => c.id) ?? [],
     isAvailable: item?.isAvailable ?? true,
     foodTypeIds: item?.foodTypes?.map((f) => f.id) ?? [],
     menuIds: item?.menus?.map((m) => m.id) ?? [],
@@ -67,17 +66,59 @@ function toDefaults(item: MenuItem | null): MenuItemFormValues {
 const cleanRows = (rows: MenuOptionRow[]): MenuOptionRow[] =>
   rows.filter((r) => r.name.trim()).map((r) => ({ name: r.name.trim(), price: toNumber(r.price) }));
 
-export function MenuFormDialog({
-  branchId,
-  open,
-  onOpenChange,
-  item,
-  onSaved,
-}: MenuFormDialogProps) {
+export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDialogProps) {
   const isEdit = !!item;
+  // The list may be filtered (by branch/category), which loads only a partial
+  // `categories` relation — refetch the full item so every branch's membership
+  // shows correctly when editing.
+  const [fullItem, setFullItem] = useState<MenuItem | null>(null);
+  useEffect(() => {
+    if (!open || !item) {
+      setFullItem(null);
+      return;
+    }
+    let active = true;
+    menuService
+      .get(item.id)
+      .then((full) => active && setFullItem(full))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open, item]);
+  const editItem = fullItem ?? item;
+
   const { categories } = useCategories();
   const { foodTypes } = useFoodTypes();
   const { menus } = useMenus();
+  const { branches } = useBranches();
+
+  // Categories are per-branch. Drive the list off the full branch list (not off
+  // existing categories) so EVERY branch gets its own multi-select — including a
+  // newly added branch that has no categories yet. A global item is "carried" at
+  // a branch by selecting one of that branch's categories.
+  const categoryGroups = useMemo(() => {
+    const optionsByBranch = new Map<string, { value: string; label: string }[]>();
+    const orphanOptions: { value: string; label: string }[] = [];
+    for (const c of categories) {
+      const opt = { value: c.id, label: c.name };
+      if (c.branchId) {
+        if (!optionsByBranch.has(c.branchId)) optionsByBranch.set(c.branchId, []);
+        optionsByBranch.get(c.branchId)!.push(opt);
+      } else {
+        orphanOptions.push(opt);
+      }
+    }
+    const groups = branches.map((b) => ({
+      branchId: b.id,
+      branchName: b.name,
+      options: optionsByBranch.get(b.id) ?? [],
+    }));
+    if (orphanOptions.length) {
+      groups.push({ branchId: "__none__", branchName: "No branch", options: orphanOptions });
+    }
+    return groups.sort((a, b) => a.branchName.localeCompare(b.branchName));
+  }, [categories, branches]);
 
   const form = useForm<MenuItemFormValues>({
     resolver: zodResolver(menuItemSchema),
@@ -99,14 +140,17 @@ export function MenuFormDialog({
   const addOns = useFieldArray({ control, name: "addOns" });
 
   useEffect(() => {
-    if (open) reset(toDefaults(item));
-  }, [open, item, reset]);
+    if (open) reset(toDefaults(editItem));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, item, fullItem, reset]);
 
+  const categoryIds = watch("categoryIds");
   const foodTypeIds = watch("foodTypeIds");
   const menuIds = watch("menuIds");
 
-  const toggle = (field: "foodTypeIds" | "menuIds", id: string) => {
-    const current = field === "foodTypeIds" ? foodTypeIds : menuIds;
+  const toggle = (field: "categoryIds" | "foodTypeIds" | "menuIds", id: string) => {
+    const current =
+      field === "categoryIds" ? categoryIds : field === "foodTypeIds" ? foodTypeIds : menuIds;
     setValue(field, current.includes(id) ? current.filter((x) => x !== id) : [...current, id], {
       shouldDirty: true,
     });
@@ -118,30 +162,25 @@ export function MenuFormDialog({
       price: values.price,
       isAvailable: values.isAvailable,
       images: values.images,
+      categoryIds: values.categoryIds,
       foodTypeIds: values.foodTypeIds,
       menuIds: values.menuIds,
       sizes: cleanRows(values.sizes),
       variants: cleanRows(values.variants),
       addOns: cleanRows(values.addOns),
       ...(values.description ? { description: values.description } : {}),
-      ...(values.categoryId ? { categoryId: values.categoryId } : {}),
     };
 
     try {
       if (isEdit) {
         await menuService.update(item!.id, payload);
-        toast("Menu item updated", { tone: "success" });
       } else {
-        await menuService.create({ ...payload, ...(branchId ? { branchId } : {}) });
-        toast("Menu item created", { tone: "success" });
+        await menuService.create(payload);
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
-      applyApiErrorToForm(err, setError, "name", ["name", "categoryId", "price"]);
-      if (!(err instanceof ApiError)) {
-        toast("Something went wrong", { tone: "error" });
-      }
+      applyApiErrorToForm(err, setError, "name", ["name", "price"]);
     }
   });
 
@@ -180,20 +219,6 @@ export function MenuFormDialog({
                       <p className="text-xs text-destructive">{errors.price.message}</p>
                     )}
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Category</Label>
-                    <Dropdown
-                      value={watch("categoryId") ?? ""}
-                      onChange={(v) => setValue("categoryId", v, { shouldDirty: true })}
-                      searchable
-                      placeholder="— None —"
-                      aria-label="Category"
-                      options={[
-                        { value: "", label: "— None —" },
-                        ...categories.map((c) => ({ value: c.id, label: c.name })),
-                      ]}
-                    />
-                  </div>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-ink">
                   <input
@@ -207,6 +232,55 @@ export function MenuFormDialog({
 
               {/* Classification */}
               <Section title="Classification">
+                <div className="space-y-2">
+                  <Label>Categories (which branches carry this item)</Label>
+                  {categoryGroups.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      No branches yet — add a branch first, then create categories under Menu →
+                      Category.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {categoryGroups.map((g) => {
+                        const groupIds = g.options.map((o) => o.value);
+                        const selected = categoryIds.filter((id) => groupIds.includes(id));
+                        return (
+                          <div
+                            key={g.branchId}
+                            className="grid grid-cols-[7rem_1fr] items-center gap-2"
+                          >
+                            <span className="truncate text-sm font-medium text-ink">
+                              {g.branchName}
+                            </span>
+                            {g.options.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                No categories yet for this branch
+                              </span>
+                            ) : (
+                              <MultiSelect
+                                options={g.options}
+                                value={selected}
+                                onChange={(next) =>
+                                  setValue(
+                                    "categoryIds",
+                                    [
+                                      ...categoryIds.filter((id) => !groupIds.includes(id)),
+                                      ...next,
+                                    ],
+                                    { shouldDirty: true },
+                                  )
+                                }
+                                searchable={g.options.length > 8}
+                                placeholder="Not carried here"
+                                aria-label={`${g.branchName} categories`}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <ChipSelect
                   label="Menu"
                   options={menus}

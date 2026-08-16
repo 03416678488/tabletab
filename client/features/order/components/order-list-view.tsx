@@ -36,8 +36,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { formatMoney } from "@/lib/currency";
 import { formatDateTime } from "@/lib/datetime";
 
@@ -125,8 +123,7 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
     try {
       await orderService.update(order.id, body);
       await refetch(); // keep the button disabled until the list reflects the new status
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
+    } catch {
     } finally {
       inFlight.current.delete(order.id);
       setBusyId(null);
@@ -170,11 +167,9 @@ export function OrderListView({ orderType, title, subtitle }: OrderListViewProps
     setBusyId(order.id);
     try {
       await orderService.update(order.id, { status: "cancelled", cancellationReason: reason });
-      toast("Order cancelled", { tone: "success" });
       setCancelFor(null);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Cancel failed", { tone: "error" });
+    } catch {
     } finally {
       setBusyId(null);
     }

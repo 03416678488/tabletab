@@ -15,8 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useTimeSlots } from "@/features/time-slot/hooks/use-time-slots";
 import { timeSlotService } from "@/features/time-slot/services/time-slot.service";
@@ -41,11 +39,9 @@ export function TimeSlotManager() {
     setSaving(true);
     try {
       await timeSlotService.create({ day, startTime: start, endTime: end });
-      toast("Time slot added", { tone: "success" });
       setDay(null);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -55,9 +51,7 @@ export function TimeSlotManager() {
     try {
       await timeSlotService.remove(id);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (
@@ -136,7 +130,9 @@ export function TimeSlotManager() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDay(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDay(null)}>
+              Cancel
+            </Button>
             <Button disabled={saving || !start || !end} onClick={add}>
               {saving && <Loader2 className="size-4 animate-spin" />} Add slot
             </Button>

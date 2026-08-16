@@ -377,7 +377,8 @@ export class DashboardAnalyticsService {
       FROM order_items oi
       JOIN orders o ON o.id = oi."orderId"
       LEFT JOIN menu_items mi ON mi.id = oi."menuItemId"
-      LEFT JOIN categories c ON c.id = mi."categoryId"
+      LEFT JOIN menu_item_categories mic ON mic."menuItemId" = mi.id
+      LEFT JOIN categories c ON c.id = mic."categoryId" AND c."branchId" = o."branchId"
       WHERE o.status <> 'cancelled'${this.rangeFilter('o."createdAt"', win)}${this.branchAnd('o."branchId"')}
       GROUP BY c.name
       ORDER BY revenue DESC LIMIT 6

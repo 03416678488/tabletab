@@ -11,7 +11,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSettingsStore } from "@/hooks/use-settings-store";
-import { toast } from "@/hooks/use-toast";
 import { brandingKey, DEFAULT_BRANDING, normalizeHex, resolveBranding } from "@/lib/theme";
 import type { TenantBranding } from "@/lib/types";
 
@@ -45,11 +44,9 @@ export function BrandingSettings() {
   const handleLogoUpload = (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast("Please choose an image file", { tone: "error" });
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      toast("Logo must be under 500 KB", { tone: "error" });
       return;
     }
     const reader = new FileReader();
@@ -69,10 +66,6 @@ export function BrandingSettings() {
       setBranding(resolved);
       setDraft(resolved);
       window.dispatchEvent(new CustomEvent("tabletap-branding-saved", { detail: resolved }));
-      toast("Branding saved — open your storefront or QR menu to see the new theme", {
-        tone: "success",
-        duration: 5000,
-      });
     } finally {
       setSaving(false);
     }
@@ -100,8 +93,8 @@ export function BrandingSettings() {
       </CardHeader>
       <CardContent className="space-y-6">
         <p className="text-sm text-muted-foreground">
-          Customize colors and logo for your online storefront and in-venue QR ordering.
-          Changes apply after you click <strong className="font-medium text-ink">Save branding</strong>.
+          Customize colors and logo for your online storefront and in-venue QR ordering. Changes
+          apply after you click <strong className="font-medium text-ink">Save branding</strong>.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -211,7 +204,9 @@ export function BrandingSettings() {
               <div className="space-y-3 p-4">
                 <div className="rounded-2xl border border-border bg-surface p-3 shadow-[var(--shadow-card)]">
                   <p className="font-display text-sm font-semibold text-ink">Menu item</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Fresh ingredients, house-made</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Fresh ingredients, house-made
+                  </p>
                   <p className="mt-2 text-sm font-semibold text-brand">$14.00</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -250,9 +245,7 @@ export function BrandingSettings() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {isDirty && (
-            <span className="text-xs text-muted-foreground">Unsaved changes</span>
-          )}
+          {isDirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
           <Button type="button" disabled={!isDirty || saving} onClick={handleSave}>
             {saving ? "Saving…" : "Save branding"}
           </Button>

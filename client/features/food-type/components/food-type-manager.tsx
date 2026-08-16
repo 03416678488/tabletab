@@ -22,19 +22,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedFoodTypes } from "@/features/food-type/hooks/use-paginated-food-types";
 import { foodTypeService } from "@/features/food-type/services/food-type.service";
 import { FoodTypeFormDialog } from "@/features/food-type/components/food-type-form-dialog";
-import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type { FoodType } from "@/features/food-type/types/food-type.types";
 
 type StatusFilter = "all" | "active" | "inactive";
 
 export function FoodTypeManager() {
-  const branchId = useScopedBranchId();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<FoodType | null>(null);
 
@@ -55,16 +51,12 @@ export function FoodTypeManager() {
     totalItems,
     goToPage,
     refetch,
-  } = usePaginatedFoodTypes({ search, isActive, branchId });
+  } = usePaginatedFoodTypes({ search, isActive });
 
   const activeFilters = status !== "all" ? 1 : 0;
   const filtersActive = Boolean(search.trim()) || status !== "all";
 
   const openCreate = () => {
-    if (!branchId) {
-      toast("Select a branch first to add a food type", { tone: "info" });
-      return;
-    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -79,14 +71,9 @@ export function FoodTypeManager() {
     if (!(await confirm({ title: `Delete "${foodType.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await foodTypeService.remove(foodType.id);
-      toast("Food type deleted", { tone: "success" });
       if (foodTypes.length === 1 && page > 1) goToPage(page - 1);
       else refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete food type", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   return (
@@ -263,7 +250,6 @@ export function FoodTypeManager() {
       )}
 
       <FoodTypeFormDialog
-        branchId={branchId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         foodType={editing}

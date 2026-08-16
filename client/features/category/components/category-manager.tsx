@@ -24,8 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedCategories } from "@/features/category/hooks/use-paginated-categories";
 import { categoryService } from "@/features/category/services/category.service";
@@ -64,7 +62,6 @@ export function CategoryManager() {
 
   const openCreate = () => {
     if (!branchId) {
-      toast("Select a branch first to add a category", { tone: "info" });
       return;
     }
     setEditing(null);
@@ -81,14 +78,9 @@ export function CategoryManager() {
     if (!(await confirm({ title: `Delete "${category.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await categoryService.remove(category.id);
-      toast("Category deleted", { tone: "success" });
       if (categories.length === 1 && page > 1) goToPage(page - 1);
       else refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete category", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   // Bulk selection + actions.
@@ -106,11 +98,9 @@ export function CategoryManager() {
     setBulkBusy(true);
     try {
       await categoryService.bulkRemove(sel.ids);
-      toast(`Deleted ${sel.count} categor${sel.count === 1 ? "y" : "ies"}`, { tone: "success" });
       sel.clear();
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Bulk delete failed", { tone: "error" });
+    } catch {
     } finally {
       setBulkBusy(false);
     }
@@ -120,11 +110,9 @@ export function CategoryManager() {
     setBulkBusy(true);
     try {
       await categoryService.bulkSetActive(sel.ids, next);
-      toast(`${next ? "Activated" : "Deactivated"} ${sel.count}`, { tone: "success" });
       sel.clear();
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Bulk update failed", { tone: "error" });
+    } catch {
     } finally {
       setBulkBusy(false);
     }

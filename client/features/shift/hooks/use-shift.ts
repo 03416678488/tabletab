@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiError } from "@/lib/httpClient";
-import { toast } from "@/hooks/use-toast";
 import { shiftService } from "@/features/shift/services/shift.service";
 import type { Shift } from "@/features/shift/types/shift.types";
 
@@ -34,13 +32,10 @@ export function useShift() {
       if (shift) {
         await shiftService.clockOut();
         setShift(null);
-        toast("Clocked out — you're off duty", { tone: "success" });
       } else {
         setShift(await shiftService.clockIn());
-        toast("Clocked in — you'll now receive assignments", { tone: "success" });
       }
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't update shift", { tone: "error" });
+    } catch {
     } finally {
       setBusy(false);
     }

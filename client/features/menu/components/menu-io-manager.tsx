@@ -6,7 +6,6 @@ import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Upload } from "
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { menuService, type MenuImportResult } from "@/features/menu/services/menu.service";
 
 export function MenuIoManager() {
@@ -19,7 +18,7 @@ export function MenuIoManager() {
   const doExport = async () => {
     setExporting(true);
     try {
-      const { csv, count } = await menuService.exportCsv();
+      const { csv } = await menuService.exportCsv();
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -27,9 +26,7 @@ export function MenuIoManager() {
       a.download = `menu-items-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast(`Exported ${count} item${count === 1 ? "" : "s"}`, { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Export failed", { tone: "error" });
+    } catch {
     } finally {
       setExporting(false);
     }
@@ -48,8 +45,7 @@ export function MenuIoManager() {
         `${ok} item${ok === 1 ? "" : "s"} imported${res.errors.length ? `, ${res.errors.length} skipped` : ""}`,
         { tone: res.errors.length ? "default" : "success" },
       );
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Import failed", { tone: "error" });
+    } catch {
     } finally {
       setImporting(false);
     }

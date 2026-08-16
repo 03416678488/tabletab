@@ -32,6 +32,22 @@ export function isLocalUpload(url: string | undefined | null): boolean {
   }
 }
 
+/**
+ * Only allow web-loadable image srcs. Blocks a pasted local path (`file:///…`)
+ * or any other scheme — the browser refuses `file://` from an https page, so an
+ * unvalidated logo URL from settings must be dropped before it hits `<img src>`.
+ * No scheme (relative / root-relative / protocol-relative) and http/https/data
+ * pass through.
+ */
+export function safeImageSrc(src: string | undefined | null): string | undefined {
+  if (!src) return undefined;
+  const s = src.trim();
+  if (!s) return undefined;
+  const scheme = s.match(/^([a-z][a-z0-9+.-]*):/i);
+  if (scheme && !/^(https?|data)$/i.test(scheme[1])) return undefined;
+  return s;
+}
+
 /** Live elapsed timer label, e.g. "4:32". */
 export function formatElapsed(iso: string, now = Date.now()) {
   const secs = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));

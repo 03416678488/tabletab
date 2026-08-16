@@ -31,6 +31,13 @@ export const menuService = {
       .then((res) => res.data);
   },
 
+  /** Full item incl. ALL category memberships (the list may be filtered). */
+  get(id: string) {
+    return httpClient
+      .get<MenuItem>(MENU_ENDPOINTS.byId(id), { auth: true })
+      .then((res) => res.data);
+  },
+
   update(id: string, body: UpdateMenuItemInput) {
     return httpClient
       .put<MenuItem>(MENU_ENDPOINTS.byId(id), body, { auth: true })

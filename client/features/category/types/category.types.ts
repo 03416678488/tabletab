@@ -5,6 +5,8 @@ export interface Category {
   imageUrl: string | null;
   sortOrder: number;
   isActive: boolean;
+  /** Owning branch (categories are per-branch). */
+  branchId: string | null;
   createdAt: string;
   updatedAt: string;
 }

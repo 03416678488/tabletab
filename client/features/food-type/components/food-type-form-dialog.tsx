@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
 import {
@@ -29,7 +28,6 @@ import type { CreateFoodTypeInput, FoodType } from "@/features/food-type/types/f
 
 interface FoodTypeFormDialogProps {
   /** Owning branch for new records (create tags to this branch). */
-  branchId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   foodType: FoodType | null;
@@ -53,7 +51,6 @@ function toDefaults(foodType: FoodType | null): FoodTypeFormValues {
 }
 
 export function FoodTypeFormDialog({
-  branchId,
   open,
   onOpenChange,
   foodType,
@@ -90,17 +87,14 @@ export function FoodTypeFormDialog({
     try {
       if (isEdit) {
         await foodTypeService.update(foodType!.id, payload);
-        toast("Food type updated", { tone: "success" });
       } else {
-        await foodTypeService.create({ ...payload, ...(branchId ? { branchId } : {}) });
-        toast("Food type created", { tone: "success" });
+        await foodTypeService.create(payload);
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "name", ["name"]);
       if (!(err instanceof ApiError)) {
-        toast("Something went wrong", { tone: "error" });
       }
     }
   });

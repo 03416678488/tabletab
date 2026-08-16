@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
 
-import { toast } from "@/hooks/use-toast";
 import { BLOCK_META } from "@/features/website-builder/constants/blocks";
 import {
   type Block,
@@ -57,7 +56,6 @@ export function usePageBuilder(slug: string) {
             JSON.stringify(page.content) !== JSON.stringify(page.published),
         );
       } catch {
-        toast("Couldn't load the page", { tone: "error" });
       } finally {
         if (!off) setLoading(false);
       }
@@ -124,9 +122,7 @@ export function usePageBuilder(slug: string) {
       await websiteService.saveDraft(slug, content());
       setDirty(false);
       setNeedsPublish(true);
-      toast("Draft saved — publish to make it live", { tone: "success" });
     } catch {
-      toast("Couldn't save", { tone: "error" });
     } finally {
       setSaving(false);
     }
@@ -141,9 +137,7 @@ export function usePageBuilder(slug: string) {
       setDirty(false);
       setNeedsPublish(false);
       setEverPublished(true);
-      toast("Published — your landing page is live", { tone: "success" });
     } catch {
-      toast("Couldn't publish", { tone: "error" });
     } finally {
       setPublishing(false);
     }

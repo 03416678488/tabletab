@@ -37,6 +37,10 @@ class GetMenuItemFiltersDto {
   @Min(0)
   maxPrice?: number;
 
+  /**
+   * "Carried at this branch" — filters to items placed in one of the branch's
+   * categories (items are global; branch presence is via category membership).
+   */
   @IsUUID()
   @IsOptional()
   branchId?: string;

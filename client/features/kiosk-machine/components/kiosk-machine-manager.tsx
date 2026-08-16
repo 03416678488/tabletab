@@ -28,8 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useKioskMachines } from "@/features/kiosk-machine/hooks/use-kiosk-machines";
 import { kioskMachineService } from "@/features/kiosk-machine/services/kiosk-machine.service";
@@ -91,11 +89,9 @@ export function KioskMachineManager() {
       };
       if (editing) await kioskMachineService.update(editing.id, body);
       else await kioskMachineService.create(body);
-      toast("Kiosk machine saved", { tone: "success" });
       setOpen(false);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -105,9 +101,7 @@ export function KioskMachineManager() {
     try {
       await kioskMachineService.update(m.id, { isActive: !m.isActive });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Update failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   const confirm = useConfirm();
@@ -117,11 +111,8 @@ export function KioskMachineManager() {
       return;
     try {
       await kioskMachineService.remove(m.id);
-      toast("Kiosk machine deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (

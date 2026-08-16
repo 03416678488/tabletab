@@ -12,9 +12,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/httpClient";
-import { toast } from "@/hooks/use-toast";
 import { generalSchema, type GeneralForm } from "@/features/website-builder/schemas/blocks";
-import { type WebsitePage, websiteService } from "@/features/website-builder/services/website.service";
+import {
+  type WebsitePage,
+  websiteService,
+} from "@/features/website-builder/services/website.service";
 
 export function GeneralTab({ page, onChange }: { page: WebsitePage; onChange: () => void }) {
   const router = useRouter();
@@ -36,7 +38,6 @@ export function GeneralTab({ page, onChange }: { page: WebsitePage; onChange: ()
   const onSubmit = handleSubmit(async (data) => {
     try {
       const updated = await websiteService.updateGeneral(page.slug, data);
-      toast("Saved", { tone: "success" });
       if (updated.slug !== page.slug) {
         router.replace(`/${role}/website-settings/${updated.slug}`);
       } else {
@@ -60,10 +61,8 @@ export function GeneralTab({ page, onChange }: { page: WebsitePage; onChange: ()
     setDeleting(true);
     try {
       await websiteService.remove(page.slug);
-      toast("Page deleted", { tone: "success" });
       router.push(`/${role}/website-settings`);
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't delete", { tone: "error" });
+    } catch {
       setDeleting(false);
     }
   };
@@ -85,13 +84,19 @@ export function GeneralTab({ page, onChange }: { page: WebsitePage; onChange: ()
               <Input {...register("slug")} disabled={isHome} />
             </div>
             {isHome ? (
-              <p className="text-xs text-muted-foreground">The home page URL can&apos;t be changed.</p>
+              <p className="text-xs text-muted-foreground">
+                The home page URL can&apos;t be changed.
+              </p>
             ) : (
               errors.slug && <p className="text-xs text-rose-600">{errors.slug.message}</p>
             )}
           </div>
           <Button type="submit" size="sm" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {isSubmitting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
             Save
           </Button>
         </form>

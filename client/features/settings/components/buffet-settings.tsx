@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useBuffetStore } from "@/hooks/use-buffet-store";
-import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import type { BuffetPackage } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -32,7 +31,6 @@ export function BuffetSettings() {
     const updated = { ...pkg, isActive: !pkg.isActive };
     upsertPackage(updated);
     await api.upsertBuffetPackage(updated);
-    toast(updated.isActive ? "Buffet enabled" : "Buffet disabled", { tone: "success" });
   };
 
   return (

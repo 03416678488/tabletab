@@ -39,7 +39,13 @@ export class MenuValidatorService extends AbstractService<MenuItem> {
   private async validateRelations(
     dto: CreateMenuItemDto | UpdateMenuItemDto,
   ): Promise<void> {
-    if (dto.categoryId) await this.ensureCategoryExists(dto.categoryId);
+    if (dto.categoryIds?.length)
+      await this.ensureAllExist(
+        this._categoryRepository,
+        dto.categoryIds,
+        'categoryIds',
+        'category',
+      );
     if (dto.foodTypeIds?.length)
       await this.ensureAllExist(
         this._foodTypeRepository,
@@ -60,23 +66,13 @@ export class MenuValidatorService extends AbstractService<MenuItem> {
   async ensureExists(id: string): Promise<MenuItem> {
     const item = await this.repository.findOne({
       where: { id },
-      relations: ['category', 'foodTypes', 'menus'],
+      relations: ['categories', 'foodTypes', 'menus'],
     });
     if (!item) {
       this._errors.add('menuItem', 'Menu item not found');
       this._errors.throwNotFoundErrorIfExists();
     }
     return item;
-  }
-
-  private async ensureCategoryExists(categoryId: string): Promise<void> {
-    const category = await this._categoryRepository.findOne({
-      where: { id: categoryId },
-    });
-    if (!category) {
-      this._errors.add('categoryId', 'Category not found');
-      this._errors.throwNotFoundErrorIfExists();
-    }
   }
 
   private async ensureAllExist(

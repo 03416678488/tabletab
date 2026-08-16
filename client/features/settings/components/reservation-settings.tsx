@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
-import { toast } from "@/hooks/use-toast";
 import { fetchStorefrontBranches } from "@/features/storefront/services/storefront-branches";
 import {
   fetchReservationSettings,
@@ -56,9 +55,7 @@ export function ReservationSettings() {
     try {
       const { branchId: _, ...rest } = settings;
       await saveReservationSettings(branchId, rest);
-      toast("Reservation settings saved", { tone: "success" });
     } catch {
-      toast("Could not save settings", { tone: "error" });
     } finally {
       setSaving(false);
     }

@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/use-session";
-import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { formatBuffetSummary } from "@/lib/buffet-utils";
 import type { BuffetSelection, Order } from "@/lib/types";
@@ -46,7 +45,6 @@ export function BuffetOrderSheet({ order, open, onOpenChange, onDone }: BuffetOr
     try {
       if (order) {
         await api.attachBuffetToOrder(order.id, buffet);
-        toast("Buffet added to order", { tone: "success" });
       } else if (tableId) {
         await api.createVenueOrder({
           branchId: activeBranch.id,
@@ -58,12 +56,10 @@ export function BuffetOrderSheet({ order, open, onOpenChange, onDone }: BuffetOr
           tax: 0,
           total: buffet.subtotal,
         });
-        toast("Buffet order created", { tone: "success" });
       }
       onOpenChange(false);
       onDone();
     } catch {
-      toast("Could not save buffet", { tone: "error" });
     } finally {
       setSubmitting(false);
       setPickerOpen(false);

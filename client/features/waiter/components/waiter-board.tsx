@@ -11,11 +11,9 @@ import { useServiceRequests } from "@/features/service-request/hooks/use-service
 import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { orderService } from "@/features/order/services/order.service";
-import { ApiError } from "@/lib/httpClient";
 import type { Order } from "@/features/order/types/order.types";
 import type { ServiceRequest } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
 
 const REQUEST_LABELS: Record<string, string> = {
   waiter: "Call waiter",
@@ -64,9 +62,7 @@ export function WaiterBoard() {
     try {
       await orderService.update(order.id, { status: "served" });
       await refetch();
-      toast(`${tableNameOf(order)} served`, { tone: "success" });
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : "Couldn't serve — try again", { tone: "error" });
+    } catch {
     } finally {
       setBusyId(null);
     }

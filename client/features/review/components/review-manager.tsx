@@ -19,8 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { formatDate } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { usePaginatedReviews } from "@/features/review/hooks/use-paginated-reviews";
@@ -74,14 +72,12 @@ export function ReviewManager() {
     refetch,
   } = usePaginatedReviews({ search, status: status === "all" ? undefined : status });
 
-  const moderate = async (review: Review, next: ReviewStatus, label: string) => {
+  const moderate = async (review: Review, next: ReviewStatus) => {
     setBusyId(review.id);
     try {
       await reviewService.setStatus(review.id, next);
-      toast(label, { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to update review", { tone: "error" });
+    } catch {
     } finally {
       setBusyId(null);
     }
@@ -92,10 +88,8 @@ export function ReviewManager() {
     setBusyId(review.id);
     try {
       await reviewService.remove(review.id);
-      toast("Review deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete review", { tone: "error" });
+    } catch {
     } finally {
       setBusyId(null);
     }
@@ -209,7 +203,7 @@ export function ReviewManager() {
                           aria-label="Approve"
                           title="Approve & publish"
                           disabled={busyId === r.id}
-                          onClick={() => moderate(r, "approved", "Review approved & published")}
+                          onClick={() => moderate(r, "approved")}
                         >
                           <Check className="size-4 text-emerald-600" />
                         </Button>
@@ -221,7 +215,7 @@ export function ReviewManager() {
                           aria-label="Reject"
                           title="Reject"
                           disabled={busyId === r.id}
-                          onClick={() => moderate(r, "rejected", "Review rejected")}
+                          onClick={() => moderate(r, "rejected")}
                         >
                           <X className="size-4 text-rose-600" />
                         </Button>

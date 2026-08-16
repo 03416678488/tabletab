@@ -17,9 +17,8 @@ import {
 import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
+import { applyApiErrorToForm } from "@/lib/httpClient";
 import { useActivePromotions } from "@/features/promotion/hooks/use-active-promotions";
 import {
   campaignSchema,
@@ -60,7 +59,12 @@ function toDefaults(c: Campaign | null): CampaignFormValues {
   };
 }
 
-export function CampaignFormDialog({ open, onOpenChange, campaign, onSaved }: CampaignFormDialogProps) {
+export function CampaignFormDialog({
+  open,
+  onOpenChange,
+  campaign,
+  onSaved,
+}: CampaignFormDialogProps) {
   const isEdit = !!campaign;
   const { promotions } = useActivePromotions();
   const [templates, setTemplates] = useState<WhatsappTemplate[]>([]);
@@ -85,7 +89,10 @@ export function CampaignFormDialog({ open, onOpenChange, campaign, onSaved }: Ca
   // Load the tenant's approved templates when the dialog opens.
   useEffect(() => {
     if (!open) return;
-    campaignService.templates().then(setTemplates).catch(() => setTemplates([]));
+    campaignService
+      .templates()
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
   }, [open]);
 
   const messageType = watch("messageType");
@@ -96,9 +103,13 @@ export function CampaignFormDialog({ open, onOpenChange, campaign, onSaved }: Ca
     const t = templates.find((x) => x.name === name);
     if (t) {
       setValue("templateLanguage", t.language, { shouldDirty: true });
-      setValue("templateParams", Array.from({ length: t.bodyParamCount }, () => ""), {
-        shouldDirty: true,
-      });
+      setValue(
+        "templateParams",
+        Array.from({ length: t.bodyParamCount }, () => ""),
+        {
+          shouldDirty: true,
+        },
+      );
     }
   };
 
@@ -119,16 +130,13 @@ export function CampaignFormDialog({ open, onOpenChange, campaign, onSaved }: Ca
     try {
       if (isEdit) {
         await campaignService.update(campaign!.id, payload);
-        toast("Campaign updated", { tone: "success" });
       } else {
         await campaignService.create(payload);
-        toast("Campaign created", { tone: "success" });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "name", ["name"]);
-      if (!(err instanceof ApiError)) toast("Something went wrong", { tone: "error" });
     }
   });
 
@@ -218,10 +226,14 @@ export function CampaignFormDialog({ open, onOpenChange, campaign, onSaved }: Ca
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label>Body parameters ({"{{1}}"}, {"{{2}}"}…)</Label>
+                  <Label>
+                    Body parameters ({"{{1}}"}, {"{{2}}"}…)
+                  </Label>
                   <button
                     type="button"
-                    onClick={() => setValue("templateParams", [...params, ""], { shouldDirty: true })}
+                    onClick={() =>
+                      setValue("templateParams", [...params, ""], { shouldDirty: true })
+                    }
                     className="inline-flex items-center gap-0.5 text-xs font-medium text-brand hover:underline"
                   >
                     <Plus className="size-3.5" /> Add

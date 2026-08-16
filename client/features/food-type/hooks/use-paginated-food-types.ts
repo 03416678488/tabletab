@@ -9,11 +9,10 @@ import type { FoodType } from "@/features/food-type/types/food-type.types";
 interface Params {
   search?: string;
   isActive?: boolean;
-  branchId?: string;
 }
 
 /** Server-paginated food types for the management table. Debounces filter changes. */
-export function usePaginatedFoodTypes({ search, isActive, branchId }: Params = {}) {
+export function usePaginatedFoodTypes({ search, isActive }: Params = {}) {
   const [foodTypes, setFoodTypes] = useState<FoodType[]>([]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -22,7 +21,7 @@ export function usePaginatedFoodTypes({ search, isActive, branchId }: Params = {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const key = `${search ?? ""}|${isActive ?? ""}|${branchId ?? ""}|${perPage}`;
+  const key = `${search ?? ""}|${isActive ?? ""}|${perPage}`;
   const keyRef = useRef(key);
   keyRef.current = key;
 
@@ -37,7 +36,6 @@ export function usePaginatedFoodTypes({ search, isActive, branchId }: Params = {
           perPage,
           search: search || undefined,
           isActive,
-          branchId,
         });
         if (keyRef.current !== activeKey) return;
         setFoodTypes(data.items);

@@ -6,6 +6,7 @@ import { DataSource, In, Repository } from 'typeorm';
 import { AbstractService } from '@cor/abstract/service/abstract-service.service';
 import { PaginationProvider } from '@modules/common/pagination/pagination.provider';
 import { Paginated } from '@modules/common/pagination/interface/pagination.interface';
+import { Category } from '@modules/category/entities/category.entity';
 import { FoodType } from '@modules/food-type/entities/food-type.entity';
 import { Menu } from '@modules/menus/entities/menu.entity';
 import { TenantRequest } from '@modules/tenancy/tenancy.types';
@@ -22,7 +23,7 @@ import {
   GetMenuItemQueryDto,
 } from './dto';
 
-const RELATIONS = ['category', 'foodTypes', 'menus'];
+const RELATIONS = ['categories', 'foodTypes', 'menus'];
 
 /** Main menu flow only — validation + normalization live in the sibling services. */
 @Injectable()
@@ -78,6 +79,7 @@ export class MenuService extends AbstractService<MenuItem> {
     await this._validator.validateCreate(dto);
     const entity = this.repository.create({
       ...this._helper.resolveCreatePayload(dto),
+      categories: this.toRefs<Category>(dto.categoryIds),
       foodTypes: this.toRefs<FoodType>(dto.foodTypeIds),
       menus: this.toRefs<Menu>(dto.menuIds),
     });
@@ -90,9 +92,11 @@ export class MenuService extends AbstractService<MenuItem> {
     await this._validator.validateUpdate(id, dto);
     const item = await this.repository.findOne({
       where: { id },
-      relations: ['foodTypes', 'menus'],
+      relations: ['categories', 'foodTypes', 'menus'],
     });
     Object.assign(item, this._helper.resolveUpdatePayload(dto));
+    if (dto.categoryIds !== undefined)
+      item.categories = this.toRefs<Category>(dto.categoryIds);
     if (dto.foodTypeIds !== undefined)
       item.foodTypes = this.toRefs<FoodType>(dto.foodTypeIds);
     if (dto.menuIds !== undefined) item.menus = this.toRefs<Menu>(dto.menuIds);
@@ -127,15 +131,38 @@ export class MenuService extends AbstractService<MenuItem> {
     return { updated: res.affected ?? 0 };
   }
 
-  /** Move many items to a category at once (one atomic statement). */
+  /** Add many items to a (per-branch) category — assigns the membership. */
   async bulkSetCategory(
     ids: string[],
     categoryId: string,
   ): Promise<{ updated: number }> {
     if (!ids.length) return { updated: 0 };
-    const res = await this.repository.update({ id: In(ids) }, { categoryId });
+    // Adding an already-present membership throws — only link the ones missing it.
+    const links = await this.newCategoryLinks(ids, categoryId);
+    if (links.length) {
+      await this.repository
+        .createQueryBuilder()
+        .relation(MenuItem, 'categories')
+        .of(links)
+        .add(categoryId);
+    }
     this.emitMenuChanged(ids[0]);
-    return { updated: res.affected ?? 0 };
+    return { updated: links.length };
+  }
+
+  /** Items from `ids` that aren't already in `categoryId` (avoid duplicate-link). */
+  private async newCategoryLinks(
+    ids: string[],
+    categoryId: string,
+  ): Promise<string[]> {
+    const existing = await this.repository
+      .createQueryBuilder('mi')
+      .innerJoin('mi.categories', 'c', 'c.id = :categoryId', { categoryId })
+      .where('mi.id IN (:...ids)', { ids })
+      .select('mi.id', 'id')
+      .getRawMany<{ id: string }>();
+    const has = new Set(existing.map((r) => r.id));
+    return ids.filter((id) => !has.has(id));
   }
 
   /** Turn an id list into partial relation refs TypeORM persists into the join table. */

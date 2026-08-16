@@ -26,8 +26,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useAnalytics } from "@/features/analytics/hooks/use-analytics";
 import { analyticsService } from "@/features/analytics/services/analytics.service";
@@ -57,11 +55,9 @@ export function AnalyticsManager() {
       const body = { name: form.name, code: form.code || undefined, isActive: form.isActive };
       if (editing) await analyticsService.update(editing.id, body);
       else await analyticsService.create(body);
-      toast("Analytics saved", { tone: "success" });
       setOpen(false);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -73,18 +69,21 @@ export function AnalyticsManager() {
     if (!(await confirm({ title: `Delete ${a.name}?`, confirmLabel: "Delete" }))) return;
     try {
       await analyticsService.remove(a.id);
-      toast("Analytics deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg font-semibold text-ink">Analytics</h2>
-        <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+        >
           <Plus className="size-4" /> Add Analytics
         </Button>
       </div>
@@ -93,9 +92,19 @@ export function AnalyticsManager() {
         {loading ? (
           <TableRowsSkeleton />
         ) : error ? (
-          <EmptyState className="py-10" icon={BarChart3} title="Couldn't load" description={error} />
+          <EmptyState
+            className="py-10"
+            icon={BarChart3}
+            title="Couldn't load"
+            description={error}
+          />
         ) : items.length === 0 ? (
-          <EmptyState className="py-10" icon={BarChart3} title="No analytics" description="Add a tracking integration." />
+          <EmptyState
+            className="py-10"
+            icon={BarChart3}
+            title="No analytics"
+            description="Add a tracking integration."
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -116,10 +125,23 @@ export function AnalyticsManager() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" aria-label="Edit" onClick={() => { setEditing(a); setOpen(true); }}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Edit"
+                        onClick={() => {
+                          setEditing(a);
+                          setOpen(true);
+                        }}
+                      >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete" onClick={() => remove(a)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete"
+                        onClick={() => remove(a)}
+                      >
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
@@ -139,7 +161,11 @@ export function AnalyticsManager() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Name</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Google Analytics" />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. Google Analytics"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Tracking code / snippet</Label>
@@ -152,12 +178,19 @@ export function AnalyticsManager() {
               />
             </div>
             <label className="flex items-center gap-2 text-sm text-ink">
-              <input type="checkbox" className="size-4 rounded border-border accent-brand" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+              <input
+                type="checkbox"
+                className="size-4 rounded border-border accent-brand"
+                checked={form.isActive}
+                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+              />
               Active
             </label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
             <Button disabled={saving || !form.name} onClick={save}>
               {saving && <Loader2 className="size-4 animate-spin" />} Save
             </Button>

@@ -39,8 +39,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
 
 import { usePaginatedEvents } from "@/features/event/hooks/use-paginated-events";
@@ -103,11 +101,9 @@ export function EventManager() {
   const applyStatus = async (event: EventBooking, next: EventStatus, why?: string) => {
     try {
       await eventService.setStatus(event.id, next, why);
-      toast(`Marked ${STATUS_LABEL[next].toLowerCase()}`, { tone: "success" });
       refetch();
       return true;
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to update booking", { tone: "error" });
+    } catch {
       return false;
     }
   };
@@ -149,11 +145,9 @@ export function EventManager() {
     setSavingPay(true);
     try {
       await eventService.recordPayment(payingFor.id, amount, payMethod);
-      toast(`Payment recorded — ${formatCurrency(amount)}`, { tone: "success" });
       setPayingFor(null);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to record payment", { tone: "error" });
+    } catch {
     } finally {
       setSavingPay(false);
     }
@@ -163,12 +157,9 @@ export function EventManager() {
     if (!(await confirm({ title: `Delete "${event.title}"?`, confirmLabel: "Delete" }))) return;
     try {
       await eventService.remove(event.id);
-      toast("Booking deleted", { tone: "success" });
       if (events.length === 1 && page > 1) goToPage(page - 1);
       else refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete booking", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (

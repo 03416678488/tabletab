@@ -47,9 +47,11 @@ export class CreateMenuItemDto {
   @IsOptional()
   isAvailable?: boolean;
 
-  @IsUUID()
+  /** Per-branch categories this global item is placed into (membership). */
+  @IsArray()
+  @IsUUID('all', { each: true })
   @IsOptional()
-  categoryId?: string;
+  categoryIds?: string[];
 
   @IsArray()
   @IsUUID('all', { each: true })
@@ -78,9 +80,4 @@ export class CreateMenuItemDto {
   @Type(() => MenuOptionRowDto)
   @IsOptional()
   addOns?: MenuOptionRowDto[];
-
-  /** Owning branch — the branch this item belongs to. */
-  @IsUUID()
-  @IsOptional()
-  branchId?: string;
 }

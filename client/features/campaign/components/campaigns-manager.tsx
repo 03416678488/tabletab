@@ -20,7 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedCampaigns } from "@/features/campaign/hooks/use-paginated-campaigns";
 import { campaignService } from "@/features/campaign/services/campaign.service";
@@ -61,12 +60,9 @@ export function CampaignsManager() {
     if (!(await confirm({ title: `Delete "${c.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await campaignService.remove(c.id);
-      toast("Campaign deleted", { tone: "success" });
       if (campaigns.length === 1 && page > 1) goToPage(page - 1);
       else refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete", { tone: "error" });
-    }
+    } catch {}
   };
 
   const send = async (c: Campaign) => {
@@ -85,8 +81,7 @@ export function CampaignsManager() {
         { tone: result.failedCount && !result.sentCount ? "error" : "success" },
       );
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Send failed", { tone: "error" });
+    } catch {
     } finally {
       setSendingId(null);
     }

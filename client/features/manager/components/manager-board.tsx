@@ -17,8 +17,6 @@ import { useOrderBoard } from "@/features/order/hooks/use-order-board";
 import { useServiceRequests } from "@/features/service-request/hooks/use-service-requests";
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { orderService } from "@/features/order/services/order.service";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import type { Order, OrderStatus } from "@/features/order/types/order.types";
 import { isSlaBreached } from "@/lib/utils";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -78,14 +76,11 @@ export function ManagerBoard() {
           status: "cancelled",
           cancellationReason: payload.reason,
         });
-        toast("Order cancelled", { tone: "success" });
       } else if (payload.action === "override" && payload.status) {
         await orderService.update(actionOrder.id, { status: payload.status });
-        toast("Status overridden", { tone: "success" });
       }
       await refetch();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Action failed", { tone: "error" });
       throw err;
     }
   };
@@ -172,7 +167,6 @@ export function ManagerBoard() {
                 since={req.createdAt}
                 onResolve={() => {
                   void resolveRequest(req.id);
-                  toast("Request resolved", { tone: "success" });
                 }}
               />
             ))}

@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WeeklyHoursEditor } from "@/components/ui/weekly-hours-editor";
 import { WeeklyHoursBadges } from "@/components/ui/weekly-hours-badges";
-import { toast } from "@/hooks/use-toast";
 import { getCurrentPosition } from "@/lib/geolocation";
 import { ApiError, applyApiErrorToForm, httpClient } from "@/lib/httpClient";
 import { coerceWeek, emptyWeek, flatToWeekly, type WeeklyHours } from "@/lib/opening-hours";
@@ -123,9 +122,7 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
     try {
       const { lat, lng } = await getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
       setPoint(lat, lng);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Couldn't get your location", { tone: "error" });
-    }
+    } catch {}
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -158,17 +155,14 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
     try {
       if (isEdit) {
         await branchService.update(branch!.id, payload);
-        toast("Branch updated", { tone: "success" });
       } else {
         await branchService.create(payload);
-        toast("Branch created", { tone: "success" });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "name", ["name", "address", "city", "phone"]);
       if (!(err instanceof ApiError)) {
-        toast("Something went wrong", { tone: "error" });
       }
     }
   });

@@ -62,8 +62,7 @@ export function QuickSettingsFab() {
 function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
   const role = useSession((s) => s.user?.role);
   // A single-branch manager has nothing to switch — drop the Branch tab.
-  const visibleTabs =
-    role === "branch_manager" ? TABS.filter((t) => t.key !== "branch") : TABS;
+  const visibleTabs = role === "branch_manager" ? TABS.filter((t) => t.key !== "branch") : TABS;
 
   const [tab, setTab] = useState<TabKey>("order");
   const [pos, setPos] = useState(() => ({
@@ -245,7 +244,6 @@ function SettingToggles({
       });
     } catch {
       set(key, next === ON ? OFF : ON);
-      toast("Couldn't update — try again", { tone: "error" });
     } finally {
       setBusy(null);
     }
@@ -274,19 +272,32 @@ function SettingToggles({
 
 // ── Branch toggles (per-branch operational flags) ────────────────────────────
 type BranchFlag =
-  | "isOpen"
-  | "onlineOrderingEnabled"
-  | "deliveryEnabled"
-  | "pickupEnabled"
-  | "reservationsEnabled";
-const BRANCH_FLAGS: { key: BranchFlag; label: string; icon: LucideIcon; on: string; off: string }[] =
-  [
-    { key: "isOpen", label: "Store open", icon: DoorOpen, on: "Open", off: "Closed" },
-    { key: "onlineOrderingEnabled", label: "Online ordering", icon: Globe, on: "Enabled", off: "Off" },
-    { key: "deliveryEnabled", label: "Delivery", icon: Truck, on: "Enabled", off: "Off" },
-    { key: "pickupEnabled", label: "Pickup", icon: ShoppingBag, on: "Enabled", off: "Off" },
-    { key: "reservationsEnabled", label: "Reservations", icon: CalendarClock, on: "Enabled", off: "Off" },
-  ];
+  "isOpen" | "onlineOrderingEnabled" | "deliveryEnabled" | "pickupEnabled" | "reservationsEnabled";
+const BRANCH_FLAGS: {
+  key: BranchFlag;
+  label: string;
+  icon: LucideIcon;
+  on: string;
+  off: string;
+}[] = [
+  { key: "isOpen", label: "Store open", icon: DoorOpen, on: "Open", off: "Closed" },
+  {
+    key: "onlineOrderingEnabled",
+    label: "Online ordering",
+    icon: Globe,
+    on: "Enabled",
+    off: "Off",
+  },
+  { key: "deliveryEnabled", label: "Delivery", icon: Truck, on: "Enabled", off: "Off" },
+  { key: "pickupEnabled", label: "Pickup", icon: ShoppingBag, on: "Enabled", off: "Off" },
+  {
+    key: "reservationsEnabled",
+    label: "Reservations",
+    icon: CalendarClock,
+    on: "Enabled",
+    off: "Off",
+  },
+];
 
 function BranchToggles() {
   const { branches, loading } = useBranches();
@@ -311,7 +322,6 @@ function BranchToggles() {
       toast(`Branch updated`, { tone: next ? "success" : "error" });
     } catch {
       setOverrides((o) => ({ ...o, [branch.id]: { ...o[branch.id], [flag]: !next } }));
-      toast("Couldn't update branch — try again", { tone: "error" });
     } finally {
       setBusy(null);
     }

@@ -26,12 +26,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, safeImageSrc } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
-import { toast } from "@/hooks/use-toast";
 import { useMenuStream } from "@/hooks/use-menu-stream";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
-import { ApiError } from "@/lib/httpClient";
 
 import { Dropdown } from "@/components/ui/dropdown";
 import { useQueryClient } from "@tanstack/react-query";
@@ -89,8 +87,13 @@ export function PosTerminal() {
   const businessName = settings.get("company", "name");
   // Logo lives in the Theme settings group (Settings → Theme → Logo), the same
   // source as the business name — not the client branding store.
-  const businessLogo = settings.get("theme", "logo");
-  const { categories, loading: categoriesLoading } = useCategories();
+  const businessLogo = safeImageSrc(settings.get("theme", "logo"));
+  // Every POS order belongs to a branch: multi-branch roles use the topbar
+  // selection (POS is gated by <RequireBranch>); staff use their home branch.
+  const orderBranchId = useScopedBranchId();
+  // Categories + the item catalogue are scoped to this branch (items are global;
+  // a branch "carries" an item via its per-branch categories).
+  const { categories, loading: categoriesLoading } = useCategories(orderBranchId);
   const { taxes } = useTaxes();
   const { groups: taxGroups } = useTaxGroups();
   const { defaultTax } = useDefaultTax();
@@ -124,14 +127,20 @@ export function PosTerminal() {
   }, [online, allItems]);
   const catalog = allItems.length > 0 ? allItems : offlineMenu;
 
+  // Ids of this branch's categories — an item is "carried" here if it's in one.
+  const branchCatIds = useMemo(() => new Set(categories.map((c) => c.id)), [categories]);
+
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
     return catalog.filter((it) => {
-      if (categoryId !== "all" && it.categoryId !== categoryId) return false;
+      // Only items carried at this branch (skip the filter until categories load
+      // so the grid doesn't flash empty).
+      if (!categoriesLoading && !it.categories?.some((c) => branchCatIds.has(c.id))) return false;
+      if (categoryId !== "all" && !it.categories?.some((c) => c.id === categoryId)) return false;
       if (q && !`${it.name} ${it.description ?? ""}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [catalog, categoryId, search]);
+  }, [catalog, categoryId, search, branchCatIds, categoriesLoading]);
 
   // Stable handler so memoized MenuCards don't re-render on every POS state change
   // (branch switch, cart edits, search) — only when their own item changes.
@@ -148,9 +157,6 @@ export function PosTerminal() {
   const [taxId, setTaxId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
-  // Every POS order belongs to a branch: multi-branch roles use the topbar
-  // selection (POS is gated by <RequireBranch>); staff use their home branch.
-  const orderBranchId = useScopedBranchId();
   const { tables } = useTables(orderBranchId);
   // When set, the cart is editing an existing order instead of creating one.
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -317,11 +323,9 @@ export function PosTerminal() {
     if (!orderId) return;
     const order = activeOrders.find((o) => o.id === orderId);
     if (!order) {
-      toast("Order not found — it may already be closed", { tone: "error" });
       return;
     }
     applyLoadedOrder(order);
-    toast(`Loaded ${order.orderNumber}`, { tone: "success" });
   };
 
   /** Cancel the currently-loaded order (requires a reason), then reset the cart. */
@@ -338,14 +342,12 @@ export function PosTerminal() {
         status: "cancelled",
         cancellationReason: reason,
       });
-      toast(`Order ${editingOrderNumber} cancelled`, { tone: "success" });
       setCancelOpen(false);
       setCancelReason("");
       setCancelError(false);
       clearCart();
       void refreshActiveOrders();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't cancel order", { tone: "error" });
+    } catch {
     } finally {
       setCancelling(false);
     }
@@ -379,11 +381,9 @@ export function PosTerminal() {
     // sync automatically when the connection returns.
     if (!online) {
       if (editingOrderId) {
-        toast("Can't update a saved order while offline", { tone: "error" });
         return;
       }
       if (payment && payment.method !== "cash") {
-        toast("Offline mode: use Pay Later or Cash only", { tone: "error" });
         return;
       }
       const payload: CreateOrderInput = {
@@ -404,8 +404,7 @@ export function PosTerminal() {
           ? { customerAddress: customerAddress || customer?.address || undefined }
           : {}),
       };
-      const queued = enqueue(payload);
-      toast(`Saved offline (${queued.localId}) — syncs when back online`, { tone: "success" });
+      enqueue(payload);
       setPaymentOpen(false);
       clearCart();
       return;
@@ -433,7 +432,6 @@ export function PosTerminal() {
         });
         orderNumber = order.orderNumber;
         orderId = order.id;
-        toast(`Order ${orderNumber} updated`, { tone: "success" });
       } else {
         const payload: CreateOrderInput = {
           orderType,
@@ -456,7 +454,6 @@ export function PosTerminal() {
         const order = await orderService.create(payload);
         orderNumber = order.orderNumber;
         orderId = order.id;
-        toast(`Order ${orderNumber} placed`, { tone: "success" });
       }
 
       if (payment) {
@@ -492,10 +489,7 @@ export function PosTerminal() {
       setPaymentOpen(false);
       clearCart();
       void refreshActiveOrders();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't save order", {
-        tone: "error",
-      });
+    } catch {
     } finally {
       setSubmitting(false);
     }

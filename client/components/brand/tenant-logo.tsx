@@ -7,7 +7,7 @@ import { useSettings } from "@/features/app-settings/components/settings-provide
 import { useTenant } from "@/hooks/use-tenant";
 import { resolveBranding } from "@/lib/theme";
 import type { TenantBranding } from "@/lib/types";
-import { cn, isLocalUpload } from "@/lib/utils";
+import { cn, isLocalUpload, safeImageSrc } from "@/lib/utils";
 
 interface TenantLogoProps {
   href?: string;
@@ -38,8 +38,9 @@ export function TenantLogo({
   const tagline = get("company", "tagline");
   // Logo: preview override first, then the admin Branding logo (real settings),
   // falling back to any tenant branding logo.
-  const logoSrc =
-    branding.logoDataUrl ?? (get("theme", "logo") || branding.logoUrl || undefined);
+  const logoSrc = safeImageSrc(
+    branding.logoDataUrl ?? (get("theme", "logo") || branding.logoUrl || undefined),
+  );
   const compact = variant === "compact";
 
   const content = (

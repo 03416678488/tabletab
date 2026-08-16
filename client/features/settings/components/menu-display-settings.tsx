@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Box, ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSettingsStore } from "@/hooks/use-settings-store";
-import { toast } from "@/hooks/use-toast";
 import type { MenuDisplayMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -35,12 +34,6 @@ export function MenuDisplaySettings() {
   const handleSelect = (next: MenuDisplayMode) => {
     if (next === mode) return;
     updateTenant({ menuDisplayMode: next });
-    toast(
-      next === "3d"
-        ? "3D menu mode enabled"
-        : "Simple photo menu mode enabled",
-      { tone: "success" },
-    );
   };
 
   return (

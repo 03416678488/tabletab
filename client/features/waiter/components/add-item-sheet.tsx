@@ -14,7 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import type { MenuItem, Order, OrderItem } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
 
 interface AddItemSheetProps {
   order: Order | null;
@@ -55,14 +54,12 @@ export function AddItemSheet({ order, open, onOpenChange, onAdded }: AddItemShee
         notes: notes.trim() || undefined,
       };
       await api.addItemsToOrder(order.id, [item]);
-      toast("Item added to order", { tone: "success" });
       setSelectedId(null);
       setQuantity(1);
       setNotes("");
       onOpenChange(false);
       onAdded();
     } catch {
-      toast("Could not add item", { tone: "error" });
     } finally {
       setSubmitting(false);
     }

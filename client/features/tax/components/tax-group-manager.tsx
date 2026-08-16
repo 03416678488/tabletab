@@ -28,8 +28,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useTaxes } from "@/features/tax/hooks/use-taxes";
 import { useTaxGroups } from "@/features/tax/hooks/use-tax-groups";
@@ -86,11 +84,9 @@ export function TaxGroupManager() {
       const body = { name, code: code || undefined, taxIds, isActive };
       if (editing) await taxGroupService.update(editing.id, body);
       else await taxGroupService.create({ ...body, ...(branchId ? { branchId } : {}) });
-      toast("Tax group saved", { tone: "success" });
       setOpen(false);
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -102,11 +98,8 @@ export function TaxGroupManager() {
     if (!(await confirm({ title: `Delete "${g.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await taxGroupService.remove(g.id);
-      toast("Tax group deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Delete failed", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (
@@ -138,7 +131,6 @@ export function TaxGroupManager() {
             size="sm"
             onClick={() => {
               if (!branchId) {
-                toast("Select a branch first to add a tax group", { tone: "info" });
                 return;
               }
               setEditing(null);

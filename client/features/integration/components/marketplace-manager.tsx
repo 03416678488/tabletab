@@ -31,8 +31,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { formatDateTime } from "@/lib/datetime";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useSession } from "@/hooks/use-session";
@@ -97,8 +95,6 @@ export function MarketplaceManager() {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
     const error = params.get("error");
-    if (connected) toast(`${connected} connected`, { tone: "success" });
-    else if (error) toast(error, { tone: "error" });
     if (connected || error) {
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -114,33 +110,23 @@ export function MarketplaceManager() {
     if (!(await confirm({ title: `Disconnect ${item.name}?`, confirmLabel: "Disconnect" }))) return;
     try {
       await integrationService.disconnect(item.key);
-      toast(`${item.name} disconnected`, { tone: "success" });
       void load();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to disconnect", { tone: "error" });
-    }
+    } catch {}
   };
 
   const startOAuth = async (item: CatalogItem) => {
     try {
       const { url } = await integrationService.startOAuth(item.key);
       window.location.href = url; // hand off to the provider's consent screen
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't start OAuth", { tone: "error" });
-    }
+    } catch {}
   };
 
   const pushMenu = async (item: CatalogItem) => {
     setPushingKey(item.key);
     try {
-      const res = await integrationService.pushMenu(item.key);
-      toast(
-        `Menu ${res.status === "sent" ? "pushed" : "prepared"} — ${res.items} items, ${res.categories} categories`,
-        { tone: "success" },
-      );
+      await integrationService.pushMenu(item.key);
       void load();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Menu push failed", { tone: "error" });
+    } catch {
     } finally {
       setPushingKey(null);
     }
@@ -316,10 +302,8 @@ function ConnectDialog({
     setSaving(true);
     try {
       await integrationService.connect(item.key, values);
-      toast(`${item.name} connected`, { tone: "success" });
       onConnected();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to connect", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }

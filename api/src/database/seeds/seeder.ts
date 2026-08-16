@@ -17,6 +17,11 @@ import { ROLE_PERMISSIONS_SEED } from './role-permissions.seed';
 import { CodeAttemptLog } from '@modules/user/entities/code-attempt-log.entity';
 import { User } from '@modules/user/entities/users.entity';
 import { Branch } from '@modules/branch/entities/branch.entity';
+import { Category } from '@modules/category/entities/category.entity';
+import { Menu } from '@modules/menus/entities/menu.entity';
+import { MenuItem } from '@modules/menu/entities/menu-item.entity';
+import { FoodType } from '@modules/food-type/entities/food-type.entity';
+import { seedCatalog } from './catalog.seed';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -35,6 +40,10 @@ const AppDataSource = new DataSource({
     RolePermission,
     CodeAttemptLog,
     Branch,
+    Category,
+    Menu,
+    MenuItem,
+    FoodType,
   ],
   synchronize: false,
 });
@@ -259,6 +268,9 @@ async function seed() {
         }
       }
     }
+
+    // Demo catalogue (per-branch categories + menus, global item catalogue).
+    await seedCatalog(AppDataSource);
 
     console.log('\n✅ Seeding completed successfully!');
   } catch (error) {

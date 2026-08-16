@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { campaignService } from "@/features/campaign/services/campaign.service";
 import type { WhatsappConfig } from "@/features/campaign/types/campaign.types";
 
@@ -25,7 +23,15 @@ export function WhatsappConfigCard() {
     campaignService
       .getConfig()
       .then(setConfig)
-      .catch(() => setConfig({ enabled: false, phoneNumberId: "", accessToken: "", businessAccountId: "", storefrontUrl: "" }))
+      .catch(() =>
+        setConfig({
+          enabled: false,
+          phoneNumberId: "",
+          accessToken: "",
+          businessAccountId: "",
+          storefrontUrl: "",
+        }),
+      )
       .finally(() => setLoading(false));
   }, []);
 
@@ -37,9 +43,7 @@ export function WhatsappConfigCard() {
     try {
       const saved = await campaignService.saveConfig(config);
       setConfig(saved);
-      toast("WhatsApp settings saved", { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Couldn't save settings", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }

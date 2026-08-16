@@ -14,8 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/currency";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useTables } from "@/features/table/hooks/use-tables";
 import { TableFormDialog } from "@/features/table/components/table-form-dialog";
@@ -136,7 +134,6 @@ export function TableManager() {
 
   const openCreate = () => {
     if (!branchId) {
-      toast("Select a branch first to add a table", { tone: "info" });
       return;
     }
     setDialogOpen(true);
@@ -155,19 +152,9 @@ export function TableManager() {
     });
     if (!ok) return;
     try {
-      const { closed } = await orderService.closeTable(table.id, true);
-      toast(
-        closed > 0
-          ? `Table closed — ${closed} order${closed === 1 ? "" : "s"} settled`
-          : "Table already free",
-        {
-          tone: "success",
-        },
-      );
+      await orderService.closeTable(table.id, true);
       refetchStats();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to close table", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (

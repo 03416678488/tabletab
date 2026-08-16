@@ -20,8 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { cn } from "@/lib/utils";
 
 import { useBranches } from "@/features/branch/hooks/use-branches";
@@ -91,13 +89,8 @@ export function BranchManager() {
     if (!ok) return;
     try {
       await branchService.remove(branch.id);
-      toast("Branch deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete branch", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   return (

@@ -10,7 +10,6 @@ import {
   callWaiter,
   type ResolvedQr,
 } from "@/features/storefront/services/qr-ordering";
-import { toast } from "@/hooks/use-toast";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 import { useDineIn } from "@/hooks/use-dine-in";
 import { useCart } from "@/hooks/use-cart";
@@ -103,7 +102,6 @@ export default function QrLandingPage({ params }: { params: Promise<{ token: str
       setCalled(true);
       setConfirmOpen(true);
     } catch {
-      toast("Couldn't reach a waiter — please try again", { tone: "error" });
     } finally {
       setCalling(false);
     }

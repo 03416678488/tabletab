@@ -34,11 +34,9 @@ export class MenuHelperService {
       // imageUrl mirrors the primary (first) image for list thumbnails.
       imageUrl: images[0] ?? dto.imageUrl ?? null,
       isAvailable: dto.isAvailable ?? true,
-      categoryId: dto.categoryId ?? null,
       sizes: this.cleanRows(dto.sizes),
       variants: this.cleanRows(dto.variants),
       addOns: this.cleanRows(dto.addOns),
-      branchId: dto.branchId ?? null,
     };
   }
 
@@ -57,8 +55,6 @@ export class MenuHelperService {
       payload.imageUrl = dto.imageUrl;
     }
     if (dto.isAvailable !== undefined) payload.isAvailable = dto.isAvailable;
-    if (dto.categoryId !== undefined)
-      payload.categoryId = dto.categoryId ?? null;
     if (dto.sizes !== undefined) payload.sizes = this.cleanRows(dto.sizes);
     if (dto.variants !== undefined)
       payload.variants = this.cleanRows(dto.variants);
@@ -74,13 +70,18 @@ export class MenuHelperService {
     const where: FindOptionsWhere<MenuItem> = {};
     if (query.search) where.name = toILikeContains(trimSpaces(query.search));
 
-    // Multi-category (categoryIds) takes precedence over the single categoryId.
-    const ids = query.categoryIds
-      ?.split(',')
+    // Category + branch both scope via the per-branch membership M2M: a
+    // categoryId/categoryIds narrows to specific categories; a branchId means
+    // "carried at this branch" (in any of its categories). Items are global —
+    // their branch presence lives entirely in this membership.
+    const ids = (query.categoryIds ?? query.categoryId ?? '')
+      .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    if (ids && ids.length) where.categoryId = In(ids);
-    else if (query.categoryId) where.categoryId = query.categoryId;
+    const categoryWhere: FindOptionsWhere<MenuItem>['categories'] = {};
+    if (ids.length) categoryWhere.id = In(ids);
+    if (query.branchId) categoryWhere.branchId = query.branchId;
+    if (Object.keys(categoryWhere).length) where.categories = categoryWhere;
 
     if (query.isAvailable !== undefined)
       where.isAvailable = query.isAvailable === 'true';
@@ -91,8 +92,6 @@ export class MenuHelperService {
       where.price = Between(minPrice, maxPrice);
     else if (minPrice !== undefined) where.price = MoreThanOrEqual(minPrice);
     else if (maxPrice !== undefined) where.price = LessThanOrEqual(maxPrice);
-
-    if (query.branchId) where.branchId = query.branchId;
 
     return where;
   }

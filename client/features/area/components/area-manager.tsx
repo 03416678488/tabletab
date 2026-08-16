@@ -17,8 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { usePaginatedAreas } from "@/features/area/hooks/use-paginated-areas";
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
@@ -48,7 +46,6 @@ export function AreaManager() {
 
   const openCreate = () => {
     if (!branchId) {
-      toast("Select a branch first to add an area", { tone: "info" });
       return;
     }
     setEditing(null);
@@ -65,13 +62,8 @@ export function AreaManager() {
     if (!(await confirm({ title: `Delete "${area.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await areaService.remove(area.id);
-      toast("Area deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete area", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   return (

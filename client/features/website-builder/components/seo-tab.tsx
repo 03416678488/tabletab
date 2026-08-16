@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
 import { ImageField, ToggleField } from "@/features/website-builder/components/form-fields";
 import { type PageSeo, seoSchema } from "@/features/website-builder/schemas/blocks";
-import { type WebsitePage, websiteService } from "@/features/website-builder/services/website.service";
+import {
+  type WebsitePage,
+  websiteService,
+} from "@/features/website-builder/services/website.service";
 
 export function SeoTab({ page, onChange }: { page: WebsitePage; onChange: () => void }) {
   const {
@@ -28,11 +30,8 @@ export function SeoTab({ page, onChange }: { page: WebsitePage; onChange: () => 
   const onSubmit = handleSubmit(async (data) => {
     try {
       await websiteService.updateSeo(page.slug, data);
-      toast("SEO saved", { tone: "success" });
       onChange();
-    } catch {
-      toast("Couldn't save SEO", { tone: "error" });
-    }
+    } catch {}
   });
 
   const metaTitle = watch("metaTitle");
@@ -47,7 +46,7 @@ export function SeoTab({ page, onChange }: { page: WebsitePage; onChange: () => 
             <Label className="text-xs">Meta title</Label>
             <Input {...register("metaTitle")} placeholder={page.title} />
             <p className="text-[11px] text-muted-foreground">
-              {(metaTitle?.length ?? 0)} / 60 characters recommended
+              {metaTitle?.length ?? 0} / 60 characters recommended
             </p>
           </div>
           <div className="space-y-1">
@@ -59,15 +58,23 @@ export function SeoTab({ page, onChange }: { page: WebsitePage; onChange: () => 
               className="w-full rounded-xl border border-input bg-white px-3 py-2 text-sm shadow-sm outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30"
             />
             <p className="text-[11px] text-muted-foreground">
-              {(metaDescription?.length ?? 0)} / 160 characters recommended
+              {metaDescription?.length ?? 0} / 160 characters recommended
             </p>
           </div>
           <ImageField control={control} name="ogImage" label="Social share image (OG image)" />
           <div className="rounded-xl border border-border p-3">
-            <ToggleField control={control} name="noindex" label="Hide from search engines (noindex)" />
+            <ToggleField
+              control={control}
+              name="noindex"
+              label="Hide from search engines (noindex)"
+            />
           </div>
           <Button type="submit" size="sm" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {isSubmitting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
             Save
           </Button>
         </form>

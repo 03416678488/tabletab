@@ -7,34 +7,30 @@ import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolvePortalTarget } from "@/lib/portal-target";
 
-export interface DropdownOption {
+export interface MultiSelectOption {
   value: string;
   label: string;
   sublabel?: string;
 }
 
-interface DropdownProps {
-  value: string;
-  onChange: (value: string) => void;
-  options: DropdownOption[];
+interface MultiSelectProps {
+  value: string[];
+  onChange: (values: string[]) => void;
+  options: MultiSelectOption[];
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  /** Show a search box when there are many options. */
+  /** Show a search box (auto-on when there are many options). */
   searchable?: boolean;
-  /** "default" = a bordered input-like box; "bare" = just the label + a small
-   *  caret (no box), for topbar/inline switchers. */
-  variant?: "default" | "bare";
-  /** Horizontal alignment of the menu relative to the trigger. A small pointer
-   *  triangle on top of the menu follows the same side. */
-  align?: "left" | "center" | "right";
   "aria-label"?: string;
 }
 
-/** Styled single-select dropdown (replaces native <select> where nicer UI is wanted).
- *  The menu renders in a portal with fixed positioning so it is never clipped by
- *  an ancestor's `overflow` (tables, cards, scrollable dialogs). */
-export function Dropdown({
+/**
+ * Styled multi-select dropdown — a bordered trigger showing "N selected" that
+ * opens a portaled checkbox list (toggle without closing). Mirrors `Dropdown`'s
+ * positioning so it's never clipped by an ancestor's overflow.
+ */
+export function MultiSelect({
   value,
   onChange,
   options,
@@ -42,10 +38,8 @@ export function Dropdown({
   disabled,
   className,
   searchable,
-  variant = "default",
-  align = "left",
   "aria-label": ariaLabel,
-}: DropdownProps) {
+}: MultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -53,17 +47,16 @@ export function Dropdown({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const selected = options.find((o) => o.value === value);
-  const bare = variant === "bare";
+  const selectedSet = new Set(value);
+  const selectedLabels = options.filter((o) => selectedSet.has(o.value)).map((o) => o.label);
 
   const reposition = () => {
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setRect({ top: r.bottom, left: bare ? r.left : r.left, width: r.width });
+    setRect({ top: r.bottom, left: r.left, width: r.width });
   };
 
-  // Measure before paint when opening, and keep in sync on scroll/resize.
   useLayoutEffect(() => {
     if (!open) return;
     reposition();
@@ -75,7 +68,6 @@ export function Dropdown({
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -98,6 +90,9 @@ export function Dropdown({
     if (!open) setQuery("");
   }, [open]);
 
+  const toggle = (v: string) =>
+    onChange(selectedSet.has(v) ? value.filter((x) => x !== v) : [...value, v]);
+
   const filtered =
     searchable && query
       ? options.filter((o) =>
@@ -105,36 +100,14 @@ export function Dropdown({
         )
       : options;
 
-  // Position + alignment of the portalled menu relative to the trigger.
   const GAP = 8;
-  const posStyle: CSSProperties = { position: "fixed", top: rect ? rect.top + GAP : 0 };
-  const triStyle: CSSProperties = {
-    position: "absolute",
-    top: -5,
-    width: 10,
-    height: 10,
-    transform: "rotate(45deg)",
+  const posStyle: CSSProperties = {
+    position: "fixed",
+    top: rect ? rect.top + GAP : 0,
+    left: rect?.left,
+    width: rect?.width,
+    pointerEvents: "auto",
   };
-  if (rect) {
-    if (align === "right") {
-      posStyle.left = rect.left + rect.width;
-      posStyle.transform = "translateX(-100%)";
-      triStyle.right = 16;
-    } else if (align === "center") {
-      posStyle.left = rect.left + rect.width / 2;
-      posStyle.transform = "translateX(-50%)";
-      triStyle.left = "50%";
-      triStyle.marginLeft = -5;
-    } else {
-      posStyle.left = rect.left;
-      triStyle.left = 16;
-    }
-    if (bare) posStyle.minWidth = "13rem";
-    else posStyle.width = rect.width;
-  }
-  // The menu is portaled to <body>. Inside a modal Radix dialog, body has
-  // `pointer-events: none`, so re-enable it here or options aren't clickable.
-  posStyle.pointerEvents = "auto";
 
   const menu =
     open && rect && portalTarget
@@ -143,19 +116,23 @@ export function Dropdown({
             ref={menuRef}
             style={posStyle}
             className="z-[60]"
-            // Stop the dialog's dismissable-layer from treating a click inside
-            // this portaled menu as an "outside" interaction (which would close
-            // the dialog); our own outside-handler uses `contains` instead.
             onMouseDown={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
             <span
               aria-hidden
-              style={triStyle}
+              style={{
+                position: "absolute",
+                top: -5,
+                left: 16,
+                width: 10,
+                height: 10,
+                transform: "rotate(45deg)",
+              }}
               className="block border-l border-t border-border bg-white"
             />
             <div className="relative overflow-hidden rounded-xl border border-border bg-white shadow-[var(--shadow-elevated)]">
-              {searchable && (
+              {(searchable || options.length > 8) && (
                 <div className="border-b border-border p-1.5">
                   <input
                     autoFocus
@@ -166,22 +143,23 @@ export function Dropdown({
                   />
                 </div>
               )}
-              <ul className="max-h-60 overflow-y-auto p-1" role="listbox">
+              <ul
+                className="max-h-60 overflow-y-auto p-1"
+                role="listbox"
+                aria-multiselectable="true"
+              >
                 {filtered.length === 0 ? (
                   <li className="px-3 py-2 text-sm text-muted-foreground">No options</li>
                 ) : (
                   filtered.map((o) => {
-                    const active = o.value === value;
+                    const active = selectedSet.has(o.value);
                     return (
                       <li key={o.value}>
                         <button
                           type="button"
                           role="option"
                           aria-selected={active}
-                          onClick={() => {
-                            onChange(o.value);
-                            setOpen(false);
-                          }}
+                          onClick={() => toggle(o.value)}
                           className={cn(
                             "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                             active ? "bg-brand-tint/60 text-brand-deep" : "hover:bg-secondary",
@@ -195,7 +173,14 @@ export function Dropdown({
                               </span>
                             )}
                           </span>
-                          {active && <Check className="size-4 shrink-0 text-brand" />}
+                          <span
+                            className={cn(
+                              "flex size-4 shrink-0 items-center justify-center rounded border",
+                              active ? "border-brand bg-brand text-white" : "border-input",
+                            )}
+                          >
+                            {active && <Check className="size-3" />}
+                          </span>
                         </button>
                       </li>
                     );
@@ -209,7 +194,7 @@ export function Dropdown({
       : null;
 
   return (
-    <div className={cn("relative", bare ? "inline-block" : "", className)}>
+    <div className={cn("relative", className)}>
       <button
         ref={triggerRef}
         type="button"
@@ -219,16 +204,19 @@ export function Dropdown({
         aria-expanded={open}
         onClick={() => !disabled && setOpen((v) => !v)}
         className={cn(
-          "flex items-center gap-2 text-sm outline-none transition-colors",
-          bare
-            ? "rounded-lg px-2 py-1.5 font-medium text-ink hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring/30"
-            : "h-10 w-full justify-between rounded-xl border border-input bg-white px-3.5 shadow-sm focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30",
-          disabled ? "cursor-not-allowed opacity-60" : !bare && "hover:border-brand/50",
-          !bare && open && "border-brand ring-2 ring-ring/30",
+          "flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-input bg-white px-3.5 text-sm shadow-sm outline-none transition-colors focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30",
+          disabled ? "cursor-not-allowed opacity-60" : "hover:border-brand/50",
+          open && "border-brand ring-2 ring-ring/30",
         )}
       >
-        <span className={cn("truncate", bare || selected ? "text-ink" : "text-muted-foreground")}>
-          {selected ? selected.label : placeholder}
+        <span
+          className={cn("truncate", selectedLabels.length ? "text-ink" : "text-muted-foreground")}
+        >
+          {selectedLabels.length === 0
+            ? placeholder
+            : selectedLabels.length <= 2
+              ? selectedLabels.join(", ")
+              : `${selectedLabels.length} selected`}
         </span>
         <ChevronDown
           className={cn(
@@ -237,7 +225,6 @@ export function Dropdown({
           )}
         />
       </button>
-
       {menu}
     </div>
   );

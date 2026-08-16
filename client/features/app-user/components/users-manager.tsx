@@ -19,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
 
 import { useUsers } from "@/features/app-user/hooks/use-users";
 import { appUserService } from "@/features/app-user/services/app-user.service";
@@ -58,7 +57,6 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
         delete next[userId];
         return next;
       });
-      toast("Couldn't update branch", { tone: "error" });
     }
   };
 

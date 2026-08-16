@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  JoinTable,
-  ManyToMany,
-  ManyToOne,
-} from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany } from 'typeorm';
 import { AbstractEntity } from '@cor/abstract/entity/abstract-entity.abstract';
 import { Category } from '@modules/category/entities/category.entity';
 import { FoodType } from '@modules/food-type/entities/food-type.entity';
@@ -17,6 +10,13 @@ export interface MenuOptionRow {
   price: number;
 }
 
+/**
+ * A menu item is GLOBAL (one catalogue for the whole tenant — no `branchId`).
+ * A branch "carries" an item by placing it into one of its per-branch
+ * categories (or menus): the `categories` M2M below is the membership link, so
+ * the same item can sit in different categories at different branches with zero
+ * duplication.
+ */
 @Entity('menu_items')
 export class MenuItem extends AbstractEntity {
   @Column({ type: 'varchar' })
@@ -37,12 +37,18 @@ export class MenuItem extends AbstractEntity {
   @Column({ type: 'boolean', default: true })
   isAvailable: boolean;
 
-  @Column({ type: 'uuid', nullable: true })
-  categoryId: string | null;
-
-  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'categoryId' })
-  category: Category;
+  /**
+   * Per-branch category membership. Categories are per-branch, so this M2M is
+   * how a global item is assigned to a branch's catalogue (and grouped within
+   * it). Replaces the old single `categoryId` FK.
+   */
+  @ManyToMany(() => Category)
+  @JoinTable({
+    name: 'menu_item_categories',
+    joinColumn: { name: 'menuItemId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'categoryId', referencedColumnName: 'id' },
+  })
+  categories: Category[];
 
   @ManyToMany(() => FoodType)
   @JoinTable({
@@ -68,8 +74,4 @@ export class MenuItem extends AbstractEntity {
 
   @Column({ type: 'jsonb', default: () => "'[]'" })
   addOns: MenuOptionRow[];
-
-  /** Owning branch — each branch has its own catalog. Null = legacy/global. */
-  @Column({ type: 'uuid', nullable: true })
-  branchId: string | null;
 }

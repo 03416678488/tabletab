@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
 import {
@@ -90,17 +89,14 @@ export function CategoryFormDialog({
     try {
       if (isEdit) {
         await categoryService.update(category!.id, payload);
-        toast("Category updated", { tone: "success" });
       } else {
         await categoryService.create({ ...payload, ...(branchId ? { branchId } : {}) });
-        toast("Category created", { tone: "success" });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "name", ["name"]);
       if (!(err instanceof ApiError)) {
-        toast("Something went wrong", { tone: "error" });
       }
     }
   });

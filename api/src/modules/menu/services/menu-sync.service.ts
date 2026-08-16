@@ -64,7 +64,7 @@ export class MenuSyncService {
     // Changed ids that still exist → upserts; the rest were deleted → removes.
     const items = await dataSource.getRepository(MenuItem).find({
       where: { id: In(ids) },
-      relations: ['category'],
+      relations: ['categories'],
     });
     const found = new Set(items.map((i) => i.id));
     const upserts = items.map((it) => ({
@@ -72,7 +72,7 @@ export class MenuSyncService {
       name: it.name,
       description: it.description ?? null,
       price: it.price,
-      category: it.category?.name ?? null,
+      category: it.categories?.[0]?.name ?? null,
       available: it.isAvailable,
     }));
     const removes = ids.filter((id) => !found.has(id));

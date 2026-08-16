@@ -8,8 +8,6 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { useAccessMatrix } from "@/features/role-permission/hooks/use-access-matrix";
 import { rolePermissionService } from "@/features/role-permission/services/role-permission.service";
@@ -48,7 +46,7 @@ export function RolePermissionManager() {
   }, [matrix, roleId]);
 
   const original = useMemo<Draft>(
-    () => (matrix && roleId != null ? matrix.grants[roleId] ?? {} : {}),
+    () => (matrix && roleId != null ? (matrix.grants[roleId] ?? {}) : {}),
     [matrix, roleId],
   );
 
@@ -59,13 +57,10 @@ export function RolePermissionManager() {
 
   const dirty = useMemo(() => {
     if (!matrix) return false;
-    return matrix.modules.some(
-      (m) => !sameActions(draft[m.key], original[m.key]),
-    );
+    return matrix.modules.some((m) => !sameActions(draft[m.key], original[m.key]));
   }, [matrix, draft, original]);
 
-  const has = (key: string, action: PermissionAction) =>
-    (draft[key] ?? []).includes(action);
+  const has = (key: string, action: PermissionAction) => (draft[key] ?? []).includes(action);
 
   const toggle = (key: string, action: PermissionAction) => {
     setDraft((prev) => {
@@ -112,12 +107,8 @@ export function RolePermissionManager() {
         if (actions.length) grants[key] = actions;
       }
       await rolePermissionService.updateRole(roleId, grants);
-      toast("Permissions saved", { tone: "success" });
       await refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to save", {
-        tone: "error",
-      });
+    } catch {
     } finally {
       setSaving(false);
     }

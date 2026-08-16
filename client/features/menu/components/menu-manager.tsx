@@ -32,27 +32,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
 
 import { useMenuItemsTable } from "@/features/menu/hooks/use-menu-items-table";
 import { Pagination } from "@/components/ui/pagination";
 import { menuService } from "@/features/menu/services/menu.service";
 import { MenuFormDialog } from "@/features/menu/components/menu-form-dialog";
-import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import { useCategories } from "@/features/category/hooks/use-categories";
 import type { MenuItem } from "@/features/menu/types/menu.types";
 
 type AvailFilter = "all" | "available" | "unavailable";
 
 export function MenuManager() {
-  const branchId = useScopedBranchId();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [categoryId, setCategoryId] = useState<string>("all");
   const [avail, setAvail] = useState<AvailFilter>("all");
 
+  // Items are a GLOBAL catalogue — list them all (not branch-filtered), so an
+  // item shows its full cross-branch category memberships when edited.
   const {
     items,
     loading,
@@ -68,7 +66,6 @@ export function MenuManager() {
     search,
     categoryId,
     isAvailable: avail === "all" ? undefined : avail === "available",
-    branchId,
   });
   const { categories } = useCategories();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -77,10 +74,6 @@ export function MenuManager() {
   const activeFilters = (categoryId !== "all" ? 1 : 0) + (avail !== "all" ? 1 : 0);
 
   const openCreate = () => {
-    if (!branchId) {
-      toast("Select a branch first to add an item", { tone: "info" });
-      return;
-    }
     setEditing(null);
     setDialogOpen(true);
   };
@@ -99,13 +92,8 @@ export function MenuManager() {
     if (!(await confirm({ title: `Delete "${item.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await menuService.remove(item.id);
-      toast("Menu item deleted", { tone: "success" });
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete item", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   // Bulk selection (scoped to the current page — ids clear when page/filters change).
@@ -123,11 +111,9 @@ export function MenuManager() {
     setBulkBusy(true);
     try {
       await menuService.bulkRemove(sel.ids);
-      toast(`Deleted ${sel.count} item${sel.count === 1 ? "" : "s"}`, { tone: "success" });
       sel.clear();
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Bulk delete failed", { tone: "error" });
+    } catch {
     } finally {
       setBulkBusy(false);
     }
@@ -137,13 +123,9 @@ export function MenuManager() {
     setBulkBusy(true);
     try {
       await menuService.bulkSetAvailability(sel.ids, isAvailable);
-      toast(`Marked ${sel.count} ${isAvailable ? "available" : "unavailable"}`, {
-        tone: "success",
-      });
       sel.clear();
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Bulk update failed", { tone: "error" });
+    } catch {
     } finally {
       setBulkBusy(false);
     }
@@ -151,17 +133,12 @@ export function MenuManager() {
 
   const bulkMoveCategory = async (catId: string) => {
     if (!catId) return;
-    const catName = categories.find((c) => c.id === catId)?.name ?? "category";
     setBulkBusy(true);
     try {
       await menuService.bulkSetCategory(sel.ids, catId);
-      toast(`Moved ${sel.count} item${sel.count === 1 ? "" : "s"} to ${catName}`, {
-        tone: "success",
-      });
       sel.clear();
       refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Bulk move failed", { tone: "error" });
+    } catch {
     } finally {
       setBulkBusy(false);
     }
@@ -359,7 +336,9 @@ export function MenuManager() {
                     </TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {item.category?.name ?? "—"}
+                      {item.categories?.length
+                        ? [...new Set(item.categories.map((c) => c.name))].join(", ")
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatCurrency(item.price)}
@@ -410,7 +389,6 @@ export function MenuManager() {
       )}
 
       <MenuFormDialog
-        branchId={branchId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         item={editing}

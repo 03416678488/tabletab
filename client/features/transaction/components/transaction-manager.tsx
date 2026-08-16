@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/currency";
 import { formatDateTime } from "@/lib/datetime";
-import { toast } from "@/components/ui/toast";
 
 import { usePaginatedTransactions } from "@/features/transaction/hooks/use-paginated-transactions";
 import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
@@ -121,7 +120,6 @@ export function TransactionManager() {
     try {
       await exportTransactionsCsv(filters);
     } catch {
-      toast("Couldn't export transactions", { tone: "error" });
     } finally {
       setExporting(false);
     }
@@ -355,9 +353,7 @@ function TransactionDetailSheet({ id, onClose }: { id: string | null; onClose: (
       .then((d) => {
         if (active) setDetail(d);
       })
-      .catch(() => {
-        if (active) toast("Couldn't load transaction", { tone: "error" });
-      })
+      .catch(() => {})
       .finally(() => {
         if (active) setLoading(false);
       });

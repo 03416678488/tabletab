@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
 import { menuSchema, type MenuFormValues } from "@/features/menu-list/schemas/menu.schema";
@@ -87,17 +86,14 @@ export function MenuFormDialog({
     try {
       if (isEdit) {
         await menusService.update(menu!.id, payload);
-        toast("Menu updated", { tone: "success" });
       } else {
         await menusService.create({ ...payload, ...(branchId ? { branchId } : {}) });
-        toast("Menu created", { tone: "success" });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "name", ["name"]);
       if (!(err instanceof ApiError)) {
-        toast("Something went wrong", { tone: "error" });
       }
     }
   });

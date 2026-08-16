@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/hooks/use-toast";
 import {
   isModel3dFile,
   isModel3dUrl,
@@ -37,20 +36,15 @@ export function Model3dField({ value, posterUrl, onChange }: Model3dFieldProps) 
   const handleUpload = async (file: File | undefined) => {
     if (!file) return;
     if (!isModel3dFile(file)) {
-      toast("Please choose a .glb or .gltf file", { tone: "error" });
       return;
     }
     if (file.size > MAX_MODEL_3D_BYTES) {
-      toast("3D model must be under 5 MB", { tone: "error" });
       return;
     }
     try {
       const dataUrl = await readFileAsDataUrl(file);
       onChange(dataUrl);
-      toast("3D model uploaded", { tone: "success" });
-    } catch {
-      toast("Could not read model file", { tone: "error" });
-    }
+    } catch {}
   };
 
   return (

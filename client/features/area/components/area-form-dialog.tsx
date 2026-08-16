@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
 import { ApiError, applyApiErrorToForm } from "@/lib/httpClient";
 
 import { areaSchema, type AreaFormValues } from "@/features/area/schemas/area.schema";
@@ -60,17 +59,14 @@ export function AreaFormDialog({
     try {
       if (isEdit) {
         await areaService.update(area!.id, values);
-        toast("Area updated", { tone: "success" });
       } else {
         await areaService.create({ ...values, ...(branchId ? { branchId } : {}) });
-        toast("Area created", { tone: "success" });
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
       applyApiErrorToForm(err, setError, "name", ["name"]);
       if (!(err instanceof ApiError)) {
-        toast("Something went wrong", { tone: "error" });
       }
     }
   });

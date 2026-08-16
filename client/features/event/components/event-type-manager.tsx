@@ -20,8 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 import { formatCurrency } from "@/lib/utils";
 
 import { usePaginatedEventTypes } from "@/features/event/hooks/use-paginated-event-types";
@@ -54,7 +52,6 @@ export function EventTypeManager() {
 
   const openCreate = () => {
     if (!branchId) {
-      toast("Select a branch first to add an event type", { tone: "info" });
       return;
     }
     setEditing(null);
@@ -71,14 +68,9 @@ export function EventTypeManager() {
     if (!(await confirm({ title: `Delete "${eventType.name}"?`, confirmLabel: "Delete" }))) return;
     try {
       await eventTypeService.remove(eventType.id);
-      toast("Event type deleted", { tone: "success" });
       if (eventTypes.length === 1 && page > 1) goToPage(page - 1);
       else refetch();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Failed to delete event type", {
-        tone: "error",
-      });
-    }
+    } catch {}
   };
 
   return (

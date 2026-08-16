@@ -12,7 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/datetime";
 import { toast } from "@/hooks/use-toast";
-import { ApiError } from "@/lib/httpClient";
 
 import { currencyService } from "@/features/currency/services/currency.service";
 import { useSettings } from "@/features/app-settings/components/settings-provider";
@@ -38,9 +37,7 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
         setFrequency(d.frequency);
         setKey(d.keys.exchangerate_api ?? "");
       })
-      .catch((err) =>
-        toast(err instanceof ApiError ? err.message : "Failed to load", { tone: "error" }),
-      )
+      .catch(() => {})
       .finally(() => setLoading(false));
   };
 
@@ -64,9 +61,7 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
       await refresh();
       load(); // refetch the full fx-settings (incl. provider catalog)
       onChange?.();
-      toast("Exchange rate settings saved", { tone: "success" });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Save failed", { tone: "error" });
+    } catch {
     } finally {
       setSaving(false);
     }
@@ -84,8 +79,7 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
       await refresh();
       load();
       onChange?.();
-    } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Sync failed", { tone: "error" });
+    } catch {
     } finally {
       setSyncing(false);
     }
