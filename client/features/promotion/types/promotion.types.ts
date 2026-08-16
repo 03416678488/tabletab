@@ -19,7 +19,8 @@ export interface Promotion {
   usageLimit: number | null;
   usageCount: number;
   perCustomerLimit: number | null;
-  ctaHref: string | null;
+  /** Products this promotion discounts. Empty = cart-wide. */
+  products?: { id: string; name: string }[];
 }
 
 export interface Paginated<T> {
@@ -47,7 +48,8 @@ export interface CreatePromotionInput {
   active?: boolean;
   usageLimit?: number;
   perCustomerLimit?: number;
-  ctaHref?: string;
+  /** Menu item ids this promotion discounts. Empty/omitted = cart-wide. */
+  productIds?: string[];
 }
 
 export type UpdatePromotionInput = Partial<CreatePromotionInput>;

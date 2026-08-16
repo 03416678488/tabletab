@@ -8,6 +8,7 @@ import { Paginated } from '@modules/common/pagination/interface/pagination.inter
 
 import { Promotion } from './entities/promotion.entity';
 import { PromotionRedemption } from './entities/promotion-redemption.entity';
+import { MenuItem } from '@modules/menu/entities/menu-item.entity';
 import { PromotionHelperService } from './services/promotion.helper.service';
 import { PromotionValidatorService } from './services/promotion.validator.service';
 import { toILikeContains } from '@cor/helpers/query.helper';
@@ -45,29 +46,61 @@ export class PromotionService extends AbstractService<Promotion> {
     const where: FindOptionsWhere<Promotion> = {};
     if (query.active !== undefined) where.active = query.active === 'true';
     if (query.search) where.title = toILikeContains(query.search);
-    return this.pagination.paginationQuery(query, this.repository, where, undefined, undefined, {
-      createdAt: 'DESC',
-    });
+    return this.pagination.paginationQuery(
+      query,
+      this.repository,
+      where,
+      ['products'],
+      undefined,
+      {
+        createdAt: 'DESC',
+      },
+    );
   }
 
-  getById(id: string): Promise<Promotion> {
-    return this._validator.ensureExists(id);
+  async getById(id: string): Promise<Promotion> {
+    await this._validator.ensureExists(id);
+    return this.repository.findOne({
+      where: { id },
+      relations: ['products'],
+    }) as Promise<Promotion>;
   }
 
   async createPromotion(dto: CreatePromotionDto): Promise<Promotion> {
     const payload = this._helper.resolveCreatePayload(dto);
     await this._validator.ensureUniqueSlug(payload.slug!);
     await this._validator.ensureUniqueCode(payload.code);
-    return this.create(payload);
+    const entity = this.repository.create({
+      ...payload,
+      products: this.toItemRefs(dto.productIds),
+    });
+    const saved = await this.repository.save(entity);
+    return this.getById(saved.id);
   }
 
-  async updatePromotion(id: string, dto: UpdatePromotionDto): Promise<Promotion> {
+  async updatePromotion(
+    id: string,
+    dto: UpdatePromotionDto,
+  ): Promise<Promotion> {
     await this._validator.ensureExists(id);
     const payload = this._helper.resolveUpdatePayload(dto);
     if (payload.slug) await this._validator.ensureUniqueSlug(payload.slug, id);
     if (payload.code) await this._validator.ensureUniqueCode(payload.code, id);
-    await this.repository.update(id, payload);
+    const promotion = await this.repository.findOne({
+      where: { id },
+      relations: ['products'],
+    });
+    Object.assign(promotion!, payload);
+    // Only touch the product set when the client sent one (partial updates).
+    if (dto.productIds !== undefined)
+      promotion!.products = this.toItemRefs(dto.productIds);
+    await this.repository.save(promotion!);
     return this.getById(id);
+  }
+
+  /** Turn an id list into partial refs TypeORM persists into `promotion_items`. */
+  private toItemRefs(ids?: string[]): MenuItem[] {
+    return (ids ?? []).map((id) => ({ id }) as MenuItem);
   }
 
   deletePromotion(id: string) {
@@ -78,24 +111,37 @@ export class PromotionService extends AbstractService<Promotion> {
 
   /** Live promotions (active + within window), newest first. */
   async getActive(): Promise<Promotion[]> {
-    const all = await this.repository.find({ order: { createdAt: 'DESC' } });
+    const all = await this.repository.find({
+      order: { createdAt: 'DESC' },
+      relations: ['products'],
+    });
     return all.filter((p) => this._helper.isWithinWindow(p));
   }
 
   async getBySlug(slug: string): Promise<Promotion | null> {
-    return this.repository.findOne({ where: { slug } });
+    return this.repository.findOne({
+      where: { slug },
+      relations: ['products'],
+    });
   }
 
   // ── Checkout ────────────────────────────────────────────────────────────────
 
   /** Validate a promo code against a subtotal (and optional customer limits). */
-  async validateCode(dto: ValidatePromotionDto): Promise<ValidatePromotionResult> {
+  async validateCode(
+    dto: ValidatePromotionDto,
+  ): Promise<ValidatePromotionResult> {
     const code = dto.code.trim().toUpperCase();
     const promotion = await this.repository.findOne({ where: { code } });
-    if (!promotion) return { valid: false, reason: 'Invalid promo code', discountAmount: 0 };
+    if (!promotion)
+      return { valid: false, reason: 'Invalid promo code', discountAmount: 0 };
 
     if (!this._helper.isWithinWindow(promotion)) {
-      return { valid: false, reason: 'This promotion is not currently available', discountAmount: 0 };
+      return {
+        valid: false,
+        reason: 'This promotion is not currently available',
+        discountAmount: 0,
+      };
     }
     if (dto.subtotal < (promotion.minOrderAmount ?? 0)) {
       return {
@@ -104,21 +150,36 @@ export class PromotionService extends AbstractService<Promotion> {
         discountAmount: 0,
       };
     }
-    if (promotion.usageLimit != null && promotion.usageCount >= promotion.usageLimit) {
-      return { valid: false, reason: 'This promotion has reached its limit', discountAmount: 0 };
+    if (
+      promotion.usageLimit != null &&
+      promotion.usageCount >= promotion.usageLimit
+    ) {
+      return {
+        valid: false,
+        reason: 'This promotion has reached its limit',
+        discountAmount: 0,
+      };
     }
     if (dto.customerId && promotion.perCustomerLimit != null) {
       const used = await this.redemptions.count({
         where: { promotionId: promotion.id, customerId: dto.customerId },
       });
       if (used >= promotion.perCustomerLimit) {
-        return { valid: false, reason: 'You have already used this promotion', discountAmount: 0 };
+        return {
+          valid: false,
+          reason: 'You have already used this promotion',
+          discountAmount: 0,
+        };
       }
     }
 
     const discountAmount = this._helper.calcDiscount(promotion, dto.subtotal);
     if (discountAmount <= 0) {
-      return { valid: false, reason: 'This code does not apply to your order', discountAmount: 0 };
+      return {
+        valid: false,
+        reason: 'This code does not apply to your order',
+        discountAmount: 0,
+      };
     }
     return { valid: true, discountAmount, promotion };
   }
@@ -145,7 +206,11 @@ export class PromotionService extends AbstractService<Promotion> {
           discountAmount: input.discountAmount,
         }),
       );
-      await this.repository.increment({ id: input.promotionId }, 'usageCount', 1);
+      await this.repository.increment(
+        { id: input.promotionId },
+        'usageCount',
+        1,
+      );
     } catch {
       /* best-effort: don't fail the order over a redemption-log write */
     }

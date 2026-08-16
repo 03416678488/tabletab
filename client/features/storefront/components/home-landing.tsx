@@ -75,13 +75,16 @@ export function HomeLanding({
   );
   const online = useMemo(() => (branch ? branchOnlineConfig(branch) : null), [branch]);
   // Per-mode availability from the branch's live settings (drives the tab picker).
+  // A closed branch can't take delivery/pickup orders (both are "order now"), but
+  // reservations are future bookings, so they stay open when the branch is closed.
+  const isOpen = branch?.isOpen !== false;
   const availability = useMemo(
     () => ({
-      delivery: online?.deliveryAvailable ?? true,
-      pickup: online?.pickupAvailable ?? true,
+      delivery: (online?.deliveryAvailable ?? true) && isOpen,
+      pickup: (online?.pickupAvailable ?? true) && isOpen,
       reserve: branch ? branch.reservationsEnabled !== false : true,
     }),
-    [online, branch],
+    [online, branch, isOpen],
   );
   // If the selected mode becomes unavailable (staff toggled it off), move to the
   // first available one so the customer never sits on a dead tab.
@@ -492,12 +495,6 @@ export function HomeLanding({
                     >
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <h2 className="font-display text-lg font-bold text-ink">{category.name}</h2>
-                        <Link
-                          href="/"
-                          className="inline-flex items-center gap-0.5 text-sm font-medium text-brand hover:underline"
-                        >
-                          See all <ChevronRight className="size-4" />
-                        </Link>
                       </div>
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                         {catItems.slice(0, 4).map((item) => (

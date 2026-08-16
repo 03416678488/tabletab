@@ -61,13 +61,76 @@ export class MenuService extends AbstractService<MenuItem> {
     );
   }
 
-  getAll(query: GetMenuItemQueryDto): Promise<Paginated<MenuItem>> {
-    const where = this._helper.resolveListFilters(query);
-    return this.pagination.paginationQuery(
+  async getAll(query: GetMenuItemQueryDto): Promise<Paginated<MenuItem>> {
+    const branchId = query.branchId;
+    if (!branchId) {
+      const where = this._helper.resolveListFilters(query);
+      return this.pagination.paginationQuery(
+        query,
+        this.repository,
+        where,
+        RELATIONS,
+      );
+    }
+
+    // Branch-scoped: fold the per-branch availability overlay into both the
+    // filter (so paginated `isAvailable` counts are exact) and the returned
+    // values (so every consumer reads the effective per-branch availability).
+    const overrides: Array<{ menuItemId: string; isAvailable: boolean }> =
+      await this.repository.manager.query(
+        `SELECT "menuItemId", "isAvailable" FROM "menu_item_branch_availability" WHERE "branchId" = $1`,
+        [branchId],
+      );
+    const onIds = overrides
+      .filter((o) => o.isAvailable)
+      .map((o) => o.menuItemId);
+    const offIds = overrides
+      .filter((o) => !o.isAvailable)
+      .map((o) => o.menuItemId);
+
+    const base = this._helper.resolveListFilters(query, {
+      skipAvailability: true,
+    });
+    const where =
+      query.isAvailable === undefined
+        ? base
+        : this._helper.branchAvailabilityWhere(
+            base,
+            query.isAvailable === 'true',
+            onIds,
+            offIds,
+          );
+
+    const result = await this.pagination.paginationQuery(
       query,
       this.repository,
       where,
       RELATIONS,
+    );
+
+    const onSet = new Set(onIds);
+    const offSet = new Set(offIds);
+    for (const it of result.items) {
+      if (onSet.has(it.id)) it.isAvailable = true;
+      else if (offSet.has(it.id)) it.isAvailable = false;
+    }
+    return result;
+  }
+
+  /** Effective availability per branch for one item (override ?? global). */
+  getBranchAvailability(
+    id: string,
+  ): Promise<Array<{ branchId: string; isAvailable: boolean }>> {
+    return this.repository.manager.query(
+      `SELECT b.id AS "branchId",
+              COALESCE(av."isAvailable", mi."isAvailable") AS "isAvailable"
+       FROM branches b
+       CROSS JOIN menu_items mi
+       LEFT JOIN menu_item_branch_availability av
+         ON av."menuItemId" = mi.id AND av."branchId" = b.id
+       WHERE mi.id = $1
+       ORDER BY b.name`,
+      [id],
     );
   }
 
@@ -120,12 +183,42 @@ export class MenuService extends AbstractService<MenuItem> {
     return { deleted: res.affected ?? 0 };
   }
 
-  /** Mark many items available/unavailable at once (one atomic statement). */
+  /**
+   * Mark many items available/unavailable. With `branchId` this writes a
+   * per-branch override into the sparse overlay (86 an item at one branch);
+   * without it, it flips the item's global master flag (every branch that has
+   * no override).
+   */
   async bulkSetAvailability(
     ids: string[],
     isAvailable: boolean,
+    branchId?: string,
   ): Promise<{ updated: number }> {
     if (!ids.length) return { updated: 0 };
+    if (branchId) {
+      // Keep the overlay sparse: an override that matches the item's global flag
+      // is redundant, so drop it; only store genuine deviations.
+      await this.repository.manager.query(
+        `DELETE FROM "menu_item_branch_availability" av
+         USING "menu_items" mi
+         WHERE av."menuItemId" = mi.id
+           AND av."branchId" = $1::uuid
+           AND av."menuItemId" = ANY($3::uuid[])
+           AND mi."isAvailable" = $2::boolean`,
+        [branchId, isAvailable, ids],
+      );
+      await this.repository.manager.query(
+        `INSERT INTO "menu_item_branch_availability" ("menuItemId","branchId","isAvailable")
+         SELECT mi.id, $1::uuid, $2::boolean
+         FROM "menu_items" mi
+         WHERE mi.id = ANY($3::uuid[]) AND mi."isAvailable" <> $2::boolean
+         ON CONFLICT ("menuItemId","branchId")
+         DO UPDATE SET "isAvailable" = EXCLUDED."isAvailable"`,
+        [branchId, isAvailable, ids],
+      );
+      this.emitMenuChanged(ids[0]);
+      return { updated: ids.length };
+    }
     const res = await this.repository.update({ id: In(ids) }, { isAvailable });
     this.emitMenuChanged(ids[0]);
     return { updated: res.affected ?? 0 };

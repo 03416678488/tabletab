@@ -14,6 +14,7 @@ export const BLOCK_TYPES = [
   "menu-grid",
   "featured-categories",
   "product-carousel",
+  "promotions",
   "rich-cta",
   "rich-text",
   "reservation",
@@ -106,12 +107,9 @@ export const bannerSliderConfigSchema = z.object({
 });
 
 export const menuGridConfigSchema = z.object({
+  // Always shows every active menu for the selected branch, each as its own
+  // section of dishes.
   title: z.string().default("Our menus"),
-  /**
-   * Which menus to show, in order. Empty = every active menu. Each selected
-   * menu renders as its own section listing the dishes assigned to it.
-   */
-  menuIds: z.array(z.string()).default([]),
   layout: z.enum(["grid", "slider"]).default("grid"),
   /** Max dishes shown per menu. */
   limit: z.coerce.number().int().min(1).max(24).default(8),
@@ -125,17 +123,15 @@ export const menuGridConfigSchema = z.object({
  * into dishes. Empty `menuIds` = every active menu, live from the catalog.
  */
 export const menuSliderConfigSchema = z.object({
+  // Always shows every active menu for the selected branch, one card each.
   title: z.string().default("Explore our menus"),
-  /** Which menus to show, in order. Empty = every active menu. */
-  menuIds: z.array(z.string()).default([]),
   /** Show the prev/next navigation arrows. */
   showArrows: z.boolean().default(true),
 });
 
 export const featuredCategoriesConfigSchema = z.object({
+  // Auto-shows every category for the selected branch, each as its own section.
   title: z.string().default(""),
-  /** Ordered category ids to feature, each rendered as its own section. */
-  categoryIds: z.array(z.string()).default([]),
   layout: z.enum(["grid", "slider"]).default("slider"),
   limit: z.coerce.number().int().min(1).max(24).default(8),
   showViewAll: z.boolean().default(true),
@@ -149,6 +145,15 @@ export const productCarouselConfigSchema = z.object({
   itemIds: z.array(z.string()).default([]),
   layout: z.enum(["grid", "slider"]).default("slider"),
   limit: z.coerce.number().int().min(1).max(24).default(8),
+  /** Show the prev/next navigation arrows (slider layout only). */
+  showArrows: z.boolean().default(true),
+});
+
+/** Live promotions (active + within their window), newest first. */
+export const promotionsConfigSchema = z.object({
+  title: z.string().default("Featured picks"),
+  layout: z.enum(["grid", "slider"]).default("slider"),
+  limit: z.coerce.number().int().min(1).max(12).default(8),
   /** Show the prev/next navigation arrows (slider layout only). */
   showArrows: z.boolean().default(true),
 });
@@ -194,6 +199,7 @@ export const BLOCK_CONFIG_SCHEMAS = {
   "menu-grid": menuGridConfigSchema,
   "featured-categories": featuredCategoriesConfigSchema,
   "product-carousel": productCarouselConfigSchema,
+  promotions: promotionsConfigSchema,
   "rich-cta": richCtaConfigSchema,
   "rich-text": richTextConfigSchema,
   reservation: reservationConfigSchema,
@@ -219,9 +225,7 @@ export const headerConfigSchema = z.object({
   showLocation: z.boolean().default(true),
   ctaLabel: z.string().default("Order now"),
   ctaHref: z.string().default("/"),
-  links: z
-    .array(z.object({ label: z.string(), href: z.string() }))
-    .default([]),
+  links: z.array(z.object({ label: z.string(), href: z.string() })).default([]),
 });
 
 export const footerConfigSchema = z.object({
@@ -236,9 +240,7 @@ export const footerConfigSchema = z.object({
       }),
     )
     .default([]),
-  socials: z
-    .array(z.object({ platform: z.string(), href: z.string() }))
-    .default([]),
+  socials: z.array(z.object({ platform: z.string(), href: z.string() })).default([]),
   copyright: z.string().default(""),
 });
 
@@ -280,6 +282,7 @@ export type MenuGridConfig = z.infer<typeof menuGridConfigSchema>;
 export type MenuSliderConfig = z.infer<typeof menuSliderConfigSchema>;
 export type FeaturedCategoriesConfig = z.infer<typeof featuredCategoriesConfigSchema>;
 export type ProductCarouselConfig = z.infer<typeof productCarouselConfigSchema>;
+export type PromotionsConfig = z.infer<typeof promotionsConfigSchema>;
 export type RichCtaConfig = z.infer<typeof richCtaConfigSchema>;
 export type RichTextConfig = z.infer<typeof richTextConfigSchema>;
 export type ReservationConfig = z.infer<typeof reservationConfigSchema>;
@@ -296,7 +299,26 @@ export function parseBlockConfig<T extends BlockType>(
   type: T,
   raw: unknown,
 ): z.infer<(typeof BLOCK_CONFIG_SCHEMAS)[T]> {
-  return BLOCK_CONFIG_SCHEMAS[type].parse(raw ?? {}) as z.infer<
-    (typeof BLOCK_CONFIG_SCHEMAS)[T]
-  >;
+  return BLOCK_CONFIG_SCHEMAS[type].parse(raw ?? {}) as z.infer<(typeof BLOCK_CONFIG_SCHEMAS)[T]>;
+}
+
+/**
+ * Tolerantly parse stored page content for the editor. A single malformed block
+ * (e.g. an unknown/removed `type`) must NOT throw away the whole page — that
+ * silently wipes the canvas and the next save persists the emptiness. Instead we
+ * keep every block that parses and drop only the bad ones. Never throws.
+ */
+export function parsePageContentSafe(raw: unknown): PageContent {
+  const obj = (raw ?? {}) as Record<string, unknown>;
+  const rawBlocks = Array.isArray(obj.blocks) ? obj.blocks : [];
+  const blocks: Block[] = [];
+  for (const rb of rawBlocks) {
+    const parsed = blockSchema.safeParse(rb);
+    if (parsed.success) blocks.push(parsed.data);
+  }
+  return {
+    blocks,
+    header: headerConfigSchema.parse(obj.header ?? {}),
+    footer: footerConfigSchema.parse(obj.footer ?? {}),
+  };
 }

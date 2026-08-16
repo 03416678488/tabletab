@@ -1,4 +1,5 @@
 import {
+  BadgePercent,
   CalendarCheck,
   Columns2,
   GalleryHorizontalEnd,
@@ -23,6 +24,7 @@ import type {
   MenuSliderConfig,
   ProductCarouselConfig,
   PromoConfig,
+  PromotionsConfig,
   ReservationConfig,
   RichCtaConfig,
   RichTextConfig,
@@ -57,7 +59,12 @@ const imageSliderDefault: ImageSliderConfig = {
   showArrows: true,
   images: [
     { url: stock("1513104890138-7c749659a591"), caption: "Weekend brunch", href: "/", badge: "" },
-    { url: stock("1517248135467-4c7edcad34c4"), caption: "Chef's specials", href: "/", badge: "10% Off" },
+    {
+      url: stock("1517248135467-4c7edcad34c4"),
+      caption: "Chef's specials",
+      href: "/",
+      badge: "10% Off",
+    },
     { url: stock("1526367790999-0150786686a2"), caption: "Free delivery", href: "/", badge: "" },
   ],
 };
@@ -114,7 +121,6 @@ const bannerSliderDefault: BannerSliderConfig = {
 
 const menuGridDefault: MenuGridConfig = {
   title: "Our menus",
-  menuIds: [],
   layout: "grid",
   limit: 8,
   showViewAll: true,
@@ -123,13 +129,19 @@ const menuGridDefault: MenuGridConfig = {
 
 const menuSliderDefault: MenuSliderConfig = {
   title: "Explore our menus",
-  menuIds: [],
   showArrows: true,
 };
 
 const productCarouselDefault: ProductCarouselConfig = {
   title: "Popular right now",
   itemIds: [],
+  layout: "slider",
+  limit: 8,
+  showArrows: true,
+};
+
+const promotionsDefault: PromotionsConfig = {
+  title: "Featured picks",
   layout: "slider",
   limit: 8,
   showArrows: true,
@@ -145,7 +157,6 @@ const richCtaDefault: RichCtaConfig = {
 
 const featuredCategoriesDefault: FeaturedCategoriesConfig = {
   title: "Order by category",
-  categoryIds: [],
   layout: "slider",
   limit: 8,
   showViewAll: true,
@@ -210,8 +221,8 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
   },
   "featured-categories": {
     type: "featured-categories",
-    label: "Featured categories",
-    description: "Pick categories to feature — each shows its live products.",
+    label: "Category slider",
+    description: "Every category for the selected branch, each with its live products.",
     icon: LayoutList,
     defaultConfig: featuredCategoriesDefault,
   },
@@ -221,6 +232,13 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
     description: "Menu items as cards — grid or slider.",
     icon: ShoppingBag,
     defaultConfig: productCarouselDefault,
+  },
+  promotions: {
+    type: "promotions",
+    label: "Promotions",
+    description: "Live promotions as cards — grid or slider.",
+    icon: BadgePercent,
+    defaultConfig: promotionsDefault,
   },
   "rich-cta": {
     type: "rich-cta",

@@ -16,6 +16,35 @@ import type {
 
 const shell = "mx-auto max-w-6xl px-4 sm:px-6";
 
+/** A configured link is "real" only when it points somewhere (not a placeholder). */
+function isRealLink(href?: string): boolean {
+  return !!href && href !== "#" && href !== "/";
+}
+
+/**
+ * Wrap content in a link only when there's a real target — otherwise render a
+ * plain element so we never emit a dead `#`/`/` link. Keeps the same classes so
+ * layout is identical either way.
+ */
+function MaybeLink({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  if (isRealLink(href)) {
+    return (
+      <Link href={href!} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return <div className={className}>{children}</div>;
+}
+
 export function HeroRender({ config }: { config: HeroConfig }) {
   return (
     <section className={cn(shell, "py-4")}>
@@ -45,9 +74,9 @@ export function HeroRender({ config }: { config: HeroConfig }) {
           {config.subtitle && (
             <p className="max-w-xl text-base text-white/85 sm:text-lg">{config.subtitle}</p>
           )}
-          {config.ctaLabel && (
+          {config.ctaLabel && isRealLink(config.ctaHref) && (
             <Link
-              href={config.ctaHref || "#"}
+              href={config.ctaHref!}
               className="mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-brand-hover"
             >
               {config.ctaLabel}
@@ -88,9 +117,9 @@ export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
         showArrows={config.showArrows}
       >
         {config.images.map((img, i) => (
-          <Link
+          <MaybeLink
             key={i}
-            href={img.href || "#"}
+            href={img.href}
             className={cn("relative block overflow-hidden rounded-3xl bg-subtle", slideAspect)}
           >
             <AppImage src={img.url} alt={img.caption} fill className="object-cover" sizes="100vw" />
@@ -104,7 +133,7 @@ export function ImageSliderRender({ config }: { config: ImageSliderConfig }) {
                 {img.caption}
               </span>
             )}
-          </Link>
+          </MaybeLink>
         ))}
       </EmblaSlider>
     </section>
@@ -124,9 +153,9 @@ export function PromoRender({ config }: { config: PromoConfig }) {
     <section className={cn(shell, "py-4")}>
       <div className={cn("grid gap-4", cols)}>
         {config.banners.map((b, i) => (
-          <Link
+          <MaybeLink
             key={i}
-            href={b.href || "#"}
+            href={b.href}
             className={cn(
               "group relative flex flex-col justify-end overflow-hidden rounded-3xl bg-ink p-5 text-white",
               aspect,
@@ -157,7 +186,7 @@ export function PromoRender({ config }: { config: PromoConfig }) {
                 </span>
               )}
             </div>
-          </Link>
+          </MaybeLink>
         ))}
       </div>
     </section>
@@ -183,9 +212,9 @@ export function RichCtaRender({ config }: { config: RichCtaConfig }) {
           <h2 className="font-display text-2xl font-bold">{config.heading}</h2>
           {config.text && <p className="mt-1 text-sm opacity-90">{config.text}</p>}
         </div>
-        {config.ctaLabel && (
+        {config.ctaLabel && isRealLink(config.ctaHref) && (
           <Link
-            href={config.ctaHref || "#"}
+            href={config.ctaHref!}
             className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink shadow-sm transition-transform hover:-translate-y-0.5"
           >
             {config.ctaLabel}
@@ -249,9 +278,9 @@ export function BannerSliderRender({ config }: { config: BannerSliderConfig }) {
         {config.subtitle && (
           <p className="mt-1 text-sm opacity-90 sm:text-base">{config.subtitle}</p>
         )}
-        {config.ctaLabel && (
+        {config.ctaLabel && isRealLink(config.ctaHref) && (
           <Link
-            href={config.ctaHref || "#"}
+            href={config.ctaHref!}
             className="mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink shadow-sm transition-transform hover:-translate-y-0.5"
           >
             {config.ctaLabel}
@@ -281,9 +310,9 @@ export function BannerSliderRender({ config }: { config: BannerSliderConfig }) {
       showArrows={config.showArrows}
     >
       {config.images.map((img, i) => (
-        <Link
+        <MaybeLink
           key={i}
-          href={img.href || "#"}
+          href={img.href}
           className="relative block h-full overflow-hidden rounded-3xl bg-subtle"
         >
           <AppImage
@@ -303,7 +332,7 @@ export function BannerSliderRender({ config }: { config: BannerSliderConfig }) {
               {img.caption}
             </span>
           )}
-        </Link>
+        </MaybeLink>
       ))}
     </EmblaSlider>
   );

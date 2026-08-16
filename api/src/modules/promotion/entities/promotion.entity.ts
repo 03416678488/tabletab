@@ -3,9 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinTable,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+
+import { MenuItem } from '@modules/menu/entities/menu-item.entity';
 
 export type DiscountType = 'percentage' | 'fixed';
 
@@ -77,7 +81,16 @@ export class Promotion {
   @Column({ type: 'integer', nullable: true })
   perCustomerLimit: number | null;
 
-  /** Optional CTA target for the promotion page's button (e.g. "/", "/menu/{id}"). */
-  @Column({ type: 'varchar', nullable: true })
-  ctaHref: string | null;
+  /**
+   * Products this promotion discounts. Empty = a cart-wide promo (the legacy
+   * behaviour); one or many items = the discount targets just those products.
+   * Global — promotions are not scoped to a branch.
+   */
+  @ManyToMany(() => MenuItem)
+  @JoinTable({
+    name: 'promotion_items',
+    joinColumn: { name: 'promotionId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'menuItemId', referencedColumnName: 'id' },
+  })
+  products: MenuItem[];
 }

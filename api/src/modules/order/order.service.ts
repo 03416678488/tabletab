@@ -380,6 +380,44 @@ export class OrderService extends AbstractService<Order> {
     });
   }
 
+  /**
+   * Reject a guest order that the branch's live settings don't allow: a closed
+   * branch, online ordering off, or the specific channel (delivery / pickup)
+   * disabled. Dine-in (table) only needs the branch to be open.
+   */
+  private async enforceBranchOrdering(dto: CreateOrderDto): Promise<void> {
+    if (!dto.branchId) return;
+    const rows: Array<{
+      isOpen: boolean;
+      onlineOrderingEnabled: boolean;
+      deliveryEnabled: boolean;
+      pickupEnabled: boolean;
+    }> = await this.repository.manager.query(
+      `SELECT "isOpen", "onlineOrderingEnabled", "deliveryEnabled", "pickupEnabled"
+       FROM branches WHERE id = $1`,
+      [dto.branchId],
+    );
+    const b = rows[0];
+    if (!b) return;
+
+    if (!b.isOpen)
+      throw new BadRequestException('This branch is currently closed.');
+    if (dto.orderType === 'table') return; // dine-in only needs the branch open
+
+    if (!b.onlineOrderingEnabled)
+      throw new BadRequestException(
+        'Online ordering is currently unavailable at this branch.',
+      );
+    if (dto.orderType === 'online' && !b.deliveryEnabled)
+      throw new BadRequestException(
+        'Delivery is not available at this branch right now.',
+      );
+    if (dto.orderType === 'pos' && !b.pickupEnabled)
+      throw new BadRequestException(
+        'Pickup is not available at this branch right now.',
+      );
+  }
+
   async createOrder(
     dto: CreateOrderDto,
     actor?: AuthenticatedUser,
@@ -389,6 +427,9 @@ export class OrderService extends AbstractService<Order> {
     // Trusted = authenticated staff (POS) or an external aggregator (dto.source).
     // Everyone else is an untrusted guest and gets re-priced + payment-locked.
     const trusted = !!actor?.id || !!dto.source;
+    // Enforce the branch's operational flags for storefront guests — staff/POS
+    // may override (they're operating the branch in person).
+    if (!trusted) await this.enforceBranchOrdering(dto);
     const items = await this.securePriceItems(dto, trusted);
     const payload = this._helper.resolveCreatePayload(
       { ...dto, items },

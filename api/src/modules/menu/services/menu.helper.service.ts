@@ -5,6 +5,7 @@ import {
   In,
   LessThanOrEqual,
   MoreThanOrEqual,
+  Not,
 } from 'typeorm';
 
 import { trimSpaces } from '@cor/helpers';
@@ -66,7 +67,10 @@ export class MenuHelperService {
     return (images ?? []).map((u) => trimSpaces(u)).filter(Boolean);
   }
 
-  resolveListFilters(query: GetMenuItemQueryDto): FindOptionsWhere<MenuItem> {
+  resolveListFilters(
+    query: GetMenuItemQueryDto,
+    opts?: { skipAvailability?: boolean },
+  ): FindOptionsWhere<MenuItem> {
     const where: FindOptionsWhere<MenuItem> = {};
     if (query.search) where.name = toILikeContains(trimSpaces(query.search));
 
@@ -83,7 +87,9 @@ export class MenuHelperService {
     if (query.branchId) categoryWhere.branchId = query.branchId;
     if (Object.keys(categoryWhere).length) where.categories = categoryWhere;
 
-    if (query.isAvailable !== undefined)
+    // Branch-scoped requests fold availability in via the overlay (see
+    // `branchAvailabilityWhere`), so skip the plain global-column clause there.
+    if (query.isAvailable !== undefined && !opts?.skipAvailability)
       where.isAvailable = query.isAvailable === 'true';
 
     // Price range — any combination of min/max.
@@ -94,6 +100,36 @@ export class MenuHelperService {
     else if (maxPrice !== undefined) where.price = LessThanOrEqual(maxPrice);
 
     return where;
+  }
+
+  /**
+   * Fold per-branch availability overrides into the `isAvailable` filter for a
+   * branch-scoped list. Effective availability = override ?? global, so the set
+   * matching `want` is: items globally `want` and NOT overridden the other way,
+   * OR items explicitly overridden to `want`. Returned as an OR-array of the
+   * `base` filter (search/category/price) with the two disjoint cases.
+   * `onIds`/`offIds` are the item ids overridden available/unavailable at the
+   * branch (sparse — only deviations exist).
+   */
+  branchAvailabilityWhere(
+    base: FindOptionsWhere<MenuItem>,
+    want: boolean,
+    onIds: string[],
+    offIds: string[],
+  ): FindOptionsWhere<MenuItem>[] {
+    const overriddenWant = want ? onIds : offIds;
+    const overriddenOther = want ? offIds : onIds;
+    const clauses: FindOptionsWhere<MenuItem>[] = [
+      {
+        ...base,
+        isAvailable: want,
+        // Guard: `Not(In([]))` is NULL/unknown and would exclude everything.
+        ...(overriddenOther.length ? { id: Not(In(overriddenOther)) } : {}),
+      },
+    ];
+    if (overriddenWant.length)
+      clauses.push({ ...base, id: In(overriddenWant) });
+    return clauses;
   }
 
   private cleanRows(rows?: MenuOptionRow[]): MenuOptionRow[] {

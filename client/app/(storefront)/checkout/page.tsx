@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStorefrontSync } from "@/features/storefront/hooks/use-storefront-sync";
 import {
+  AlertTriangle,
   Banknote,
   CreditCard,
   MapPin,
@@ -169,6 +170,23 @@ function CheckoutContent() {
   const minOrder = branch?.minOrder ?? 0;
   const belowMin = !isDineIn && minOrder > 0 && subtotal < minOrder;
 
+  // The branch's live settings may block this order (staff toggled a flag, even
+  // mid-session). Surface exactly why so the guest isn't left guessing — the
+  // backend enforces the same rules, this just explains it up front.
+  const blockReason = useMemo<string | null>(() => {
+    if (!branch) return null;
+    if (branch.isOpen === false)
+      return "This branch is currently closed and isn't taking orders right now.";
+    if (isDineIn) return null; // dine-in only needs the branch open
+    if (branch.onlineOrderingEnabled === false)
+      return "Online ordering is currently unavailable at this branch.";
+    if (fulfillmentType === "delivery" && branch.deliveryEnabled === false)
+      return "Delivery isn't available at this branch right now.";
+    if (fulfillmentType === "pickup" && branch.pickupEnabled === false)
+      return "Pickup isn't available at this branch right now.";
+    return null;
+  }, [branch, isDineIn, fulfillmentType]);
+
   const applyPromo = async () => {
     const code = promoInput.trim();
     if (!code) return;
@@ -236,6 +254,13 @@ function CheckoutContent() {
 
   const handlePay = async () => {
     if (!branchId || items.length === 0) return;
+
+    // The branch stopped taking this kind of order (a flag flipped) — stop here
+    // with a clear reason instead of a backend rejection at the end.
+    if (blockReason) {
+      flash(blockReason, { tone: "error" });
+      return;
+    }
 
     // Dine-in (QR): the secure guest path — the order is placed through the QR
     // slug so the server derives the table/branch and re-prices every item; the
@@ -387,11 +412,15 @@ function CheckoutContent() {
       <div className="mx-auto max-w-lg px-4 py-16 sm:px-6">
         <EmptyState
           icon={ShoppingBag}
-          title="Nothing to checkout"
-          description="Add items to your cart from a branch menu first."
+          title="Your cart is empty"
+          description={
+            branchId
+              ? "Browse the menu and add something you like."
+              : "Pick a branch, then add items to your cart."
+          }
           action={
             <Button asChild>
-              <Link href="/">Find a branch</Link>
+              <Link href="/">{branchId ? "Browse the menu" : "Find a branch"}</Link>
             </Button>
           }
         />
@@ -418,6 +447,16 @@ function CheckoutContent() {
             ? `Dine-in · ${tableLabel(dineIn.tableName)} · ${branch.name}`
             : `Ordering from ${branch.name}`}
         </p>
+      )}
+
+      {blockReason && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {blockReason} You can&apos;t place this order — try another option, or a different
+            branch via “Change”.
+          </span>
+        </div>
       )}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">

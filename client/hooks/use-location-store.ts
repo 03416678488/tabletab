@@ -7,7 +7,13 @@ import type { Coords } from "@/lib/geo";
 export type Fulfillment = "delivery" | "pickup" | "reserve";
 
 /** Where the user is in the "find my branch" flow. */
-export type GeoStatus = "idle" | "locating" | "granted" | "denied" | "unsupported";
+export type GeoStatus =
+  | "idle"
+  | "prompt" // permission undecided → show our pre-prompt dialog
+  | "locating"
+  | "granted"
+  | "denied"
+  | "unsupported";
 
 interface LocationStore {
   /** Currently selected branch id (nearest, or manually chosen). */

@@ -81,16 +81,26 @@ export class MenuController {
     return this._menuService.getById(id);
   }
 
+  /** Effective availability of one item at every branch (for the item form). */
+  @Get(':id/branch-availability')
+  branchAvailability(@Param('id', ParseUUIDPipe) id: string) {
+    return this._menuService.getBranchAvailability(id);
+  }
+
   /** Bulk delete selected items. */
   @Post('bulk-delete')
   bulkDelete(@Body() dto: BulkDeleteDto) {
     return this._menuService.bulkDelete(dto.ids);
   }
 
-  /** Bulk mark selected items available / unavailable. */
+  /** Bulk mark selected items available / unavailable (per-branch when branchId set). */
   @Post('bulk-availability')
   bulkAvailability(@Body() dto: BulkAvailabilityDto) {
-    return this._menuService.bulkSetAvailability(dto.ids, dto.isAvailable);
+    return this._menuService.bulkSetAvailability(
+      dto.ids,
+      dto.isAvailable,
+      dto.branchId,
+    );
   }
 
   /** Bulk move selected items to a category. */

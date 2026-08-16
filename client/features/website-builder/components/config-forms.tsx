@@ -42,6 +42,7 @@ import {
   menuSliderConfigSchema,
   productCarouselConfigSchema,
   promoConfigSchema,
+  promotionsConfigSchema,
   reservationConfigSchema,
   richCtaConfigSchema,
   richTextConfigSchema,
@@ -103,7 +104,10 @@ function SortableRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(rowBox, isDragging && "relative z-10 opacity-80 shadow-[var(--shadow-elevated)]")}
+      className={cn(
+        rowBox,
+        isDragging && "relative z-10 opacity-80 shadow-[var(--shadow-elevated)]",
+      )}
     >
       <div className="flex items-center gap-2">
         <button
@@ -176,10 +180,8 @@ export function HeroConfigForm({ config, onChange }: ConfigFormProps) {
       <TextField register={register} name="title" label="Title" error={e.title?.message} />
       <TextField register={register} name="subtitle" label="Subtitle" />
       <ImageField control={control} name="imageUrl" label="Background image" />
-      <div className="grid grid-cols-2 gap-2">
-        <TextField register={register} name="ctaLabel" label="Button label" />
-        <LinkField control={control} name="ctaHref" label="Button link" />
-      </div>
+      <TextField register={register} name="ctaLabel" label="Button label" />
+      <LinkField control={control} name="ctaHref" label="Button link" />
       <SelectField
         control={control}
         name="align"
@@ -253,10 +255,12 @@ export function ImageSliderConfigForm({ config, onChange }: ConfigFormProps) {
                   onRemove={() => remove(i)}
                 >
                   <ImageField control={control} name={`images.${i}.url`} label="Image" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
-                    <LinkField control={control} name={`images.${i}.href`} />
-                  </div>
+                  <TextField
+                    register={register}
+                    name={`images.${i}.caption`}
+                    placeholder="Caption"
+                  />
+                  <LinkField control={control} name={`images.${i}.href`} />
                   <TextField
                     register={register}
                     name={`images.${i}.badge`}
@@ -316,10 +320,8 @@ export function BannerSliderConfigForm({ config, onChange }: ConfigFormProps) {
           error={formState.errors.title?.message}
         />
         <TextField register={register} name="subtitle" label="Subtitle" />
-        <div className="grid grid-cols-2 gap-2">
-          <TextField register={register} name="ctaLabel" label="Button label" />
-          <LinkField control={control} name="ctaHref" label="Button link" />
-        </div>
+        <TextField register={register} name="ctaLabel" label="Button label" />
+        <LinkField control={control} name="ctaHref" label="Button link" />
         <SelectField
           control={control}
           name="tone"
@@ -375,10 +377,12 @@ export function BannerSliderConfigForm({ config, onChange }: ConfigFormProps) {
                   onRemove={() => remove(i)}
                 >
                   <ImageField control={control} name={`images.${i}.url`} label="Image" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <TextField register={register} name={`images.${i}.caption`} placeholder="Caption" />
-                    <LinkField control={control} name={`images.${i}.href`} />
-                  </div>
+                  <TextField
+                    register={register}
+                    name={`images.${i}.caption`}
+                    placeholder="Caption"
+                  />
+                  <LinkField control={control} name={`images.${i}.href`} />
                   <TextField
                     register={register}
                     name={`images.${i}.badge`}
@@ -423,21 +427,36 @@ export function PromoConfigForm({ config, onChange }: ConfigFormProps) {
                 <RemoveButton onClick={() => remove(i)} />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <TextField register={register} name={`banners.${i}.eyebrow`} placeholder="Eyebrow" />
+                <TextField
+                  register={register}
+                  name={`banners.${i}.eyebrow`}
+                  placeholder="Eyebrow"
+                />
                 <TextField register={register} name={`banners.${i}.title`} placeholder="Title" />
               </div>
-              <TextField register={register} name={`banners.${i}.subtitle`} placeholder="Subtitle" />
-              <div className="grid grid-cols-2 gap-2">
-                <TextField register={register} name={`banners.${i}.cta`} placeholder="Button" />
-                <LinkField control={control} name={`banners.${i}.href`} />
-              </div>
+              <TextField
+                register={register}
+                name={`banners.${i}.subtitle`}
+                placeholder="Subtitle"
+              />
+              <TextField register={register} name={`banners.${i}.cta`} placeholder="Button" />
+              <LinkField control={control} name={`banners.${i}.href`} />
               <ImageField control={control} name={`banners.${i}.imageUrl`} label="Image" />
             </div>
           ))}
         </div>
       </Field>
       <AddButton
-        onClick={() => append({ eyebrow: "", title: "New banner", subtitle: "", cta: "", href: "", imageUrl: "" })}
+        onClick={() =>
+          append({
+            eyebrow: "",
+            title: "New banner",
+            subtitle: "",
+            cta: "",
+            href: "",
+            imageUrl: "",
+          })
+        }
         label="Add banner"
       />
     </div>
@@ -445,66 +464,15 @@ export function PromoConfigForm({ config, onChange }: ConfigFormProps) {
 }
 
 // ── Menu grid ────────────────────────────────────────────────────────────────
-export function MenuGridConfigForm({ config, onChange, menuOptions }: ConfigFormProps) {
-  const { register, control, watch, setValue } = useLiveForm(
-    menuGridConfigSchema,
-    config,
-    onChange,
-  );
-  const ids = (watch("menuIds") ?? []) as string[];
-  const opts = menuOptions ?? [];
-  const labelFor = (id: string) => opts.find((o) => o.value === id)?.label ?? id;
-  const available = opts.filter((o) => !ids.includes(o.value));
-
-  const setIds = (next: string[]) => setValue("menuIds", next, { shouldDirty: true });
-  const add = (id: string) => id && !ids.includes(id) && setIds([...ids, id]);
-  const removeId = (id: string) => setIds(ids.filter((x) => x !== id));
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const onDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const from = ids.indexOf(String(active.id));
-    const to = ids.indexOf(String(over.id));
-    if (from !== -1 && to !== -1) setIds(arrayMove(ids, from, to));
-  };
+export function MenuGridConfigForm({ config, onChange }: ConfigFormProps) {
+  const { register, control, watch } = useLiveForm(menuGridConfigSchema, config, onChange);
 
   return (
     <div className="space-y-3">
       <TextField register={register} name="title" label="Section title" />
-
-      <Field label="Menus to show (drag to reorder)">
-        {ids.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Showing every active menu. Add specific menus below to limit and order them.
-          </p>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {ids.map((id) => (
-                  <SortableChip
-                    key={id}
-                    id={id}
-                    label={labelFor(id)}
-                    onRemove={() => removeId(id)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </Field>
-
-      {available.length > 0 && (
-        <Dropdown
-          value=""
-          onChange={add}
-          options={available}
-          placeholder={opts.length ? "Add a menu…" : "No menus found"}
-          searchable={available.length > 6}
-        />
-      )}
+      <p className="text-xs text-muted-foreground">
+        Shows every active menu for the selected branch, each as its own section of dishes.
+      </p>
 
       <SelectField
         control={control}
@@ -527,62 +495,15 @@ export function MenuGridConfigForm({ config, onChange, menuOptions }: ConfigForm
 }
 
 // ── Menu slider (menu cards) ─────────────────────────────────────────────────
-export function MenuSliderConfigForm({ config, onChange, menuOptions }: ConfigFormProps) {
-  const { register, control, watch, setValue } = useLiveForm(
-    menuSliderConfigSchema,
-    config,
-    onChange,
-  );
-  const ids = (watch("menuIds") ?? []) as string[];
-  const opts = menuOptions ?? [];
-  const labelFor = (id: string) => opts.find((o) => o.value === id)?.label ?? id;
-  const available = opts.filter((o) => !ids.includes(o.value));
-
-  const setIds = (next: string[]) => setValue("menuIds", next, { shouldDirty: true });
-  const add = (id: string) => id && !ids.includes(id) && setIds([...ids, id]);
-  const removeId = (id: string) => setIds(ids.filter((x) => x !== id));
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const onDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const from = ids.indexOf(String(active.id));
-    const to = ids.indexOf(String(over.id));
-    if (from !== -1 && to !== -1) setIds(arrayMove(ids, from, to));
-  };
+export function MenuSliderConfigForm({ config, onChange }: ConfigFormProps) {
+  const { register, control } = useLiveForm(menuSliderConfigSchema, config, onChange);
 
   return (
     <div className="space-y-3">
       <TextField register={register} name="title" label="Section title" />
-
-      <Field label="Menus to show (drag to reorder)">
-        {ids.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Showing every active menu. Add specific menus below to limit and order them.
-          </p>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {ids.map((id) => (
-                  <SortableChip key={id} id={id} label={labelFor(id)} onRemove={() => removeId(id)} />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </Field>
-
-      {available.length > 0 && (
-        <Dropdown
-          value=""
-          onChange={add}
-          options={available}
-          placeholder={opts.length ? "Add a menu…" : "No menus found"}
-          searchable={available.length > 6}
-        />
-      )}
-
+      <p className="text-xs text-muted-foreground">
+        Shows every active menu for the selected branch — one card each.
+      </p>
       <div className="rounded-xl border border-border p-3">
         <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
       </div>
@@ -591,66 +512,19 @@ export function MenuSliderConfigForm({ config, onChange, menuOptions }: ConfigFo
 }
 
 // ── Featured categories ──────────────────────────────────────────────────────
-export function FeaturedCategoriesConfigForm({ config, onChange, categoryOptions }: ConfigFormProps) {
-  const { register, control, watch, setValue } = useLiveForm(
+export function FeaturedCategoriesConfigForm({ config, onChange }: ConfigFormProps) {
+  const { register, control, watch } = useLiveForm(
     featuredCategoriesConfigSchema,
     config,
     onChange,
   );
-  const ids = (watch("categoryIds") ?? []) as string[];
-  const opts = categoryOptions ?? [];
-  const labelFor = (id: string) => opts.find((o) => o.value === id)?.label ?? id;
-  const available = opts.filter((o) => !ids.includes(o.value));
-
-  const setIds = (next: string[]) => setValue("categoryIds", next, { shouldDirty: true });
-  const add = (id: string) => id && !ids.includes(id) && setIds([...ids, id]);
-  const removeId = (id: string) => setIds(ids.filter((x) => x !== id));
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const onDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const from = ids.indexOf(String(active.id));
-    const to = ids.indexOf(String(over.id));
-    if (from !== -1 && to !== -1) setIds(arrayMove(ids, from, to));
-  };
 
   return (
     <div className="space-y-3">
       <TextField register={register} name="title" label="Section title" />
-
-      <Field label="Featured categories (drag to reorder)">
-        {ids.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No categories yet — add one below. Each shows its live products.
-          </p>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {ids.map((id) => (
-                  <SortableChip
-                    key={id}
-                    id={id}
-                    label={labelFor(id)}
-                    onRemove={() => removeId(id)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </Field>
-
-      {available.length > 0 && (
-        <Dropdown
-          value=""
-          onChange={add}
-          options={available}
-          placeholder="Add a category…"
-          searchable={available.length > 6}
-        />
-      )}
+      <p className="text-xs text-muted-foreground">
+        Shows every category for the selected branch, each with its live products.
+      </p>
 
       <SelectField
         control={control}
@@ -761,10 +635,7 @@ export function RichTextConfigForm({ config, onChange }: ConfigFormProps) {
   return (
     <div className="space-y-3">
       <Field label="Content">
-        <RichTextEditor
-          value={html}
-          onChange={(v) => setValue("html", v, { shouldDirty: true })}
-        />
+        <RichTextEditor value={html} onChange={(v) => setValue("html", v, { shouldDirty: true })} />
       </Field>
       <SelectField
         control={control}
@@ -794,8 +665,8 @@ export function ReservationConfigForm({ config, onChange }: ConfigFormProps) {
   return (
     <div className="space-y-3">
       <p className="rounded-lg border border-border bg-subtle/50 px-3 py-2 text-xs text-muted-foreground">
-        Branches come live from your settings — only locations with reservations
-        enabled appear here. Manage them in Settings → Reservations.
+        Branches come live from your settings — only locations with reservations enabled appear
+        here. Manage them in Settings → Reservations.
       </p>
       <TextField register={register} name="title" label="Title" />
       <TextAreaField register={register} name="subtitle" label="Subtitle" rows={2} />
@@ -814,17 +685,47 @@ export function ReservationConfigForm({ config, onChange }: ConfigFormProps) {
   );
 }
 
+// ── Promotions ───────────────────────────────────────────────────────────────
+export function PromotionsConfigForm({ config, onChange }: ConfigFormProps) {
+  const { register, control, watch } = useLiveForm(promotionsConfigSchema, config, onChange);
+  return (
+    <div className="space-y-3">
+      <TextField register={register} name="title" label="Section title" />
+      <p className="text-xs text-muted-foreground">
+        Shows your live promotions automatically (active + within their window). Manage them under
+        Marketing → Promotions.
+      </p>
+      <SelectField
+        control={control}
+        name="layout"
+        label="Layout"
+        options={[
+          { value: "slider", label: "Slider" },
+          { value: "grid", label: "Grid" },
+        ]}
+      />
+      <TextField register={register} name="limit" label="Max promotions" />
+      {watch("layout") === "slider" && (
+        <ToggleField control={control} name="showArrows" label="Show navigation arrows" />
+      )}
+    </div>
+  );
+}
+
 // ── Call to action ───────────────────────────────────────────────────────────
 export function RichCtaConfigForm({ config, onChange }: ConfigFormProps) {
   const { register, control, formState } = useLiveForm(richCtaConfigSchema, config, onChange);
   return (
     <div className="space-y-3">
-      <TextField register={register} name="heading" label="Heading" error={formState.errors.heading?.message} />
+      <TextField
+        register={register}
+        name="heading"
+        label="Heading"
+        error={formState.errors.heading?.message}
+      />
       <TextAreaField register={register} name="text" label="Text" rows={2} />
-      <div className="grid grid-cols-2 gap-2">
-        <TextField register={register} name="ctaLabel" label="Button label" />
-        <LinkField control={control} name="ctaHref" label="Button link" />
-      </div>
+      <TextField register={register} name="ctaLabel" label="Button label" />
+      <LinkField control={control} name="ctaHref" label="Button link" />
       <SelectField
         control={control}
         name="tone"

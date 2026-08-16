@@ -48,6 +48,20 @@ export function safeImageSrc(src: string | undefined | null): string | undefined
   return s;
 }
 
+/**
+ * Lowercase hyphen slug from a name (e.g. "Wood-Fired Pizza" → "wood-fired-pizza").
+ * Used for branch-independent category anchors: every branch's "Starters"
+ * category maps to the same `starters` slug, so a category link works regardless
+ * of which branch's landing is showing.
+ */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 /** Live elapsed timer label, e.g. "4:32". */
 export function formatElapsed(iso: string, now = Date.now()) {
   const secs = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));

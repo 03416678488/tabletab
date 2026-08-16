@@ -97,14 +97,16 @@ function toMenuItem(i: ApiMenuItem, branchId?: string | null): MenuItem {
   };
 }
 
-/** All available products for the storefront menu (single flat fetch, capped). */
+/**
+ * All products for the storefront menu (single flat fetch, capped). Sold-out
+ * items are KEPT — the card shows them grayed with a "Sold out" badge — and
+ * availability is per the selected branch (branchId scopes the query).
+ */
 export async function fetchStorefrontProducts(branchId?: string | null): Promise<MenuItem[]> {
   const res = await httpClient.get<{ items?: ApiMenuItem[] } | ApiMenuItem[]>("/menu-items", {
     params: { perPage: 200, branchId: branchId ?? undefined },
   });
-  return unwrap(res.data)
-    .filter((i) => i.isAvailable !== false)
-    .map((i) => toMenuItem(i, branchId));
+  return unwrap(res.data).map((i) => toMenuItem(i, branchId));
 }
 
 interface ApiPaginated<T> {

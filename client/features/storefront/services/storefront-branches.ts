@@ -17,7 +17,9 @@ export function generatePickupSlots(count = 5): string[] {
 
 /** Derive the storefront delivery/pickup config from a real branch. */
 export function branchOnlineConfig(branch: Branch): BranchOnlineConfig {
-  const online = branch.onlineOrderingEnabled !== false;
+  // A closed branch or one with online ordering off can't take "order now"
+  // (delivery/pickup) orders — gate both channels on it.
+  const online = branch.onlineOrderingEnabled !== false && branch.isOpen !== false;
   return {
     deliveryAvailable: online && branch.deliveryEnabled !== false,
     pickupAvailable: online && branch.pickupEnabled !== false,

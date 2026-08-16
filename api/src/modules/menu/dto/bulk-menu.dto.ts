@@ -1,4 +1,10 @@
-import { ArrayNotEmpty, IsArray, IsBoolean, IsUUID } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsUUID,
+} from 'class-validator';
 
 export class BulkDeleteDto {
   @IsArray()
@@ -15,6 +21,11 @@ export class BulkAvailabilityDto {
 
   @IsBoolean()
   isAvailable: boolean;
+
+  /** When set, overrides availability for this branch only; else the global flag. */
+  @IsOptional()
+  @IsUUID()
+  branchId?: string;
 }
 
 export class BulkCategoryDto {

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   BarChart3,
-  Bell,
   Building2,
   CalendarClock,
   Clock,
@@ -11,10 +10,7 @@ import {
   Cookie,
   CreditCard,
   Globe,
-  KeyRound,
   Mail,
-  MessageSquare,
-  Monitor,
   Palette,
   ShieldCheck,
   ShoppingCart,
@@ -31,7 +27,6 @@ import { ProviderTabs } from "@/features/app-settings/components/provider-tabs";
 import { ThemeForm } from "@/features/app-settings/components/theme-form";
 import { CurrencyManager } from "@/features/currency/components/currency-manager";
 import { LanguageManager } from "@/features/language/components/language-manager";
-import { KioskMachineManager } from "@/features/kiosk-machine/components/kiosk-machine-manager";
 import { AnalyticsManager } from "@/features/analytics/components/analytics-manager";
 import { RolePermissionManager } from "@/features/role-permission/components/role-permission-manager";
 
@@ -42,16 +37,11 @@ type SectionKey =
   | "reservation"
   | "mail"
   | "order"
-  | "otp"
-  | "notification"
   | "cookies"
   | "theme"
-  | "sms"
   | "payment"
-  | "social_login"
   | "currencies"
   | "languages"
-  | "kiosk"
   | "analytics"
   | "roles";
 
@@ -65,17 +55,12 @@ const SECTIONS: { key: SectionKey; i18n: string; label: string; icon: typeof Bui
     label: "Reservation Time",
     icon: CalendarClock,
   },
-  { key: "kiosk", i18n: "settings.kiosk", label: "Kiosk Machines", icon: Monitor },
   { key: "mail", i18n: "settings.mail", label: "Mail", icon: Mail },
   { key: "order", i18n: "settings.order", label: "Order Setup", icon: ShoppingCart },
-  { key: "otp", i18n: "settings.otp", label: "OTP", icon: Bell },
-  { key: "notification", i18n: "settings.notification", label: "Notification", icon: Bell },
   { key: "cookies", i18n: "settings.cookies", label: "Cookies", icon: Cookie },
   { key: "analytics", i18n: "settings.analytics", label: "Analytics", icon: BarChart3 },
   { key: "theme", i18n: "settings.theme", label: "Branding", icon: Palette },
-  { key: "sms", i18n: "settings.sms", label: "SMS Gateway", icon: MessageSquare },
   { key: "payment", i18n: "settings.payment", label: "Payment Gateway", icon: CreditCard },
-  { key: "social_login", i18n: "settings.social_login", label: "Social Login", icon: KeyRound },
   { key: "currencies", i18n: "settings.currencies", label: "Currencies", icon: Coins },
   { key: "languages", i18n: "settings.languages", label: "Languages", icon: Globe },
   { key: "roles", i18n: "settings.roles", label: "Roles & Permissions", icon: ShieldCheck },
@@ -139,7 +124,6 @@ export function SettingsShell() {
               ]}
             />
           )}
-          {active === "kiosk" && <KioskMachineManager />}
           {active === "analytics" && <AnalyticsManager />}
           {active === "mail" && (
             <SettingsForm
@@ -178,61 +162,6 @@ export function SettingsShell() {
               ]}
             />
           )}
-          {active === "otp" && (
-            <SettingsForm
-              group="otp"
-              title="OTP"
-              fields={[
-                {
-                  key: "otp_type",
-                  label: "OTP Type",
-                  type: "select",
-                  options: [
-                    { value: "sms", label: "SMS" },
-                    { value: "email", label: "Email" },
-                    { value: "both", label: "Both" },
-                  ],
-                },
-                {
-                  key: "otp_digit_limit",
-                  label: "OTP Digit Limit",
-                  type: "select",
-                  options: [
-                    { value: "4", label: "4" },
-                    { value: "5", label: "5" },
-                    { value: "6", label: "6" },
-                  ],
-                },
-                {
-                  key: "otp_expire_time",
-                  label: "OTP Expire Time (min)",
-                  type: "select",
-                  options: [
-                    { value: "1", label: "1" },
-                    { value: "3", label: "3" },
-                    { value: "5", label: "5" },
-                    { value: "10", label: "10" },
-                  ],
-                },
-              ]}
-            />
-          )}
-          {active === "notification" && (
-            <SettingsForm
-              group="notification"
-              title="Notification (Firebase)"
-              fields={[
-                { key: "firebase_vapid_key", label: "Firebase Public Vapid Key" },
-                { key: "firebase_api_key", label: "Firebase API Key" },
-                { key: "firebase_auth_domain", label: "Firebase Auth Domain" },
-                { key: "firebase_project_id", label: "Firebase Project ID" },
-                { key: "firebase_storage_bucket", label: "Firebase Storage Bucket" },
-                { key: "firebase_sender_id", label: "Firebase Message Sender ID" },
-                { key: "firebase_app_id", label: "Firebase App ID" },
-                { key: "firebase_measurement_id", label: "Firebase Measurement ID" },
-              ]}
-            />
-          )}
           {active === "cookies" && (
             <SettingsForm
               group="cookies"
@@ -241,41 +170,6 @@ export function SettingsShell() {
             />
           )}
           {active === "theme" && <ThemeForm />}
-          {active === "sms" && (
-            <ProviderTabs
-              tabs={[
-                {
-                  key: "twilio",
-                  label: "Twilio",
-                  group: "sms_twilio",
-                  fields: [
-                    { key: "account_sid", label: "Twilio Account SID" },
-                    { key: "auth_token", label: "Twilio Auth Token", type: "password" },
-                    { key: "from", label: "Twilio From" },
-                  ],
-                },
-                {
-                  key: "clickatell",
-                  label: "Clickatell",
-                  group: "sms_clickatell",
-                  fields: [
-                    { key: "api_key", label: "API Key", type: "password" },
-                    { key: "from", label: "From" },
-                  ],
-                },
-                {
-                  key: "nexmo",
-                  label: "Nexmo",
-                  group: "sms_nexmo",
-                  fields: [
-                    { key: "api_key", label: "API Key" },
-                    { key: "api_secret", label: "API Secret", type: "password" },
-                    { key: "from", label: "From" },
-                  ],
-                },
-              ]}
-            />
-          )}
           {active === "payment" && (
             <ProviderTabs
               tabs={[
@@ -334,40 +228,6 @@ export function SettingsShell() {
                   fields: [
                     { key: "enabled", label: "Enabled", type: "toggle" },
                     { key: "instructions", label: "Instructions", type: "textarea" },
-                  ],
-                },
-              ]}
-            />
-          )}
-          {active === "social_login" && (
-            <ProviderTabs
-              tabs={[
-                {
-                  key: "google",
-                  label: "Google",
-                  group: "social_google",
-                  fields: [
-                    { key: "client_id", label: "Client ID" },
-                    { key: "client_secret", label: "Client Secret", type: "password" },
-                  ],
-                },
-                {
-                  key: "facebook",
-                  label: "Facebook",
-                  group: "social_facebook",
-                  fields: [
-                    { key: "app_id", label: "App ID" },
-                    { key: "app_secret", label: "App Secret", type: "password" },
-                  ],
-                },
-                {
-                  key: "apple",
-                  label: "Apple",
-                  group: "social_apple",
-                  fields: [
-                    { key: "client_id", label: "Client ID" },
-                    { key: "team_id", label: "Team ID" },
-                    { key: "key_id", label: "Key ID" },
                   ],
                 },
               ]}

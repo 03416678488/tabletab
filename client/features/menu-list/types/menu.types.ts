@@ -1,5 +1,7 @@
 export interface Menu {
   id: string;
+  /** Owning branch — menus are per-branch (names repeat across branches). */
+  branchId?: string | null;
   name: string;
   description: string | null;
   imageUrl: string | null;

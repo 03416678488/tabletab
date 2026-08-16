@@ -68,6 +68,8 @@ export interface NavItem {
    * (e.g. "delivery", "orders", "reservations") or "all" for the total unread.
    */
   badgeCategory?: string;
+  /** Render as a non-clickable item with a "Coming soon" badge. */
+  comingSoon?: boolean;
   /** When present, this item is a collapsible dropdown (no direct route). */
   children?: NavChild[];
 }
@@ -260,6 +262,7 @@ export const navItems: NavItem[] = [
     roles: OWNER_ONLY,
     section: "Management",
     module: "settings",
+    comingSoon: true,
   },
   {
     label: "Settings",

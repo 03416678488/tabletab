@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -166,8 +166,23 @@ export class ReservationService extends AbstractService<Reservation> {
     return this._validator.ensureExists(id);
   }
 
+  /** Reject a booking when the branch has reservations switched off. */
+  private async enforceReservationsEnabled(branchId?: string): Promise<void> {
+    if (!branchId) return;
+    const rows: Array<{ reservationsEnabled: boolean }> =
+      await this.repository.manager.query(
+        `SELECT "reservationsEnabled" FROM branches WHERE id = $1`,
+        [branchId],
+      );
+    if (rows[0] && rows[0].reservationsEnabled === false)
+      throw new BadRequestException(
+        'This branch is not accepting reservations right now.',
+      );
+  }
+
   async createReservation(dto: CreateReservationDto): Promise<Reservation> {
     await this._validator.validateCreate(dto);
+    await this.enforceReservationsEnabled(dto.branchId);
     const saved = await this.create(this._helper.resolveCreatePayload(dto));
     const reservation = await this.getById(saved.id);
     this.emit(reservation, 'reservation.created');

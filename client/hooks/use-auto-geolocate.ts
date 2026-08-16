@@ -46,21 +46,26 @@ export function useAutoGeolocate() {
         });
     };
 
-    // Prefer the Permissions API so we stay silent when already granted and
-    // never pop a prompt for an already-denied permission.
+    // Prefer the Permissions API: silently resolve only when the user has
+    // ALREADY granted access. When it's undecided ("prompt") we do NOT fire the
+    // native prompt cold — we flag `prompt` so the home page can show our
+    // explaining pre-prompt dialog first, which then triggers the native prompt
+    // on the user's click. A denied permission is respected (no prompt).
     if (navigator.permissions?.query) {
       navigator.permissions
         .query({ name: "geolocation" as PermissionName })
         .then((status) => {
           if (cancelled) return;
-          if (status.state === "denied") setGeoStatus("denied");
-          else locate();
+          if (status.state === "granted") locate();
+          else if (status.state === "denied") setGeoStatus("denied");
+          else setGeoStatus("prompt");
         })
         .catch(() => {
-          if (!cancelled) locate();
+          if (!cancelled) setGeoStatus("prompt");
         });
     } else {
-      locate();
+      // No Permissions API — ask via our dialog rather than a cold native prompt.
+      setGeoStatus("prompt");
     }
 
     return () => {

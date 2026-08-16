@@ -34,15 +34,21 @@ function unwrap<T>(data: { items?: T[] } | T[]): T[] {
   return Array.isArray(data) ? data : (data.items ?? []);
 }
 
-/** Active menus as `{ value, label }` options for the builder's menu picker. */
+/**
+ * Active menus as `{ value, label }` options for the builder's menu picker.
+ * Menus are per-branch (every branch has its own "Breakfast"), so dedupe by name
+ * — the value is the name, which the render matches within the selected branch.
+ */
 export async function fetchMenuOptions(): Promise<{ value: string; label: string }[]> {
   const res = await httpClient.get<{ items?: ApiMenu[] } | ApiMenu[]>("/menus", {
     params: { perPage: 100 },
   });
+  const seen = new Set<string>();
   return unwrap(res.data)
     .filter((m) => m.isActive !== false)
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((m) => ({ value: m.id, label: m.name }));
+    .filter((m) => (seen.has(m.name) ? false : (seen.add(m.name), true)))
+    .map((m) => ({ value: m.name, label: m.name }));
 }
 
 /** All available products (menu items) for the storefront. */
@@ -81,11 +87,13 @@ function toMenuItem(i: ApiMenuItem): MenuItem {
  * Public storefront data for the "Menu grid" block: every active menu paired
  * with the available dishes assigned to it, ordered by the menu's sortOrder.
  */
-export async function fetchStorefrontMenus(): Promise<StorefrontMenu[]> {
+export async function fetchStorefrontMenus(branchId?: string | null): Promise<StorefrontMenu[]> {
   const [menusRes, itemsRes] = await Promise.all([
-    httpClient.get<{ items?: ApiMenu[] } | ApiMenu[]>("/menus", { params: { perPage: 100 } }),
+    httpClient.get<{ items?: ApiMenu[] } | ApiMenu[]>("/menus", {
+      params: { perPage: 100, branchId: branchId ?? undefined },
+    }),
     httpClient.get<{ items?: ApiMenuItem[] } | ApiMenuItem[]>("/menu-items", {
-      params: { perPage: 100 },
+      params: { perPage: 100, branchId: branchId ?? undefined },
     }),
   ]);
 

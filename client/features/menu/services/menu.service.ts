@@ -56,11 +56,22 @@ export const menuService = {
       .then((res) => res.data);
   },
 
-  bulkSetAvailability(ids: string[], isAvailable: boolean) {
+  /** Toggle availability. With `branchId` it 86's per-branch; else the global master. */
+  bulkSetAvailability(ids: string[], isAvailable: boolean, branchId?: string) {
     return httpClient
       .post<{ updated: number }>(
         `${MENU_ENDPOINTS.base}/bulk-availability`,
-        { ids, isAvailable },
+        { ids, isAvailable, ...(branchId ? { branchId } : {}) },
+        { auth: true },
+      )
+      .then((res) => res.data);
+  },
+
+  /** Effective availability of one item at every branch. */
+  getBranchAvailability(id: string) {
+    return httpClient
+      .get<{ branchId: string; isAvailable: boolean }[]>(
+        `${MENU_ENDPOINTS.byId(id)}/branch-availability`,
         { auth: true },
       )
       .then((res) => res.data);

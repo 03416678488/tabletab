@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { StatusPill } from "@/components/ui/status-pill";
 import { ShareButton } from "@/features/storefront/components/share-button";
-import { ItemReviews } from "@/features/storefront/components/item-reviews";
 import { useCart } from "@/hooks/use-cart";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { flash } from "@/features/storefront/hooks/use-storefront-flash";
@@ -334,9 +333,6 @@ function DialogBody({ item, onClose }: { item: MenuItem; onClose: () => void }) 
             className="mt-2 w-full resize-none rounded-xl border border-input bg-surface px-3.5 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/40"
           />
         </div>
-
-        {/* Reviews (approved only) + write-a-review */}
-        <ItemReviews menuItemId={item.id} />
       </div>
 
       {/* Sticky footer — quantity + add */}

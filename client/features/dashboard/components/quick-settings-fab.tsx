@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CalendarClock,
+  ClipboardList,
   DoorOpen,
   GripHorizontal,
   Globe,
@@ -16,23 +17,36 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Dropdown } from "@/components/ui/dropdown";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { OrderStatusPill } from "@/components/ui/status-pill";
 import { settingsService } from "@/features/app-settings/services/settings.service";
 import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-group";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { branchService } from "@/features/branch/services/branch.service";
 import type { Branch } from "@/features/branch/types/branch.types";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
+import { orderService } from "@/features/order/services/order.service";
+import type { Order } from "@/features/order/types/order.types";
 import { toast } from "@/hooks/use-toast";
 import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 
 const ON = "enable";
 const OFF = "disable";
 const PANEL_W = 400;
 
-type TabKey = "table" | "order" | "branch";
+type TabKey = "live" | "table" | "order" | "branch";
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
+  { key: "live", label: "Live", icon: ClipboardList },
   { key: "table", label: "Table", icon: Utensils },
   { key: "order", label: "Order", icon: ShoppingBag },
   { key: "branch", label: "Branch", icon: Store },
@@ -64,7 +78,7 @@ function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
   // A single-branch manager has nothing to switch — drop the Branch tab.
   const visibleTabs = role === "branch_manager" ? TABS.filter((t) => t.key !== "branch") : TABS;
 
-  const [tab, setTab] = useState<TabKey>("order");
+  const [tab, setTab] = useState<TabKey>("live");
   const [pos, setPos] = useState(() => ({
     x: typeof window !== "undefined" ? window.innerWidth - PANEL_W - 24 : 24,
     y: typeof window !== "undefined" ? Math.max(24, window.innerHeight - 460) : 24,
@@ -128,6 +142,7 @@ function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
 
       {/* Tab content */}
       <div className="min-h-[220px] overflow-y-auto p-2">
+        {tab === "live" && <LiveOrders />}
         {tab === "order" && (
           <SettingToggles
             group="order"
@@ -150,6 +165,155 @@ function QuickSettingsPanel({ onClose }: { onClose: () => void }) {
         {tab === "branch" && <BranchToggles />}
       </div>
     </div>
+  );
+}
+
+// ── Live orders (running) ────────────────────────────────────────────────────
+const ORDER_TYPE_ICON: Record<Order["orderType"], LucideIcon> = {
+  table: Utensils,
+  pos: ShoppingBag,
+  online: Truck,
+};
+
+/** Compact "Xm" / "Xh Ym" elapsed since an ISO timestamp. */
+function relMinutes(iso: string): string {
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+/** Where the order goes — table name (dine-in) or customer/fulfillment otherwise. */
+function whereLabel(o: Order): string {
+  if (o.orderType === "table") return o.table?.name ? `Table ${o.table.name}` : "Dine-in";
+  return o.customerName || (o.orderType === "online" ? "Delivery" : "Takeaway");
+}
+
+/** Live list of running orders for the selected branch (light poll for a glance). */
+function LiveOrders() {
+  const branchId = useScopedBranchId();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<Order | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const load = () =>
+      orderService
+        .active(branchId)
+        .then((o) => active && setOrders(o))
+        .catch(() => {})
+        .finally(() => active && setLoading(false));
+    void load();
+    const t = setInterval(() => void load(), 15000);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [branchId]);
+
+  if (loading && orders.length === 0) {
+    return (
+      <div className="flex h-40 items-center justify-center text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" />
+      </div>
+    );
+  }
+  if (orders.length === 0) {
+    return (
+      <p className="flex h-40 items-center justify-center px-4 text-center text-sm text-muted-foreground">
+        No running orders right now.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-1">
+        {orders.map((o) => {
+          const Icon = ORDER_TYPE_ICON[o.orderType] ?? ShoppingBag;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => setDetail(o)}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-secondary"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint text-brand-deep">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-ink">#{o.orderNumber}</span>
+                  <OrderStatusPill status={o.status} />
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {whereLabel(o)} · {o.items.length} item{o.items.length === 1 ? "" : "s"} ·{" "}
+                  {relMinutes(o.createdAt)}
+                </span>
+              </span>
+              <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+                {formatMoney(o.total)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <Dialog open={!!detail} onOpenChange={(v) => !v && setDetail(null)}>
+        <DialogContent className="max-w-md">
+          {detail && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  #{detail.orderNumber}
+                  <OrderStatusPill status={detail.status} />
+                </DialogTitle>
+                <DialogDescription>
+                  {whereLabel(detail)} · {relMinutes(detail.createdAt)} ·{" "}
+                  {detail.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="max-h-[45vh] space-y-2 overflow-y-auto py-1">
+                {detail.items.map((it) => (
+                  <div key={it.id} className="flex items-start justify-between gap-3 text-sm">
+                    <span className="min-w-0 text-ink">
+                      <span className="font-semibold tabular-nums">{it.quantity}×</span> {it.name}
+                      {it.notes && (
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {it.notes}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      {formatMoney(it.lineTotal)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1 border-t border-border pt-3 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span className="tabular-nums">{formatMoney(detail.subtotal)}</span>
+                </div>
+                {detail.discount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Discount</span>
+                    <span className="tabular-nums">-{formatMoney(detail.discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold text-ink">
+                  <span>Total</span>
+                  <span className="tabular-nums">{formatMoney(detail.total)}</span>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

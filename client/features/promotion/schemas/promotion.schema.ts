@@ -23,7 +23,7 @@ export const promotionSchema = z
     active: z.boolean(),
     usageLimit: optionalPositiveInt,
     perCustomerLimit: optionalPositiveInt,
-    ctaHref: z.string().optional(),
+    productIds: z.array(z.string()),
   })
   .refine((v) => v.discountType !== "percentage" || v.discountValue <= 100, {
     message: "A percentage can't exceed 100",

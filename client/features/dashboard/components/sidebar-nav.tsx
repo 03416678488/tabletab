@@ -98,6 +98,28 @@ function LeafItem({
   const href = hrefFor(role, item.slug!);
   const active = pathname === href || pathname.startsWith(`${href}/`);
   const Icon = item.icon;
+
+  // Coming-soon items aren't navigable — render a muted, non-clickable row with a badge.
+  if (item.comingSoon) {
+    return (
+      <li>
+        <div
+          aria-disabled="true"
+          className={cn(
+            linkClass(false),
+            "cursor-default text-slate-400 hover:bg-transparent hover:text-slate-400",
+          )}
+        >
+          <Icon className="size-[18px] text-slate-300" aria-hidden />
+          {item.label}
+          <span className="ml-auto inline-flex items-center rounded-full bg-secondary px-1.5 text-[10px] font-semibold uppercase leading-4 tracking-wide text-muted-foreground">
+            Soon
+          </span>
+        </div>
+      </li>
+    );
+  }
+
   return (
     <li>
       <Link

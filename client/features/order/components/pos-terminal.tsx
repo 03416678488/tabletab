@@ -105,7 +105,7 @@ export function PosTerminal() {
 
   // Load the whole catalog once (cached), then filter client-side — instant
   // category/search with no per-click network round-trips.
-  const { data: allItems = [], isLoading: loading } = useAllMenuItems();
+  const { data: allItems = [], isLoading: loading } = useAllMenuItems(orderBranchId);
   const queryClient = useQueryClient();
   const refresh = useCallback(
     () => void queryClient.invalidateQueries({ queryKey: MENU_ITEMS_ALL_KEY }),

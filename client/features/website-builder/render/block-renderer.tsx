@@ -3,6 +3,7 @@ import {
   MenuGridRender,
   MenuSliderRender,
   ProductCarouselRender,
+  PromotionsRender,
   ReservationRender,
 } from "@/features/website-builder/render/data-blocks";
 import {
@@ -30,6 +31,7 @@ const RENDERERS: Record<BlockType, (config: never) => React.ReactNode> = {
   "menu-slider": (config) => <MenuSliderRender config={config} />,
   "featured-categories": (config) => <FeaturedCategoriesRender config={config} />,
   "product-carousel": (config) => <ProductCarouselRender config={config} />,
+  promotions: (config) => <PromotionsRender config={config} />,
   "rich-cta": (config) => <RichCtaRender config={config} />,
   "rich-text": (config) => <RichTextRender config={config} />,
   reservation: (config) => <ReservationRender config={config} />,

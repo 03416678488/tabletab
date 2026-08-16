@@ -11,14 +11,14 @@ export const MENU_ITEMS_ALL_KEY = ["menu-items", "all"] as const;
 const PER_PAGE = 500;
 
 /** Fetch every menu item across all pages in one go (parallel after page 1). */
-async function fetchAllMenuItems(): Promise<MenuItem[]> {
-  const first = await menuService.list({ page: 1, perPage: PER_PAGE });
+async function fetchAllMenuItems(branchId?: string): Promise<MenuItem[]> {
+  const first = await menuService.list({ page: 1, perPage: PER_PAGE, branchId });
   const items = [...first.items];
   const totalPages = first.meta?.totalPages ?? 1;
   if (totalPages > 1) {
     const rest = await Promise.all(
       Array.from({ length: totalPages - 1 }, (_, i) =>
-        menuService.list({ page: i + 2, perPage: PER_PAGE }),
+        menuService.list({ page: i + 2, perPage: PER_PAGE, branchId }),
       ),
     );
     for (const r of rest) items.push(...r.items);
@@ -27,9 +27,14 @@ async function fetchAllMenuItems(): Promise<MenuItem[]> {
 }
 
 /**
- * The whole item catalog, cached (React Query). Callers filter by
- * category/search client-side for instant results — used by the POS terminal.
+ * The whole item catalog, cached (React Query). With a `branchId` the items
+ * carry that branch's effective availability (per-branch sold-out reflected);
+ * without it, the global catalogue. Callers filter by category/search
+ * client-side for instant results — used by the POS terminal.
  */
-export function useAllMenuItems() {
-  return useQuery({ queryKey: MENU_ITEMS_ALL_KEY, queryFn: fetchAllMenuItems });
+export function useAllMenuItems(branchId?: string) {
+  return useQuery({
+    queryKey: [...MENU_ITEMS_ALL_KEY, branchId ?? "all"],
+    queryFn: () => fetchAllMenuItems(branchId),
+  });
 }

@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { applyApiErrorToForm } from "@/lib/httpClient";
 import { cn } from "@/lib/utils";
 
@@ -66,6 +67,20 @@ function toDefaults(item: MenuItem | null): MenuItemFormValues {
 const cleanRows = (rows: MenuOptionRow[]): MenuOptionRow[] =>
   rows.filter((r) => r.name.trim()).map((r) => ({ name: r.name.trim(), price: toNumber(r.price) }));
 
+/** Group per-branch records into `{value,label}` option lists keyed by branchId. */
+function groupByBranch<T extends { id: string; name: string; branchId?: string | null }>(
+  items: T[],
+): Map<string, { value: string; label: string }[]> {
+  const map = new Map<string, { value: string; label: string }[]>();
+  for (const it of items) {
+    if (!it.branchId) continue;
+    const arr = map.get(it.branchId) ?? [];
+    arr.push({ value: it.id, label: it.name });
+    map.set(it.branchId, arr);
+  }
+  return map;
+}
+
 export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDialogProps) {
   const isEdit = !!item;
   // The list may be filtered (by branch/category), which loads only a partial
@@ -93,32 +108,58 @@ export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDi
   const { menus } = useMenus();
   const { branches } = useBranches();
 
-  // Categories are per-branch. Drive the list off the full branch list (not off
-  // existing categories) so EVERY branch gets its own multi-select — including a
-  // newly added branch that has no categories yet. A global item is "carried" at
-  // a branch by selecting one of that branch's categories.
-  const categoryGroups = useMemo(() => {
-    const optionsByBranch = new Map<string, { value: string; label: string }[]>();
-    const orphanOptions: { value: string; label: string }[] = [];
-    for (const c of categories) {
-      const opt = { value: c.id, label: c.name };
-      if (c.branchId) {
-        if (!optionsByBranch.has(c.branchId)) optionsByBranch.set(c.branchId, []);
-        optionsByBranch.get(c.branchId)!.push(opt);
-      } else {
-        orphanOptions.push(opt);
-      }
+  // Per-branch availability overrides (86 / sold-out at a single branch). Loaded
+  // for existing items; toggling writes immediately — an operational quick-action
+  // separate from the item's global "Available" master flag.
+  const [branchAvail, setBranchAvail] = useState<Record<string, boolean>>({});
+  const [availSaving, setAvailSaving] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open || !item) {
+      setBranchAvail({});
+      return;
     }
-    const groups = branches.map((b) => ({
-      branchId: b.id,
-      branchName: b.name,
-      options: optionsByBranch.get(b.id) ?? [],
+    let active = true;
+    menuService
+      .getBranchAvailability(item.id)
+      .then((rows) => {
+        if (active)
+          setBranchAvail(Object.fromEntries(rows.map((r) => [r.branchId, r.isAvailable])));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open, item]);
+
+  const toggleBranchAvail = async (branchId: string, next: boolean) => {
+    if (!item) return;
+    setBranchAvail((prev) => ({ ...prev, [branchId]: next }));
+    setAvailSaving(branchId);
+    try {
+      await menuService.bulkSetAvailability([item.id], next, branchId);
+    } catch {
+      setBranchAvail((prev) => ({ ...prev, [branchId]: !next })); // revert on failure
+    } finally {
+      setAvailSaving(null);
+    }
+  };
+
+  const [tab, setTab] = useState<"general" | "branches" | "options">("general");
+
+  // Categories AND menus are per-branch. Build one card per branch (off the full
+  // branch list, so a new branch with no categories/menus still appears) with
+  // that branch's category + menu options — grouping the menus this way is also
+  // what stops the same "Breakfast/Lunch" names repeating across branches.
+  const branchCards = useMemo(() => {
+    const cats = groupByBranch(categories);
+    const mens = groupByBranch(menus);
+    return branches.map((b) => ({
+      id: b.id,
+      name: b.name,
+      categoryOptions: cats.get(b.id) ?? [],
+      menuOptions: mens.get(b.id) ?? [],
     }));
-    if (orphanOptions.length) {
-      groups.push({ branchId: "__none__", branchName: "No branch", options: orphanOptions });
-    }
-    return groups.sort((a, b) => a.branchName.localeCompare(b.branchName));
-  }, [categories, branches]);
+  }, [categories, menus, branches]);
 
   const form = useForm<MenuItemFormValues>({
     resolver: zodResolver(menuItemSchema),
@@ -156,33 +197,37 @@ export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDi
     });
   };
 
-  const onSubmit = handleSubmit(async (values) => {
-    const payload: CreateMenuItemInput = {
-      name: values.name,
-      price: values.price,
-      isAvailable: values.isAvailable,
-      images: values.images,
-      categoryIds: values.categoryIds,
-      foodTypeIds: values.foodTypeIds,
-      menuIds: values.menuIds,
-      sizes: cleanRows(values.sizes),
-      variants: cleanRows(values.variants),
-      addOns: cleanRows(values.addOns),
-      ...(values.description ? { description: values.description } : {}),
-    };
+  const onSubmit = handleSubmit(
+    async (values) => {
+      const payload: CreateMenuItemInput = {
+        name: values.name,
+        price: values.price,
+        isAvailable: values.isAvailable,
+        images: values.images,
+        categoryIds: values.categoryIds,
+        foodTypeIds: values.foodTypeIds,
+        menuIds: values.menuIds,
+        sizes: cleanRows(values.sizes),
+        variants: cleanRows(values.variants),
+        addOns: cleanRows(values.addOns),
+        ...(values.description ? { description: values.description } : {}),
+      };
 
-    try {
-      if (isEdit) {
-        await menuService.update(item!.id, payload);
-      } else {
-        await menuService.create(payload);
+      try {
+        if (isEdit) {
+          await menuService.update(item!.id, payload);
+        } else {
+          await menuService.create(payload);
+        }
+        onOpenChange(false);
+        onSaved();
+      } catch (err) {
+        setTab("general"); // name/price errors live on the General tab
+        applyApiErrorToForm(err, setError, "name", ["name", "price"]);
       }
-      onOpenChange(false);
-      onSaved();
-    } catch (err) {
-      applyApiErrorToForm(err, setError, "name", ["name", "price"]);
-    }
-  });
+    },
+    () => setTab("general"),
+  ); // client-side validation errors are on General too
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -193,147 +238,210 @@ export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDi
         </SheetHeader>
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto px-5 py-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="space-y-7">
-              {/* Details */}
-              <Section title="Details">
-                <div className="space-y-1.5">
-                  <Label>Name</Label>
-                  <Input {...register("name")} aria-invalid={!!errors.name} />
-                  {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Description</Label>
-                  <Input {...register("description")} placeholder="Optional" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="border-b border-border px-5 pt-3">
+            <SegmentedTabs
+              aria-label="Item sections"
+              value={tab}
+              onChange={(k) => setTab(k as typeof tab)}
+              tabs={[
+                { key: "general", label: "General" },
+                { key: "branches", label: "Branches" },
+                { key: "options", label: "Options" },
+              ]}
+            />
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+            {/* ── General: the core dish (name, price, tags, photos) ── */}
+            {tab === "general" && (
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+                <div className="space-y-5">
                   <div className="space-y-1.5">
-                    <Label>Base price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      {...register("price", { setValueAs: toNumber })}
-                      aria-invalid={!!errors.price}
-                    />
-                    {errors.price && (
-                      <p className="text-xs text-destructive">{errors.price.message}</p>
+                    <Label>Name</Label>
+                    <Input {...register("name")} aria-invalid={!!errors.name} />
+                    {errors.name && (
+                      <p className="text-xs text-destructive">{errors.name.message}</p>
                     )}
                   </div>
-                </div>
-                <label className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-border accent-brand"
-                    {...register("isAvailable")}
-                  />
-                  Available
-                </label>
-              </Section>
-
-              {/* Classification */}
-              <Section title="Classification">
-                <div className="space-y-2">
-                  <Label>Categories (which branches carry this item)</Label>
-                  {categoryGroups.length === 0 ? (
+                  <div className="space-y-1.5">
+                    <Label>Description</Label>
+                    <Input {...register("description")} placeholder="Optional" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Base price</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        {...register("price", { setValueAs: toNumber })}
+                        aria-invalid={!!errors.price}
+                      />
+                      {errors.price && (
+                        <p className="text-xs text-destructive">{errors.price.message}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-2 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        className="size-4 rounded border-border accent-brand"
+                        {...register("isAvailable")}
+                      />
+                      Available everywhere
+                    </label>
                     <p className="text-xs text-muted-foreground">
-                      No branches yet — add a branch first, then create categories under Menu →
-                      Category.
+                      Master switch — turn it off per branch under the Branches tab.
                     </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {categoryGroups.map((g) => {
-                        const groupIds = g.options.map((o) => o.value);
-                        const selected = categoryIds.filter((id) => groupIds.includes(id));
-                        return (
-                          <div
-                            key={g.branchId}
-                            className="grid grid-cols-[7rem_1fr] items-center gap-2"
-                          >
-                            <span className="truncate text-sm font-medium text-ink">
-                              {g.branchName}
-                            </span>
-                            {g.options.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">
-                                No categories yet for this branch
-                              </span>
+                  </div>
+                  <ChipSelect
+                    label="Food types"
+                    options={foodTypes}
+                    value={foodTypeIds}
+                    onToggle={(id) => toggle("foodTypeIds", id)}
+                    empty="No food types yet — create some under Menu → Food Types."
+                  />
+                </div>
+
+                <div className="lg:border-l lg:border-border lg:pl-6">
+                  <ImagesField
+                    value={watch("images")}
+                    onChange={(urls) => setValue("images", urls, { shouldDirty: true })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ── Branches: where the item is carried + sold-out, one card each ── */}
+            {tab === "branches" && (
+              <div className="space-y-4">
+                {branchCards.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No branches yet — add a branch first, then create its categories and menus.
+                  </p>
+                ) : (
+                  branchCards.map((b) => {
+                    const catIds = b.categoryOptions.map((o) => o.value);
+                    const menIds = b.menuOptions.map((o) => o.value);
+                    const selCats = categoryIds.filter((id) => catIds.includes(id));
+                    const selMenus = menuIds.filter((id) => menIds.includes(id));
+                    const carried = selCats.length > 0;
+                    const avail = branchAvail[b.id] ?? true;
+                    return (
+                      <div key={b.id} className="space-y-3 rounded-xl border border-border p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-ink">{b.name}</span>
+                          {isEdit && carried && (
+                            <button
+                              type="button"
+                              onClick={() => void toggleBranchAvail(b.id, !avail)}
+                              disabled={availSaving === b.id}
+                              aria-pressed={avail}
+                              aria-label={`${b.name} availability`}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:opacity-60",
+                                avail
+                                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                  : "bg-red-50 text-red-600 hover:bg-red-100",
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "size-1.5 rounded-full",
+                                  avail ? "bg-emerald-500" : "bg-red-500",
+                                )}
+                              />
+                              {avail ? "Available" : "Sold out"}
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Categories</Label>
+                            {b.categoryOptions.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                None yet for this branch
+                              </p>
                             ) : (
                               <MultiSelect
-                                options={g.options}
-                                value={selected}
+                                options={b.categoryOptions}
+                                value={selCats}
                                 onChange={(next) =>
                                   setValue(
                                     "categoryIds",
-                                    [
-                                      ...categoryIds.filter((id) => !groupIds.includes(id)),
-                                      ...next,
-                                    ],
+                                    [...categoryIds.filter((id) => !catIds.includes(id)), ...next],
                                     { shouldDirty: true },
                                   )
                                 }
-                                searchable={g.options.length > 8}
+                                searchable={b.categoryOptions.length > 8}
                                 placeholder="Not carried here"
-                                aria-label={`${g.branchName} categories`}
+                                aria-label={`${b.name} categories`}
                               />
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <ChipSelect
-                  label="Menu"
-                  options={menus}
-                  value={menuIds}
-                  onToggle={(id) => toggle("menuIds", id)}
-                  empty="No menus yet — create one under Menu → Menu."
-                />
-                <ChipSelect
-                  label="Food types"
-                  options={foodTypes}
-                  value={foodTypeIds}
-                  onToggle={(id) => toggle("foodTypeIds", id)}
-                  empty="No food types yet — create some under Menu → Food Types."
-                />
-              </Section>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Menus</Label>
+                            {b.menuOptions.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                None yet for this branch
+                              </p>
+                            ) : (
+                              <MultiSelect
+                                options={b.menuOptions}
+                                value={selMenus}
+                                onChange={(next) =>
+                                  setValue(
+                                    "menuIds",
+                                    [...menuIds.filter((id) => !menIds.includes(id)), ...next],
+                                    { shouldDirty: true },
+                                  )
+                                }
+                                searchable={b.menuOptions.length > 8}
+                                placeholder="None"
+                                aria-label={`${b.name} menus`}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
 
-              {/* Options */}
-              <OptionListEditor
-                title="Sizes"
-                addLabel="Add size"
-                namePrefix="sizes"
-                fields={sizes.fields}
-                append={() => sizes.append({ name: "", price: 0 })}
-                remove={sizes.remove}
-                register={register}
-              />
-              <OptionListEditor
-                title="Variants"
-                addLabel="Add variant"
-                namePrefix="variants"
-                fields={variants.fields}
-                append={() => variants.append({ name: "", price: 0 })}
-                remove={variants.remove}
-                register={register}
-              />
-              <OptionListEditor
-                title="Add-ons"
-                addLabel="Add add-on"
-                namePrefix="addOns"
-                fields={addOns.fields}
-                append={() => addOns.append({ name: "", price: 0 })}
-                remove={addOns.remove}
-                register={register}
-              />
-            </div>
-
-            {/* Right column: images */}
-            <div className="lg:border-l lg:border-border lg:pl-6">
-              <ImagesField
-                value={watch("images")}
-                onChange={(urls) => setValue("images", urls, { shouldDirty: true })}
-              />
-            </div>
+            {/* ── Options: sizes / variants / add-ons ── */}
+            {tab === "options" && (
+              <div className="space-y-7">
+                <OptionListEditor
+                  title="Sizes"
+                  addLabel="Add size"
+                  namePrefix="sizes"
+                  fields={sizes.fields}
+                  append={() => sizes.append({ name: "", price: 0 })}
+                  remove={sizes.remove}
+                  register={register}
+                />
+                <OptionListEditor
+                  title="Variants"
+                  addLabel="Add variant"
+                  namePrefix="variants"
+                  fields={variants.fields}
+                  append={() => variants.append({ name: "", price: 0 })}
+                  remove={variants.remove}
+                  register={register}
+                />
+                <OptionListEditor
+                  title="Add-ons"
+                  addLabel="Add add-on"
+                  namePrefix="addOns"
+                  fields={addOns.fields}
+                  append={() => addOns.append({ name: "", price: 0 })}
+                  remove={addOns.remove}
+                  register={register}
+                />
+              </div>
+            )}
           </div>
 
           <SheetFooter className="flex-row justify-end gap-2 border-t border-border px-5 py-4">
@@ -348,17 +456,6 @@ export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDi
         </form>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </h3>
-      {children}
-    </section>
   );
 }
 

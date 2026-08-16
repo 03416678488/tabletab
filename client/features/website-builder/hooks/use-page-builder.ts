@@ -12,7 +12,7 @@ import {
   type PageContent,
   footerConfigSchema,
   headerConfigSchema,
-  pageContentSchema,
+  parsePageContentSafe,
 } from "@/features/website-builder/schemas/blocks";
 import { websiteService } from "@/features/website-builder/services/website.service";
 
@@ -45,7 +45,9 @@ export function usePageBuilder(slug: string) {
       try {
         const page = await websiteService.getPage(slug);
         if (off) return;
-        const content = pageContentSchema.parse(page.content ?? {});
+        // Tolerant: a single bad block must not wipe the whole canvas (which the
+        // next save would then persist as empty).
+        const content = parsePageContentSafe(page.content);
         setBlocks(content.blocks);
         setHeader(content.header);
         setFooter(content.footer);

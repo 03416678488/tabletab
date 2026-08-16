@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { useAllMenuItems } from "@/features/menu/hooks/use-all-menu-items";
 import { applyApiErrorToForm } from "@/lib/httpClient";
 import { ImagePickerField } from "@/features/media/components/image-picker-field";
 import {
@@ -64,7 +66,7 @@ function toDefaults(p: Promotion | null): PromotionFormValues {
     active: p?.active ?? true,
     usageLimit: p?.usageLimit ?? undefined,
     perCustomerLimit: p?.perCustomerLimit ?? undefined,
-    ctaHref: p?.ctaHref ?? "",
+    productIds: p?.products?.map((x) => x.id) ?? [],
   };
 }
 
@@ -95,6 +97,14 @@ export function PromotionFormDialog({
 
   const discountType = watch("discountType");
 
+  // Global item catalogue for the product picker (promotions aren't branch-scoped).
+  const { data: allItems = [] } = useAllMenuItems();
+  const productOptions = useMemo(
+    () => allItems.map((i) => ({ value: i.id, label: i.name })),
+    [allItems],
+  );
+  const productIds = watch("productIds") ?? [];
+
   const onSubmit = handleSubmit(async (values) => {
     const payload: CreatePromotionInput = {
       title: values.title,
@@ -115,7 +125,7 @@ export function PromotionFormDialog({
       ...(values.perCustomerLimit !== undefined
         ? { perCustomerLimit: values.perCustomerLimit }
         : {}),
-      ...(values.ctaHref ? { ctaHref: values.ctaHref } : {}),
+      productIds: values.productIds,
     };
 
     try {
@@ -164,6 +174,22 @@ export function PromotionFormDialog({
               value={watch("imageUrl") ?? ""}
               onChange={(url) => setValue("imageUrl", url, { shouldDirty: true })}
             />
+          </div>
+
+          {/* Products this promotion discounts */}
+          <div className="space-y-1.5">
+            <Label>Products in this promotion</Label>
+            <MultiSelect
+              options={productOptions}
+              value={productIds}
+              onChange={(next) => setValue("productIds", next, { shouldDirty: true })}
+              searchable
+              placeholder="All items (cart-wide) — or pick products"
+              aria-label="Products in this promotion"
+            />
+            <p className="text-xs text-muted-foreground">
+              Pick one or more items to discount just those. Leave empty for a cart-wide promotion.
+            </p>
           </div>
 
           {/* Discount */}
@@ -254,11 +280,6 @@ export function PromotionFormDialog({
               <Label>Ends</Label>
               <Input type="datetime-local" {...register("endsAt")} />
             </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>CTA link (promotion page button)</Label>
-            <Input {...register("ctaHref")} placeholder="e.g. / or /menu/{'{'}id{'}'}" />
           </div>
 
           <label className="flex items-center gap-2 pt-1 text-sm text-ink">

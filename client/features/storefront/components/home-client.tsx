@@ -22,6 +22,20 @@ export function HomeClient() {
   );
   const [askOpen, setAskOpen] = useState(false);
 
+  // First landing: once the store has rehydrated, if the visitor hasn't chosen a
+  // branch or shared location and the permission is still undecided, open the
+  // pre-prompt so we ask for location before showing branch data. Returning
+  // visitors (branch/coords persisted, or already confirmed) are never re-asked.
+  const branchId = useLocationStore((s) => s.branchId);
+  const coords = useLocationStore((s) => s.coords);
+  const confirmed = useLocationStore((s) => s.confirmed);
+  const geoStatus = useLocationStore((s) => s.geoStatus);
+  useEffect(() => {
+    if (hydrated && !confirmed && !branchId && !coords && geoStatus === "prompt") {
+      setAskOpen(true);
+    }
+  }, [hydrated, confirmed, branchId, coords, geoStatus]);
+
   // Published website-builder layout — replaces the default home once set.
   const [published, setPublished] = useState<Block[] | null | undefined>(undefined);
   useEffect(() => {

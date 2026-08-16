@@ -6,8 +6,7 @@ import { Eye, Globe, Layout, Loader2, PanelBottom, Rocket, Save } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, slugify } from "@/lib/utils";
 import { BlockCanvas } from "@/features/website-builder/components/block-canvas";
 import { BlockPalette } from "@/features/website-builder/components/block-palette";
 import { ConfigPanel, type PanelMode } from "@/features/website-builder/components/config-panel";
@@ -16,6 +15,7 @@ import {
   fetchMenuOptions,
   fetchProductOptions,
 } from "@/features/website-builder/services/storefront-menus";
+import { fetchStorefrontCategories } from "@/features/storefront/services/storefront-catalog";
 import { usePageBuilder } from "@/features/website-builder/hooks/use-page-builder";
 
 export function BuilderShell({
@@ -34,9 +34,19 @@ export function BuilderShell({
   const [productOptions, setProductOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    api.getCategories().then((cats) =>
-      setCategoryOptions(cats.map((c) => ({ value: c.id, label: c.name }))),
-    );
+    // Categories are per-branch (many "Starters"); dedupe by name-slug so each
+    // appears once. The render resolves the slug to the selected branch's
+    // category, so a picked category works on any branch.
+    fetchStorefrontCategories()
+      .then((cats) => {
+        const seen = new Map<string, string>();
+        for (const c of cats) {
+          const s = slugify(c.name);
+          if (s && !seen.has(s)) seen.set(s, c.name);
+        }
+        setCategoryOptions([...seen].map(([value, label]) => ({ value, label })));
+      })
+      .catch(() => setCategoryOptions([]));
     fetchMenuOptions()
       .then(setMenuOptions)
       .catch(() => setMenuOptions([]));
@@ -100,7 +110,11 @@ export function BuilderShell({
             disabled={b.publishing}
             className={cn((b.dirty || b.needsPublish) && "ring-2 ring-brand/30 ring-offset-1")}
           >
-            {b.publishing ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
+            {b.publishing ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Rocket className="size-4" />
+            )}
             Publish{b.dirty || b.needsPublish ? " changes" : ""}
           </Button>
         </div>

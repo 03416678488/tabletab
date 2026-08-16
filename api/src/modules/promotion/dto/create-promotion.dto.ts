@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -6,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Min,
 } from 'class-validator';
@@ -75,7 +77,9 @@ export class CreatePromotionDto {
   @IsOptional()
   perCustomerLimit?: number;
 
-  @IsString()
+  /** Menu items this promotion discounts. Empty/omitted = cart-wide promo. */
+  @IsArray()
+  @IsUUID('all', { each: true })
   @IsOptional()
-  ctaHref?: string;
+  productIds?: string[];
 }

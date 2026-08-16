@@ -115,7 +115,7 @@ export default function PromotionPage({ params }: { params: Promise<{ slug: stri
             </p>
           )}
           <Button asChild size="lg" className="shrink-0">
-            <Link href={promotion.ctaHref || "/"}>
+            <Link href="/">
               Start ordering <ArrowRight className="size-4" />
             </Link>
           </Button>

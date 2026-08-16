@@ -23,7 +23,6 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { TableRowsSkeleton } from "@/components/ui/table-rows-skeleton";
-import { StatusPill } from "@/components/ui/status-pill";
 import {
   Table,
   TableBody,
@@ -32,13 +31,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 import { useMenuItemsTable } from "@/features/menu/hooks/use-menu-items-table";
 import { Pagination } from "@/components/ui/pagination";
 import { menuService } from "@/features/menu/services/menu.service";
 import { MenuFormDialog } from "@/features/menu/components/menu-form-dialog";
 import { useCategories } from "@/features/category/hooks/use-categories";
+import { useScopedBranchId } from "@/features/branch/hooks/use-scoped-branch";
 import type { MenuItem } from "@/features/menu/types/menu.types";
 
 type AvailFilter = "all" | "available" | "unavailable";
@@ -49,8 +49,11 @@ export function MenuManager() {
   const [categoryId, setCategoryId] = useState<string>("all");
   const [avail, setAvail] = useState<AvailFilter>("all");
 
-  // Items are a GLOBAL catalogue — list them all (not branch-filtered), so an
-  // item shows its full cross-branch category memberships when edited.
+  // Follow the topbar branch: a branch → its carried items with that branch's
+  // effective (per-branch) availability; "All branches" (undefined) → the full
+  // global catalogue with the master flag. Editing still refetches the full item
+  // so cross-branch memberships show correctly.
+  const scopedBranchId = useScopedBranchId();
   const {
     items,
     loading,
@@ -66,6 +69,7 @@ export function MenuManager() {
     search,
     categoryId,
     isAvailable: avail === "all" ? undefined : avail === "available",
+    branchId: scopedBranchId,
   });
   const { categories } = useCategories();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -96,8 +100,10 @@ export function MenuManager() {
     } catch {}
   };
 
-  // Bulk selection (scoped to the current page — ids clear when page/filters change).
-  const sel = useTableSelection(items, `${page}|${search}|${categoryId}|${avail}`);
+  // Identity of the current list (page/search/filters/branch) — bulk selection
+  // and the optimistic availability map both reset when it changes.
+  const listKey = `${page}|${search}|${categoryId}|${avail}|${scopedBranchId ?? ""}`;
+  const sel = useTableSelection(items, listKey);
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const bulkDelete = async () => {
@@ -122,12 +128,38 @@ export function MenuManager() {
   const bulkAvailability = async (isAvailable: boolean) => {
     setBulkBusy(true);
     try {
-      await menuService.bulkSetAvailability(sel.ids, isAvailable);
+      // Scoped to a branch → per-branch override; "All branches" → global master.
+      await menuService.bulkSetAvailability(sel.ids, isAvailable, scopedBranchId);
       sel.clear();
       refetch();
     } catch {
     } finally {
       setBulkBusy(false);
+    }
+  };
+
+  // Per-row availability toggle. Optimistic (no full refetch flicker); the map is
+  // keyed to `listKey` so it auto-discards when the branch/page/filters change and
+  // the server value takes over again.
+  const [availState, setAvailState] = useState<{ key: string; map: Record<string, boolean> }>({
+    key: listKey,
+    map: {},
+  });
+  const availOverride = availState.key === listKey ? availState.map : {};
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const toggleRowAvail = async (item: MenuItem) => {
+    const current = availOverride[item.id] ?? item.isAvailable;
+    const next = !current;
+    setAvailState({ key: listKey, map: { ...availOverride, [item.id]: next } });
+    setTogglingId(item.id);
+    try {
+      // Branch scoped → per-branch override; "All branches" → global master.
+      await menuService.bulkSetAvailability([item.id], next, scopedBranchId);
+    } catch {
+      setAvailState({ key: listKey, map: { ...availOverride, [item.id]: current } }); // revert
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -344,9 +376,12 @@ export function MenuManager() {
                       {formatCurrency(item.price)}
                     </TableCell>
                     <TableCell>
-                      <StatusPill tone={item.isAvailable ? "green" : "neutral"}>
-                        {item.isAvailable ? "Available" : "Unavailable"}
-                      </StatusPill>
+                      <AvailabilityToggle
+                        available={availOverride[item.id] ?? item.isAvailable}
+                        busy={togglingId === item.id}
+                        scoped={!!scopedBranchId}
+                        onToggle={() => void toggleRowAvail(item)}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -395,5 +430,42 @@ export function MenuManager() {
         onSaved={refetch}
       />
     </div>
+  );
+}
+
+/** Clickable availability pill — 86 an item inline (per-branch or global master). */
+function AvailabilityToggle({
+  available,
+  busy,
+  scoped,
+  onToggle,
+}: {
+  available: boolean;
+  busy: boolean;
+  scoped: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={busy}
+      aria-pressed={available}
+      aria-label="Toggle availability"
+      title={
+        scoped
+          ? "Availability at the selected branch — click to toggle"
+          : "Availability everywhere (master) — click to toggle"
+      }
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60",
+        available
+          ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          : "bg-red-50 text-red-600 hover:bg-red-100",
+      )}
+    >
+      <span className={cn("size-1.5 rounded-full", available ? "bg-emerald-500" : "bg-red-500")} />
+      {available ? "Available" : "Sold out"}
+    </button>
   );
 }

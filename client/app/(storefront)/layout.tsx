@@ -6,7 +6,7 @@ import { SiteChromeProvider } from "@/features/website-builder/render/site-chrom
 // (the root provider) — no mock ThemeProvider here, so admin branding is reflected.
 export default function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-full flex-col bg-subtle">
+    <div className="flex min-h-dvh flex-col bg-subtle">
       <StorefrontFlash />
       <SiteChromeProvider>
         <StorefrontShell>{children}</StorefrontShell>

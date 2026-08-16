@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Dropdown } from "@/components/ui/dropdown";
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarCheck, ChevronRight, UtensilsCrossed } from "lucide-react";
+import { BadgePercent, CalendarCheck, ChevronRight, UtensilsCrossed } from "lucide-react";
 
-import type { MenuCategory, MenuItem } from "@/lib/types";
-import { cn, isLocalUpload } from "@/lib/utils";
+import { AppImage } from "@/components/ui/app-image";
+import type { MenuItem } from "@/lib/types";
+import { cn, formatCurrency, isLocalUpload, slugify } from "@/lib/utils";
 import { EmblaSlider } from "@/features/website-builder/render/embla-slider";
 import { ProductCard } from "@/features/storefront/components/product-card";
 import { useStorefrontMenus } from "@/features/storefront/hooks/use-storefront-menus";
 import { useStorefrontCategories } from "@/features/storefront/hooks/use-storefront-categories";
 import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
-import type { StorefrontMenu } from "@/features/website-builder/services/storefront-menus";
+import { useLocationStore } from "@/hooks/use-location-store";
+import { useActivePromotions } from "@/features/promotion/hooks/use-active-promotions";
+import type { Promotion } from "@/features/promotion/types/promotion.types";
 import type {
   FeaturedCategoriesConfig,
   MenuGridConfig,
   MenuSliderConfig,
   ProductCarouselConfig,
+  PromotionsConfig,
   ReservationConfig,
 } from "@/features/website-builder/schemas/blocks";
 
@@ -30,14 +32,8 @@ export function MenuGridRender({ config }: { config: MenuGridConfig }) {
   // menu edits reconcile without a reload.
   const { menus, isSuccess: loaded } = useStorefrontMenus();
 
-  // Restrict to the author's selected menus (in their order); empty = all menus.
-  const selected = config.menuIds.length
-    ? config.menuIds
-        .map((id) => menus.find((m) => m.id === id))
-        .filter((m): m is StorefrontMenu => Boolean(m))
-    : menus;
-  // Only show menus that actually have dishes assigned.
-  const withItems = selected.filter((m) => m.items.length > 0);
+  // Every active menu for the selected branch (only those with dishes).
+  const withItems = menus.filter((m) => m.items.length > 0);
   if (loaded && withItems.length === 0) return null;
 
   return (
@@ -87,11 +83,8 @@ export function FeaturedCategoriesRender({ config }: { config: FeaturedCategorie
   const { categories: cats } = useStorefrontCategories();
   const { products: items } = useStorefrontProducts();
 
-  const byId = new Map(cats.map((c) => [c.id, c]));
-  // Preserve the author's chosen order; skip categories that no longer exist.
-  const selected = config.categoryIds
-    .map((id) => byId.get(id))
-    .filter((c): c is MenuCategory => Boolean(c));
+  // Every category for the selected branch (each rendered as its own section).
+  const selected = cats;
 
   if (selected.length === 0) return null;
 
@@ -109,7 +102,7 @@ export function FeaturedCategoriesRender({ config }: { config: FeaturedCategorie
               <h3 className="font-display text-lg font-bold text-ink">{cat.name}</h3>
               {config.showViewAll && (
                 <Link
-                  href="/"
+                  href={`/menu/category/${slugify(cat.name)}`}
                   className="inline-flex items-center gap-0.5 text-sm font-medium text-brand hover:underline"
                 >
                   View all <ChevronRight className="size-4" />
@@ -142,12 +135,8 @@ export function MenuSliderRender({ config }: { config: MenuSliderConfig }) {
   // Cached + live via SSE (see useStorefrontSync).
   const { menus, isSuccess: loaded } = useStorefrontMenus();
 
-  // Author-picked menus keep their chosen order; empty = every active menu.
-  const selected = config.menuIds.length
-    ? config.menuIds
-        .map((id) => menus.find((m) => m.id === id))
-        .filter((m): m is StorefrontMenu => Boolean(m))
-    : menus;
+  // Every active menu for the selected branch.
+  const selected = menus;
 
   if (loaded && selected.length === 0) return null;
 
@@ -193,17 +182,13 @@ export function MenuSliderRender({ config }: { config: MenuSliderConfig }) {
 }
 
 export function ReservationRender({ config }: { config: ReservationConfig }) {
-  // Live from settings: only branches with reservations enabled are bookable.
-  const { branches, isSuccess } = useStorefrontBranches();
-  const bookable = branches.filter((b) => b.reservationsEnabled);
-  const [branchId, setBranchId] = useState("");
+  // Book at the branch the customer is currently ordering from.
+  const { branches } = useStorefrontBranches();
+  const selectedBranchId = useLocationStore((s) => s.branchId);
+  const branch = branches.find((b) => b.id === selectedBranchId);
 
-  useEffect(() => {
-    setBranchId((prev) => prev || bookable[0]?.id || "");
-  }, [bookable]);
-
-  // No location takes reservations → hide the widget entirely.
-  if (isSuccess && bookable.length === 0) return null;
+  // Reservations off (or flag unknown) at this branch → hide the widget.
+  if (!branch || !branch.reservationsEnabled) return null;
 
   const onLight = config.tone === "light";
   const tone =
@@ -231,18 +216,9 @@ export function ReservationRender({ config }: { config: ReservationConfig }) {
               {config.subtitle}
             </p>
           )}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <div className="sm:min-w-[15rem]">
-              <Dropdown
-                value={branchId}
-                onChange={(v) => setBranchId(v)}
-                searchable
-                aria-label="Choose a location"
-                options={bookable.map((b) => ({ value: b.id, label: b.name }))}
-              />
-            </div>
+          <div className="mt-6 flex justify-center">
             <Link
-              href={branchId ? `/reserve/${branchId}` : "#"}
+              href={`/reserve/${branch.id}`}
               className={cn(
                 "inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold shadow-sm transition-transform",
                 button,
@@ -285,6 +261,71 @@ export function ProductCarouselRender({ config }: { config: ProductCarouselConfi
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {shown.map((item) => (
             <ProductCard key={item.id} item={item} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Discount seal, e.g. "30% OFF" or "$5 OFF". */
+function promoBadge(p: Promotion): string {
+  if (!p.discountValue) return "OFFER";
+  return p.discountType === "percentage"
+    ? `${p.discountValue}% OFF`
+    : `${formatCurrency(p.discountValue)} OFF`;
+}
+
+function PromoCard({ promo }: { promo: Promotion }) {
+  const badge = promoBadge(promo);
+  return (
+    <Link
+      href={`/promotion/${promo.slug}`}
+      className="group relative block aspect-[3/4] overflow-hidden rounded-2xl shadow-[var(--shadow-card)]"
+    >
+      <AppImage
+        src={promo.imageUrl ?? ""}
+        alt={promo.title}
+        fill
+        fallbackIcon={BadgePercent}
+        className="object-cover transition-transform duration-500 group-hover:scale-105"
+        sizes="(max-width: 640px) 50vw, 25vw"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-transparent" />
+      <span className="absolute right-3 top-3 flex size-14 flex-col items-center justify-center rounded-full bg-accent text-center font-bold uppercase leading-none text-white shadow-md">
+        <span className="text-sm">{badge.split(" ")[0]}</span>
+        {badge.split(" ")[1] && <span className="text-[9px]">{badge.split(" ")[1]}</span>}
+      </span>
+      <h3 className="absolute inset-x-0 bottom-0 p-4 font-display text-lg font-bold leading-tight text-white drop-shadow">
+        {promo.title}
+      </h3>
+    </Link>
+  );
+}
+
+/** Live promotions as cards — grid or slider. Renders nothing when none are active. */
+export function PromotionsRender({ config }: { config: PromotionsConfig }) {
+  const { promotions } = useActivePromotions();
+  const shown = promotions.slice(0, config.limit);
+  if (shown.length === 0) return null;
+
+  return (
+    <section className={cn(shell, "py-4")}>
+      {config.title && (
+        <h2 className="mb-4 font-display text-lg font-bold text-ink sm:text-xl">{config.title}</h2>
+      )}
+      {config.layout === "slider" ? (
+        <EmblaSlider slideClassName="basis-1/2 sm:basis-1/4" showArrows={config.showArrows}>
+          {shown.map((p) => (
+            <div key={p.id}>
+              <PromoCard promo={p} />
+            </div>
+          ))}
+        </EmblaSlider>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {shown.map((p) => (
+            <PromoCard key={p.id} promo={p} />
           ))}
         </div>
       )}

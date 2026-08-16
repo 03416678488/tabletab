@@ -169,6 +169,11 @@ export function PromotionsManager() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-medium">
                       {discountLabel(promotion)}
+                      <div className="text-xs font-normal text-muted-foreground">
+                        {promotion.products?.length
+                          ? `${promotion.products.length} product${promotion.products.length === 1 ? "" : "s"}`
+                          : "Cart-wide"}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {promotion.code ? (
