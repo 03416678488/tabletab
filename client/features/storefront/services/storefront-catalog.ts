@@ -30,7 +30,8 @@ interface ApiMenuItem {
   price: number;
   imageUrl: string | null;
   images?: string[] | null;
-  categoryId: string | null;
+  // Items are global; each carries per-branch categories (categoryId was dropped).
+  categories?: { id: string; branchId?: string | null }[] | null;
   isAvailable: boolean;
   foodTypes?: { name: string }[];
   sizes?: ApiOption[] | null;
@@ -70,10 +71,17 @@ function unwrap<T>(data: { items?: T[] } | T[]): T[] {
   return Array.isArray(data) ? data : (data.items ?? []);
 }
 
-function toMenuItem(i: ApiMenuItem): MenuItem {
+/** The item's category id for the fetched branch (categories are per-branch). */
+function pickCategoryId(cats: ApiMenuItem["categories"], branchId?: string | null): string {
+  if (!cats?.length) return "";
+  const inBranch = branchId ? cats.find((c) => c.branchId === branchId) : undefined;
+  return (inBranch ?? cats[0]).id;
+}
+
+function toMenuItem(i: ApiMenuItem, branchId?: string | null): MenuItem {
   return {
     id: i.id,
-    categoryId: i.categoryId ?? "",
+    categoryId: pickCategoryId(i.categories, branchId),
     name: i.name,
     description: i.description ?? "",
     price: i.price,
@@ -96,7 +104,7 @@ export async function fetchStorefrontProducts(branchId?: string | null): Promise
   });
   return unwrap(res.data)
     .filter((i) => i.isAvailable !== false)
-    .map(toMenuItem);
+    .map((i) => toMenuItem(i, branchId));
 }
 
 interface ApiPaginated<T> {
@@ -141,7 +149,7 @@ export async function fetchStorefrontProductsPage(params: {
   });
   const data = res.data;
   return {
-    items: (data.items ?? []).map(toMenuItem),
+    items: (data.items ?? []).map((i) => toMenuItem(i, branchId)),
     totalItems: data.meta?.totalItems ?? 0,
     totalPages: data.meta?.totalPages ?? 1,
     currentPage: data.meta?.currentPage ?? page,

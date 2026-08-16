@@ -24,7 +24,8 @@ interface ApiMenuItem {
   description: string | null;
   price: number;
   imageUrl: string | null;
-  categoryId: string | null;
+  // Items are global; each carries per-branch categories (categoryId was dropped).
+  categories?: { id: string }[] | null;
   isAvailable: boolean;
   menus?: { id: string }[];
 }
@@ -65,7 +66,7 @@ export async function fetchProductOptions(): Promise<{ value: string; label: str
 function toMenuItem(i: ApiMenuItem): MenuItem {
   return {
     id: i.id,
-    categoryId: i.categoryId ?? "",
+    categoryId: i.categories?.[0]?.id ?? "",
     name: i.name,
     description: i.description ?? "",
     price: i.price,
