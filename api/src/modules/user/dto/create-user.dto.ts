@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsOptional,
   IsString,
@@ -8,9 +9,7 @@ import {
 } from 'class-validator';
 
 export class CreateUserDto {
-  @Length(10, 200, {
-    message: 'Description must be between 10 and 200 characters',
-  })
+  @Length(1, 100, { message: 'First name must be 1–100 characters' })
   @IsString()
   firstName: string;
 
@@ -31,6 +30,15 @@ export class CreateUserDto {
 
   @IsString()
   phoneNumber: string;
+
+  /** Role to assign (e.g. "Waiter"). Defaults to Customer when omitted. */
+  @IsString()
+  @IsOptional()
+  roleName?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 
   /** Home branch. Required for single-branch staff (enforced in the service by
    *  role); omitted for Owner / Multi Branch Manager / Customer. */

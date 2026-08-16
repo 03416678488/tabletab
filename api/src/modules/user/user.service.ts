@@ -12,6 +12,7 @@ import { AbstractService } from '@cor/abstract/service/abstract-service.service'
 import { TransactionService } from '@services/transaction.service';
 
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 import { User } from 'src/modules/user/entities/users.entity';
 import { Permission } from '@modules/permissions/entities/permission.entity';
@@ -204,6 +205,29 @@ export class UserService extends AbstractService<User> {
     }
 
     return qb.getRawMany();
+  }
+
+  /** Admin edit of an existing user (name / contact / branch / active / password). */
+  async updateUser(id: string, dto: UpdateUserDto): Promise<{ success: true }> {
+    const patch: Partial<User> = {};
+    if (dto.firstName !== undefined) patch.firstName = dto.firstName;
+    if (dto.lastName !== undefined) patch.lastName = dto.lastName;
+    if (dto.email !== undefined) patch.email = dto.email;
+    if (dto.phoneNumber !== undefined) patch.phoneNumber = dto.phoneNumber;
+    if (dto.branchId !== undefined) patch.branchId = dto.branchId ?? null;
+    if (dto.isActive !== undefined) patch.isActive = dto.isActive;
+    if (dto.password) {
+      patch.password = await bcrypt.hash(
+        dto.password,
+        AUTH_CONSTANTS.SALT_ROUNDS,
+      );
+    }
+
+    const result = await this._userRepo.update({ id }, patch);
+    if (result.affected === 0) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return { success: true };
   }
 
   /** Assign (or clear, with null) a user's home branch for notification scoping. */
@@ -424,8 +448,12 @@ export class UserService extends AbstractService<User> {
     }
   }
 
-  async softDeleteUser(id: number): Promise<void> {
-    await this._userRepo.update(id, { isDeleted: true });
+  async softDeleteUser(id: string): Promise<{ success: true }> {
+    const result = await this._userRepo.update({ id }, { isDeleted: true });
+    if (result.affected === 0) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return { success: true };
   }
 
   private async assignRoleToUser(

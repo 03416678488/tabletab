@@ -33,7 +33,10 @@ export class UserController {
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+    return this.userService.createUser(
+      createUserDto,
+      createUserDto.roleName ?? 'Customer',
+    );
   }
 
   @AccessControl({
@@ -52,9 +55,11 @@ export class UserController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+    return this.userService.updateUser(id, updateUserDto);
   }
 
   @Delete(':id')
-  remove() {}
+  remove(@Param('id') id: string) {
+    return this.userService.softDeleteUser(id);
+  }
 }

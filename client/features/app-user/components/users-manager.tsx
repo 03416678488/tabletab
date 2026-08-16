@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dropdown } from "@/components/ui/dropdown";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -22,6 +22,8 @@ import {
 
 import { useUsers } from "@/features/app-user/hooks/use-users";
 import { appUserService } from "@/features/app-user/services/app-user.service";
+import { UserFormDialog } from "@/features/app-user/components/user-form-dialog";
+import type { AppUser } from "@/features/app-user/types/app-user.types";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { useClientPagination } from "@/hooks/use-client-pagination";
 
@@ -43,21 +45,27 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
 
   // Branch assignment only makes sense for branch-scoped roles.
   const showBranch = !roleName || !CROSS_BRANCH_ROLES.has(roleName);
-  // Optimistic branch selections keyed by userId (before the refetch settles).
-  const [branchEdits, setBranchEdits] = useState<Record<string, string | null>>({});
+  const branchName = (id: string | null) => (id && branches.find((b) => b.id === id)?.name) || null;
 
-  const assignBranch = async (userId: string, value: string) => {
-    const branchId = value || null;
-    setBranchEdits((prev) => ({ ...prev, [userId]: branchId }));
+  const confirm = useConfirm();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<AppUser | null>(null);
+
+  const openCreate = () => {
+    setEditing(null);
+    setDialogOpen(true);
+  };
+  const openEdit = (user: AppUser) => {
+    setEditing(user);
+    setDialogOpen(true);
+  };
+  const remove = async (user: AppUser) => {
+    const name = `${user.firstName} ${user.lastName}`.trim();
+    if (!(await confirm({ title: `Delete "${name}"?`, confirmLabel: "Delete" }))) return;
     try {
-      await appUserService.setBranch(userId, branchId);
-    } catch {
-      setBranchEdits((prev) => {
-        const next = { ...prev };
-        delete next[userId];
-        return next;
-      });
-    }
+      await appUserService.remove(user.id);
+      refetch();
+    } catch {}
   };
 
   const filtered = useMemo(() => {
@@ -80,15 +88,20 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
             {description ?? `${users.length} user${users.length === 1 ? "" : "s"} in this role.`}
           </p>
         </div>
-        <div className="relative sm:w-64">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search users…"
-            className="h-9 pl-9"
-            aria-label="Search users"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative sm:w-64">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search users…"
+              className="h-9 pl-9"
+              aria-label="Search users"
+            />
+          </div>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="size-4" /> Add user
+          </Button>
         </div>
       </div>
 
@@ -132,6 +145,7 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
                 <TableHead>Role</TableHead>
                 {showBranch && <TableHead>Branch</TableHead>}
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -152,34 +166,37 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
                   <TableCell>
                     <StatusPill tone="blue">{u.roleName ?? "—"}</StatusPill>
                   </TableCell>
-                  {showBranch &&
-                    (() => {
-                      const current = (u.id in branchEdits ? branchEdits[u.id] : u.branchId) ?? "";
-                      return (
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Dropdown
-                              className="w-44"
-                              aria-label={`Branch for ${u.firstName} ${u.lastName}`}
-                              value={current}
-                              onChange={(v) => v && void assignBranch(u.id, v)}
-                              searchable={branches.length > 8}
-                              placeholder="Select a branch…"
-                              options={branches.map((b) => ({ value: b.id, label: b.name }))}
-                            />
-                            {!current && (
-                              <span className="whitespace-nowrap text-xs font-medium text-destructive">
-                                Required
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                      );
-                    })()}
+                  {showBranch && (
+                    <TableCell>
+                      {branchName(u.branchId) ?? (
+                        <span className="text-xs font-medium text-destructive">Not assigned</span>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <StatusPill tone={u.isActive ? "green" : "neutral"}>
                       {u.isActive ? "Active" : "Inactive"}
                     </StatusPill>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Edit ${u.firstName} ${u.lastName}`}
+                        onClick={() => openEdit(u)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Delete ${u.firstName} ${u.lastName}`}
+                        onClick={() => remove(u)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -199,6 +216,15 @@ export function UsersManager({ roleName, title, description }: UsersManagerProps
           className="mt-4"
         />
       )}
+
+      <UserFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        user={editing}
+        roleName={roleName}
+        showBranch={showBranch}
+        onSaved={refetch}
+      />
     </div>
   );
 }

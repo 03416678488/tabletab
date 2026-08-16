@@ -273,7 +273,7 @@ export const navItems: NavItem[] = [
     module: "settings",
   },
   {
-    label: "Website Setting",
+    label: "Online Store",
     slug: "website-settings",
     icon: Globe,
     roles: OWNER_ONLY,
