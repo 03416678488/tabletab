@@ -38,6 +38,7 @@ const RESERVED_SEGMENTS = new Set([
   "favorites",
   "menu",
   "reserve",
+  "events",
   "signin",
   "signup",
   "track",
