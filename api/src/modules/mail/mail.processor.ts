@@ -2,8 +2,9 @@ import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
+import { SettingService } from '@modules/setting/setting.service';
+import { buildMailTransport } from './mail-transport';
 import { WelcomeNewCustomerTemplate } from './templates/welcome-email.template';
 import { PasswordResetCodeTemplate } from './templates/password-reset-email.template';
 import { EmailVerificationCodeTemplate } from './templates/email-verification.template';
@@ -50,27 +51,27 @@ export class MailProcessor {
   private appUrl: string;
   private mailFrom: string;
 
-  constructor(private configService: ConfigService) {
-    this.initializeTransporter();
-    this.appUrl = this.configService.get('FRONTEND_URL', 'http://localhost:3000');
-    this.mailFrom = this.configService.get('MAIL_FROM', 'noreply@esyncnsecure.com');
+  constructor(
+    private configService: ConfigService,
+    private readonly settings: SettingService,
+  ) {
+    this.appUrl = this.configService.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
   }
 
-  private initializeTransporter() {
-    const host = this.configService.get<string>('MAIL_HOST');
-    const port = this.configService.get<number>('MAIL_PORT');
-    const user = this.configService.get<string>('MAIL_USER');
-    const pass = this.configService.get<string>('MAIL_PASS');
-
-    this.transporter = nodemailer.createTransport({
-      host: host,
-      port: port,
-      secure: false,
-      auth: {
-        user: user,
-        pass: pass,
-      },
-    });
+  /**
+   * (Re)build the transporter + from-line from the admin's Settings → Mail (the
+   * `mail` group). Called before every send so the admin form controls delivery.
+   */
+  private async applyConfig(): Promise<void> {
+    const mail = await this.settings
+      .getGroup('mail')
+      .catch(() => ({}) as Record<string, string>);
+    const { transporter, from } = buildMailTransport(mail);
+    this.transporter = transporter;
+    this.mailFrom = from;
   }
 
   @Process('welcome-email')
@@ -78,6 +79,7 @@ export class MailProcessor {
     const { email, name } = job.data;
     const html = WelcomeNewCustomerTemplate(name, this.appUrl);
 
+    await this.applyConfig();
     const mailOptions = {
       from: this.mailFrom,
       to: email,
@@ -87,7 +89,9 @@ export class MailProcessor {
 
     try {
       const result = await this.transporter.sendMail(mailOptions);
-      console.log(`[QUEUE] Welcome email sent to ${email}. Message ID: ${result.messageId}`);
+      console.log(
+        `[QUEUE] Welcome email sent to ${email}. Message ID: ${result.messageId}`,
+      );
       return result;
     } catch (error) {
       console.error(`[QUEUE] Failed to send welcome email to ${email}:`, error);
@@ -105,6 +109,7 @@ export class MailProcessor {
       this.appUrl,
     );
 
+    await this.applyConfig();
     const mailOptions = {
       from: this.mailFrom,
       to: email,
@@ -114,10 +119,15 @@ export class MailProcessor {
 
     try {
       const result = await this.transporter.sendMail(mailOptions);
-      console.log(`[QUEUE] Password reset code sent to ${email}. Message ID: ${result.messageId}`);
+      console.log(
+        `[QUEUE] Password reset code sent to ${email}. Message ID: ${result.messageId}`,
+      );
       return result;
     } catch (error) {
-      console.error(`[QUEUE] Failed to send password reset code to ${email}:`, error);
+      console.error(
+        `[QUEUE] Failed to send password reset code to ${email}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -127,6 +137,7 @@ export class MailProcessor {
     const { email, name } = job.data;
     const html = PasswordResetSuccessTemplate(name, this.appUrl);
 
+    await this.applyConfig();
     const mailOptions = {
       from: this.mailFrom,
       to: email,
@@ -141,7 +152,10 @@ export class MailProcessor {
       );
       return result;
     } catch (error) {
-      console.error(`[QUEUE] Failed to send password reset success email to ${email}:`, error);
+      console.error(
+        `[QUEUE] Failed to send password reset success email to ${email}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -156,6 +170,7 @@ export class MailProcessor {
       this.appUrl,
     );
 
+    await this.applyConfig();
     const mailOptions = {
       from: this.mailFrom,
       to: email,
@@ -165,10 +180,15 @@ export class MailProcessor {
 
     try {
       const result = await this.transporter.sendMail(mailOptions);
-      console.log(`[QUEUE] Verification code sent to ${email}. Message ID: ${result.messageId}`);
+      console.log(
+        `[QUEUE] Verification code sent to ${email}. Message ID: ${result.messageId}`,
+      );
       return result;
     } catch (error) {
-      console.error(`[QUEUE] Failed to send verification code to ${email}:`, error);
+      console.error(
+        `[QUEUE] Failed to send verification code to ${email}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -178,6 +198,7 @@ export class MailProcessor {
     const { email, name } = job.data;
     const html = EmailVerificationSuccessTemplate(name, this.appUrl);
 
+    await this.applyConfig();
     const mailOptions = {
       from: this.mailFrom,
       to: email,
@@ -192,7 +213,10 @@ export class MailProcessor {
       );
       return result;
     } catch (error) {
-      console.error(`[QUEUE] Failed to send verification success email to ${email}:`, error);
+      console.error(
+        `[QUEUE] Failed to send verification success email to ${email}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -201,6 +225,7 @@ export class MailProcessor {
   async handleCustomEmail(job: Job<CustomEmailJob>) {
     const { email, subject, html } = job.data;
 
+    await this.applyConfig();
     const mailOptions = {
       from: this.mailFrom,
       to: email,
@@ -210,7 +235,9 @@ export class MailProcessor {
 
     try {
       const result = await this.transporter.sendMail(mailOptions);
-      console.log(`[QUEUE] Custom email sent to ${email}. Message ID: ${result.messageId}`);
+      console.log(
+        `[QUEUE] Custom email sent to ${email}. Message ID: ${result.messageId}`,
+      );
       return result;
     } catch (error) {
       console.error(`[QUEUE] Failed to send custom email to ${email}:`, error);

@@ -118,12 +118,12 @@ export function TableFormDialog({
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Name</Label>
+              <Label required>Name</Label>
               <Input {...register("name")} aria-invalid={!!errors.name} placeholder="T1" />
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Seats</Label>
+              <Label required>Seats</Label>
               <Input
                 type="number"
                 min={1}

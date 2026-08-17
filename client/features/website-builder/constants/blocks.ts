@@ -8,6 +8,7 @@ import {
   type LucideIcon,
   Megaphone,
   MousePointerClick,
+  PartyPopper,
   ShoppingBag,
   Sparkles,
   Type,
@@ -26,6 +27,7 @@ import type {
   PromoConfig,
   PromotionsConfig,
   ReservationConfig,
+  EventsConfig,
   RichCtaConfig,
   RichTextConfig,
 } from "@/features/website-builder/schemas/blocks";
@@ -176,6 +178,13 @@ const reservationDefault: ReservationConfig = {
   tone: "light",
 };
 
+const eventsDefault: EventsConfig = {
+  title: "Host your event with us",
+  subtitle: "Birthdays, weddings, private parties — tell us what you're planning.",
+  buttonLabel: "Plan an event",
+  tone: "brand",
+};
+
 export const BLOCK_META: Record<BlockType, BlockMeta> = {
   hero: {
     type: "hero",
@@ -261,6 +270,13 @@ export const BLOCK_META: Record<BlockType, BlockMeta> = {
     icon: CalendarCheck,
     defaultConfig: reservationDefault,
   },
+  events: {
+    type: "events",
+    label: "Event booking",
+    description: "Let guests enquire about events — types come live from your catalogue.",
+    icon: PartyPopper,
+    defaultConfig: eventsDefault,
+  },
 };
 
 /** Palette order — how block types are offered in the "Add block" menu. */
@@ -275,5 +291,6 @@ export const BLOCK_PALETTE: BlockType[] = [
   "product-carousel",
   "rich-text",
   "reservation",
+  "events",
   "rich-cta",
 ];

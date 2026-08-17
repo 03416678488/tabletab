@@ -5,7 +5,6 @@
  * typed mock data with simulated latency; later, each function body can be
  * replaced with a real fetch() to a backend without touching any UI code.
  */
-import { getBuffetSnapshot } from "@/hooks/use-buffet-store";
 import { getMenuSnapshot } from "@/hooks/use-menu-store";
 import { getSettingsSnapshot } from "@/hooks/use-settings-store";
 import { getStaffSnapshot } from "@/hooks/use-staff-store";
@@ -18,14 +17,11 @@ import {
   serviceRequests,
 } from "@/lib/mock";
 import type { BranchOnlineConfig } from "@/lib/mock/branch-online";
-import { orderItemsSubtotal, isBuffetAvailable } from "@/lib/buffet-utils";
 import { cartTax, cartTotal } from "@/lib/cart-utils";
 import type {
   Address,
   AnalyticsPeriod,
   Branch,
-  BuffetPackage,
-  BuffetSelection,
   CreateOrderInput,
   CreateVenueOrderInput,
   CustomerAccount,
@@ -46,8 +42,8 @@ import type {
 import { resolveBranding } from "@/lib/theme";
 import { getSlaWindowMs } from "@/lib/utils";
 
-function dineInTotals(items: OrderItem[], buffet?: BuffetSelection) {
-  const subtotal = orderItemsSubtotal(items) + (buffet?.subtotal ?? 0);
+function dineInTotals(items: OrderItem[]) {
+  const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const tax = cartTax(subtotal);
   return { subtotal, tax, total: cartTotal(subtotal, 0, tax) };
 }
@@ -181,12 +177,12 @@ export const api = {
         .sort((a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime()),
     ),
   createVenueOrder: (input: CreateVenueOrderInput) => {
-    if (!input.items.length && !input.buffet) {
-      throw new Error("Order must include buffet covers or menu items");
+    if (!input.items.length) {
+      throw new Error("Order must include menu items");
     }
     orderCounter += 1;
     const ref = `${branchRef(input.branchId)}-${orderCounter}`;
-    const totals = dineInTotals(input.items, input.buffet);
+    const totals = dineInTotals(input.items);
     const order: Order = {
       id: `ord-${orderCounter}`,
       reference: ref,
@@ -196,7 +192,6 @@ export const api = {
       tableId: input.tableId,
       status: "placed",
       items: input.items,
-      buffet: input.buffet,
       customerName: input.customerName,
       subtotal: totals.subtotal,
       tax: totals.tax,
@@ -311,22 +306,9 @@ export const api = {
     const order = mutableOrders.find((o) => o.id === orderId);
     if (!order) return delay<Order | undefined>(undefined);
     const merged = [...order.items, ...items];
-    const totals = dineInTotals(merged, order.buffet);
+    const totals = dineInTotals(merged);
     const updated = patchOrder(orderId, {
       items: merged,
-      subtotal: totals.subtotal,
-      tax: totals.tax,
-      total: totals.total,
-    });
-    return delay<Order | undefined>(updated, 200);
-  },
-
-  attachBuffetToOrder: (orderId: string, buffet: BuffetSelection) => {
-    const order = mutableOrders.find((o) => o.id === orderId);
-    if (!order) return delay<Order | undefined>(undefined);
-    const totals = dineInTotals(order.items, buffet);
-    const updated = patchOrder(orderId, {
-      buffet,
       subtotal: totals.subtotal,
       tax: totals.tax,
       total: totals.total,
@@ -540,30 +522,6 @@ export const api = {
   getSalesLast7Days: () => delay<SalesPoint[]>(salesLast7Days),
   getOwnerAnalytics: (period: AnalyticsPeriod = "day") =>
     delay<OwnerAnalytics>(getOwnerAnalytics(period), 400),
-
-  // Buffet packages
-  getBuffetPackages: (branchId?: string, at?: string) => {
-    const list = getBuffetSnapshot().packages.filter((p) => {
-      if (!p.isActive) return false;
-      if (branchId && p.branchId && p.branchId !== branchId) return false;
-      return true;
-    });
-    if (at) {
-      const when = new Date(at);
-      return delay(list.filter((p) => isBuffetAvailable(p, when)));
-    }
-    return delay<BuffetPackage[]>(list);
-  },
-  getBuffetPackage: (id: string) =>
-    delay<BuffetPackage | undefined>(getBuffetSnapshot().getPackage(id)),
-  upsertBuffetPackage: (pkg: BuffetPackage) => {
-    getBuffetSnapshot().upsertPackage(pkg);
-    return delay<BuffetPackage>(pkg, 150);
-  },
-  deleteBuffetPackage: (id: string) => {
-    getBuffetSnapshot().removePackage(id);
-    return delay<void>(undefined as void, 100);
-  },
 };
 
 export type Api = typeof api;

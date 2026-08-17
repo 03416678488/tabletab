@@ -3,10 +3,7 @@
 import { useState } from "react";
 
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
-import {
-  SettingsForm,
-  type SettingsField,
-} from "@/features/app-settings/components/settings-form";
+import { SettingsForm, type SettingsField } from "@/features/app-settings/components/settings-form";
 
 export interface ProviderTab {
   key: string;
@@ -35,14 +32,7 @@ export function ProviderTabs({ tabs }: { tabs: ProviderTab[] }) {
           key={current.group}
           group={current.group}
           title={current.label}
-          fields={[
-            ...current.fields,
-            {
-              key: "status",
-              label: "Status",
-              type: "toggle",
-            },
-          ]}
+          fields={current.fields}
         />
       )}
     </div>

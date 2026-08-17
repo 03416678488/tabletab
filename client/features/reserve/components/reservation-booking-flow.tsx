@@ -13,7 +13,6 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { MenuItemCard } from "@/features/order/components/menu-item-card";
-import { BuffetPickerSheet } from "@/features/order/components/buffet-picker-sheet";
 import { ModifierSheet } from "@/features/order/components/modifier-sheet";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,8 +26,7 @@ import { fetchAvailableTables } from "@/features/reserve/services/reservation-av
 import { bookReservation } from "@/features/reserve/services/reservation.service";
 import { dateOptions, formatTime12, generateSlots, isSlotBookable } from "@/lib/reservation-utils";
 import type { ReservationConfig } from "@/features/reserve/services/reservation-config.service";
-import type { Branch, BuffetSelection, MenuItem, OrderItem, Table } from "@/lib/types";
-import { formatBuffetSummary } from "@/lib/buffet-utils";
+import type { Branch, MenuItem, OrderItem, Table } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type Step = "when" | "table" | "menu" | "details";
@@ -56,8 +54,6 @@ export function ReservationBookingFlow({ branch, config }: ReservationBookingFlo
   const [tablesLoading, setTablesLoading] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [preOrder, setPreOrder] = useState<OrderItem[]>([]);
-  const [buffet, setBuffet] = useState<BuffetSelection | null>(null);
-  const [buffetPickerOpen, setBuffetPickerOpen] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -385,26 +381,9 @@ export function ReservationBookingFlow({ branch, config }: ReservationBookingFlo
 
         {step === "menu" && (
           <div className="space-y-4">
-            <Card className="border-amber-200/80 bg-accent-tint/30">
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div>
-                  <p className="font-medium text-ink">Buffet dining</p>
-                  <p className="text-sm text-muted-foreground">
-                    Optional per-head package for your slot.
-                  </p>
-                  {buffet && (
-                    <p className="mt-1 text-sm text-brand-deep">{formatBuffetSummary(buffet)}</p>
-                  )}
-                </div>
-                <Button type="button" variant="outline" onClick={() => setBuffetPickerOpen(true)}>
-                  {buffet ? "Change buffet" : "Add buffet"}
-                </Button>
-              </CardContent>
-            </Card>
-
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">
-                Optional — à la carte dishes on top of buffet.
+                Optional — pre-order à la carte dishes for your table.
               </p>
               {preOrder.length > 0 && (
                 <StatusPill tone="brand">{formatCurrency(preOrderTotal)}</StatusPill>
@@ -454,15 +433,12 @@ export function ReservationBookingFlow({ branch, config }: ReservationBookingFlo
                 {preOrder.length > 0 && (
                   <p className="mt-1 text-brand-deep">Pre-order: {formatCurrency(preOrderTotal)}</p>
                 )}
-                {buffet && (
-                  <p className="mt-1 text-brand-deep">
-                    Buffet: {formatCurrency(buffet.subtotal)} ({buffet.totalCovers} covers)
-                  </p>
-                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="guest-name">Name *</Label>
+                <Label htmlFor="guest-name">
+                  Name <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="guest-name"
                   value={guestName}
@@ -472,7 +448,9 @@ export function ReservationBookingFlow({ branch, config }: ReservationBookingFlo
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="guest-phone">Phone *</Label>
+                <Label htmlFor="guest-phone">
+                  Phone <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="guest-phone"
                   type="tel"
@@ -492,6 +470,10 @@ export function ReservationBookingFlow({ branch, config }: ReservationBookingFlo
                   placeholder="you@example.com"
                   autoComplete="email"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Add your email and we&apos;ll send your reservation details and status updates —
+                  no account needed.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="special">Special requests (optional)</Label>
@@ -558,18 +540,6 @@ export function ReservationBookingFlow({ branch, config }: ReservationBookingFlo
         onOpenChange={setSheetOpen}
         onAddLine={handleModifierAdd}
       />
-
-      {date && time && (
-        <BuffetPickerSheet
-          open={buffetPickerOpen}
-          onOpenChange={setBuffetPickerOpen}
-          branchId={branch.id}
-          defaultCovers={partySize}
-          slot={{ date, time }}
-          initialSelection={buffet}
-          onConfirm={setBuffet}
-        />
-      )}
     </>
   );
 }

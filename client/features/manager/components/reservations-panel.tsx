@@ -244,12 +244,6 @@ export function ReservationsPanel() {
                         <Phone className="size-3.5" />
                         {r.guestPhone}
                       </p>
-                      {r.buffet && (
-                        <p className="text-sm text-amber-800">
-                          Buffet: {r.buffet.packageName} · {r.buffet.totalCovers} covers (
-                          {formatCurrency(r.buffet.subtotal)})
-                        </p>
-                      )}
                       {r.preOrder && r.preOrder.length > 0 && (
                         <p className="text-sm text-brand-deep">
                           Pre-order: {r.preOrder.map((i) => `${i.quantity}× ${i.name}`).join(", ")}{" "}
@@ -391,12 +385,6 @@ export function ReservationsPanel() {
                   </div>
                 )}
 
-                {detailFor.buffet && (
-                  <div className="text-sm text-amber-800">
-                    Buffet: {detailFor.buffet.packageName} · {detailFor.buffet.totalCovers} covers (
-                    {formatCurrency(detailFor.buffet.subtotal)})
-                  </div>
-                )}
                 {detailFor.preOrder && detailFor.preOrder.length > 0 && (
                   <div className="text-sm text-brand-deep">
                     Pre-order:{" "}

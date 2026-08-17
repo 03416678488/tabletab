@@ -155,7 +155,7 @@ export function PromotionFormDialog({
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           {/* Basics */}
           <div className="space-y-1.5">
-            <Label>Title</Label>
+            <Label required>Title</Label>
             <Input {...register("title")} aria-invalid={!!errors.title} />
             {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
           </div>
@@ -195,7 +195,7 @@ export function PromotionFormDialog({
           {/* Discount */}
           <div className="grid grid-cols-2 gap-3 rounded-xl border border-border p-3">
             <div className="space-y-1.5">
-              <Label>Discount type</Label>
+              <Label required>Discount type</Label>
               <Dropdown
                 value={discountType}
                 onChange={(v) =>
@@ -209,7 +209,7 @@ export function PromotionFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>{discountType === "percentage" ? "Percent off" : "Amount off"}</Label>
+              <Label required>{discountType === "percentage" ? "Percent off" : "Amount off"}</Label>
               <Input
                 type="number"
                 step="0.01"

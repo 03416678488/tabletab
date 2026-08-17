@@ -5,13 +5,7 @@ import { LayoutDashboard, Loader2, LogIn } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -36,9 +30,7 @@ export function LoginForm() {
             <LayoutDashboard className="size-6" />
           </div>
           <CardTitle>Sign in</CardTitle>
-          <CardDescription>
-            Sign in to your dashboard.
-          </CardDescription>
+          <CardDescription>Sign in to your dashboard.</CardDescription>
         </CardHeader>
 
         <CardContent>
@@ -53,7 +45,9 @@ export function LoginForm() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" required>
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -62,15 +56,13 @@ export function LoginForm() {
                 aria-invalid={!!errors.email}
                 {...register("email")}
               />
-              {errors.email && (
-                <p className="text-xs text-destructive">
-                  {errors.email.message}
-                </p>
-              )}
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" required>
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -80,18 +72,11 @@ export function LoginForm() {
                 {...register("password")}
               />
               {errors.password && (
-                <p className="text-xs text-destructive">
-                  {errors.password.message}
-                </p>
+                <p className="text-xs text-destructive">{errors.password.message}</p>
               )}
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="animate-spin" />

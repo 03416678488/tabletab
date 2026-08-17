@@ -1,37 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import { Transporter } from 'nodemailer';
+
+import { SettingService } from '@modules/setting/setting.service';
+import { buildMailTransport } from './mail-transport';
 
 @Injectable()
 export class MailService {
-  private transporter: Transporter;
-
   constructor(
     @InjectQueue('mail') private mailQueue: Queue,
-    private configService: ConfigService,
-  ) {
-    this.initializeTransporter();
-  }
-
-  private initializeTransporter() {
-    const host = this.configService.get<string>('MAIL_HOST');
-    const port = this.configService.get<number>('MAIL_PORT');
-    const user = this.configService.get<string>('MAIL_USER');
-    const pass = this.configService.get<string>('MAIL_PASS');
-
-    this.transporter = nodemailer.createTransport({
-      host: host,
-      port: port,
-      secure: false,
-      auth: {
-        user: user,
-        pass: pass,
-      },
-    });
-  }
+    private readonly settings: SettingService,
+  ) {}
 
   async sendWelcomeEmail(email: string, name: string): Promise<void> {
     await this.mailQueue.add(
@@ -71,7 +50,10 @@ export class MailService {
     console.log(`[QUEUED] Password reset code for ${email}`);
   }
 
-  async sendPasswordResetSuccessEmail(email: string, name: string): Promise<void> {
+  async sendPasswordResetSuccessEmail(
+    email: string,
+    name: string,
+  ): Promise<void> {
     await this.mailQueue.add(
       'password-reset-success',
       { email, name },
@@ -109,7 +91,10 @@ export class MailService {
     console.log(`[QUEUED] Verification code for ${email}`);
   }
 
-  async sendVerificationSuccessEmail(email: string, name: string): Promise<void> {
+  async sendVerificationSuccessEmail(
+    email: string,
+    name: string,
+  ): Promise<void> {
     await this.mailQueue.add(
       'verification-success',
       { email, name },
@@ -126,7 +111,11 @@ export class MailService {
     console.log(`[QUEUED] Verification success email for ${email}`);
   }
 
-  async sendCustomEmail(email: string, subject: string, html: string): Promise<void> {
+  async sendCustomEmail(
+    email: string,
+    subject: string,
+    html: string,
+  ): Promise<void> {
     await this.mailQueue.add(
       'custom-email',
       { email, subject, html },
@@ -143,9 +132,12 @@ export class MailService {
     console.log(`[QUEUED] Custom email for ${email}`);
   }
 
+  /** Ping the configured SMTP server (from Settings → Mail). */
   async verifyConnection(): Promise<boolean> {
     try {
-      await this.transporter.verify();
+      const mail = await this.settings.getGroup('mail');
+      const { transporter } = buildMailTransport(mail);
+      await transporter.verify();
       console.log('Email service is ready to send emails');
       return true;
     } catch (error) {

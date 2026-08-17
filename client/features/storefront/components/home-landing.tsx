@@ -14,6 +14,7 @@ import { OrderModePicker } from "@/features/storefront/components/order-mode-pic
 import { ProductCard } from "@/features/storefront/components/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/hooks/use-cart";
+import { useDineIn } from "@/hooks/use-dine-in";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { flash } from "@/features/storefront/hooks/use-storefront-flash";
@@ -63,6 +64,15 @@ export function HomeLanding({
   const setCartBranch = useCart((s) => s.setBranch);
   const setFulfillmentType = useCart((s) => s.setFulfillmentType);
   const user = useCustomerSession((s) => s.user);
+
+  // A QR dine-in session lives on /order/[branchId], not this landing. So any
+  // delivery/pickup/reserve action here means the guest isn't ordering at a
+  // scanned table — drop a stale session so checkout doesn't lock to a table.
+  const dineInActive = useDineIn((s) => s.active);
+  const clearDineIn = useDineIn((s) => s.clear);
+  const leaveDineIn = () => {
+    if (dineInActive) clearDineIn();
+  };
 
   // Cached live branches (React Query); branch + online config derived reactively.
   const { branches: allBranches, isLoading: branchesLoading } = useStorefrontBranches();
@@ -217,6 +227,7 @@ export function HomeLanding({
   }, [categories, items]);
 
   const handleAdd = (item: MenuItem) => {
+    leaveDineIn();
     // Browse-all mode: fall back to the first branch so checkout still works.
     const seed = branchId ?? allBranches[0]?.id;
     if (seed) setCartBranch(seed);
@@ -259,7 +270,10 @@ export function HomeLanding({
             <div className="order-2 md:order-1">
               <OrderModePicker
                 value={fulfillment}
-                onChange={setFulfillment}
+                onChange={(next) => {
+                  leaveDineIn();
+                  setFulfillment(next);
+                }}
                 availability={availability}
               />
             </div>
@@ -556,7 +570,7 @@ function ReservationPane({
     );
   }
 
-  if (!settings.enabled) {
+  if (branch.reservationsEnabled === false) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-14 text-center sm:px-6">
         <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
@@ -575,6 +589,22 @@ function ReservationPane({
         >
           Try another branch
         </button>
+      </div>
+    );
+  }
+
+  if (!settings.configured) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-14 text-center sm:px-6">
+        <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
+          <CalendarDays className="size-7" />
+        </span>
+        <h2 className="mt-4 font-display text-xl font-bold text-ink">
+          Reservations aren&apos;t configured yet
+        </h2>
+        <p className="mx-auto mt-1 max-w-sm text-muted-foreground">
+          Table booking isn&apos;t set up here yet. Please check back soon.
+        </p>
       </div>
     );
   }

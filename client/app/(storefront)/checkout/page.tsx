@@ -94,6 +94,8 @@ function CheckoutContent() {
   );
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const selectedPayment = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
+  // Cash on Delivery collects no payment now — it places an order, not a payment.
+  const isCod = selectedPayment?.id === "cod";
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   // Promo code — validated server-side against the live subtotal. The applied
@@ -827,17 +829,19 @@ function CheckoutContent() {
                 }
                 onClick={handlePay}
               >
-                {!isDineIn && <CreditCard className="size-4" />}
+                {!isDineIn && !isCod && <CreditCard className="size-4" />}
                 {paying
                   ? "Processing…"
-                  : isDineIn
+                  : isDineIn || isCod
                     ? `Place order · ${formatCurrency(total)}`
                     : `Pay now · ${formatCurrency(total)}`}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
                 {isDineIn
                   ? "Your order goes straight to the kitchen — pay at the table."
-                  : "Mock payment — no card charged."}
+                  : isCod
+                    ? "Pay with cash when your order arrives."
+                    : "Mock payment — no card charged."}
               </p>
             </>
           ) : (

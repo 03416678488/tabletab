@@ -33,11 +33,6 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       FRONTEND_URL: ${FRONTEND_URL}
       FRONTEND_URL_NETWORK: ${FRONTEND_URL_NETWORK}
-      MAIL_HOST: ${MAIL_HOST}
-      MAIL_PORT: ${MAIL_PORT}
-      MAIL_USER: ${MAIL_USER}
-      MAIL_PASS: ${MAIL_PASS}
-      MAIL_FROM: ${MAIL_FROM}
     depends_on:
       - postgres
       - redis

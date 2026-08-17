@@ -21,7 +21,9 @@ import { Category } from '@modules/category/entities/category.entity';
 import { Menu } from '@modules/menus/entities/menu.entity';
 import { MenuItem } from '@modules/menu/entities/menu-item.entity';
 import { FoodType } from '@modules/food-type/entities/food-type.entity';
+import { WebsitePage } from '@modules/website/entities/website-page.entity';
 import { seedCatalog } from './catalog.seed';
+import { seedWebsite } from './website.seed';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -44,6 +46,7 @@ const AppDataSource = new DataSource({
     Menu,
     MenuItem,
     FoodType,
+    WebsitePage,
   ],
   synchronize: false,
 });
@@ -271,6 +274,9 @@ async function seed() {
 
     // Demo catalogue (per-branch categories + menus, global item catalogue).
     await seedCatalog(AppDataSource);
+
+    // Page-builder demo: Home (with header/footer chrome) + supporting pages.
+    await seedWebsite(AppDataSource);
 
     console.log('\n✅ Seeding completed successfully!');
   } catch (error) {

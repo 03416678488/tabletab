@@ -121,7 +121,9 @@ export function OrderActionDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason *</Label>
+            <Label htmlFor="reason">
+              Reason <span className="text-destructive">*</span>
+            </Label>
             <textarea
               id="reason"
               value={reason}

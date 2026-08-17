@@ -32,7 +32,10 @@ export default function ReserveBranchPage({ params }: { params: Promise<{ branch
         ]);
         if (!cancelled) {
           if (!b) setError("Branch not found");
-          else if (!s.enabled) setError("Reservations are not available at this location.");
+          else if (b.reservationsEnabled === false)
+            setError("Reservations are not available at this location.");
+          else if (!s.configured)
+            setError("Reservations aren't configured yet. Please check back soon.");
           else {
             setBranch(b);
             setSettings(s);

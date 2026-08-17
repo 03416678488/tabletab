@@ -158,7 +158,7 @@ export function CampaignFormDialog({
 
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <Label>Campaign name</Label>
+            <Label required>Campaign name</Label>
             <Input {...register("name")} aria-invalid={!!errors.name} placeholder="Weekend blast" />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>

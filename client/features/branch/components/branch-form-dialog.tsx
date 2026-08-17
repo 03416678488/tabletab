@@ -184,17 +184,17 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
               onChange={(url) => setValue("imageUrl", url, { shouldDirty: true })}
             />
           </Field>
-          <Field label="Name" error={errors.name?.message}>
+          <Field label="Name" required error={errors.name?.message}>
             <Input {...register("name")} aria-invalid={!!errors.name} />
           </Field>
-          <Field label="Address" error={errors.address?.message}>
+          <Field label="Address" required error={errors.address?.message}>
             <Input {...register("address")} aria-invalid={!!errors.address} />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="City" error={errors.city?.message}>
+            <Field label="City" required error={errors.city?.message}>
               <Input {...register("city")} aria-invalid={!!errors.city} />
             </Field>
-            <Field label="Phone" error={errors.phone?.message}>
+            <Field label="Phone" required error={errors.phone?.message}>
               <Input {...register("phone")} aria-invalid={!!errors.phone} />
             </Field>
           </div>
@@ -333,15 +333,17 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
 function Field({
   label,
   error,
+  required,
   children,
 }: {
   label: string;
   error?: string;
+  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <Label required={required}>{label}</Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

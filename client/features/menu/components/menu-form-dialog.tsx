@@ -257,7 +257,7 @@ export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDi
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
                 <div className="space-y-5">
                   <div className="space-y-1.5">
-                    <Label>Name</Label>
+                    <Label required>Name</Label>
                     <Input {...register("name")} aria-invalid={!!errors.name} />
                     {errors.name && (
                       <p className="text-xs text-destructive">{errors.name.message}</p>
@@ -269,7 +269,7 @@ export function MenuFormDialog({ open, onOpenChange, item, onSaved }: MenuFormDi
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label>Base price</Label>
+                      <Label required>Base price</Label>
                       <Input
                         type="number"
                         step="0.01"

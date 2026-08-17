@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, CheckCircle2, Clock, Phone } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Clock, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,11 +18,7 @@ import { formatCurrency } from "@/lib/utils";
 
 const TERMINAL = new Set(["completed", "cancelled", "no-show"]);
 
-export default function ReservationConfirmPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function ReservationConfirmPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [reservation, setReservation] = useState<StorefrontReservation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,11 +78,7 @@ export default function ReservationConfirmPage({
             confirmed ? "bg-green-100 text-green-700" : "bg-brand-tint text-brand-deep"
           }`}
         >
-          {confirmed ? (
-            <CheckCircle2 className="size-8" />
-          ) : (
-            <Clock className="size-8" />
-          )}
+          {confirmed ? <CheckCircle2 className="size-8" /> : <Clock className="size-8" />}
         </div>
         <h1 className="font-display text-2xl font-bold text-ink">
           {confirmed ? "You're confirmed!" : "Request received"}
@@ -100,6 +92,18 @@ export default function ReservationConfirmPage({
           <ReservationStatusPill status={reservation.status} />
         </div>
       </div>
+
+      {reservation.guestEmail && (
+        <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-brand/20 bg-brand-tint/40 px-4 py-3 text-sm text-brand-deep">
+          <Mail className="mt-0.5 size-4 shrink-0" />
+          <span>
+            We&apos;ve emailed your reservation details to{" "}
+            <span className="font-semibold">{reservation.guestEmail}</span>. We&apos;ll email you
+            again whenever its status changes — no account needed. Bookmark this page to check back
+            anytime.
+          </span>
+        </div>
+      )}
 
       <Card>
         <CardContent className="space-y-4 p-6">
@@ -136,20 +140,6 @@ export default function ReservationConfirmPage({
               {reservation.guestPhone}
             </p>
           </div>
-
-          {reservation.buffet && (
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Buffet
-              </p>
-              <p className="text-sm font-medium text-ink">
-                {reservation.buffet.packageName} · {reservation.buffet.totalCovers} covers
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {formatCurrency(reservation.buffet.subtotal)}
-              </p>
-            </div>
-          )}
 
           {reservation.preOrder && reservation.preOrder.length > 0 && (
             <div>

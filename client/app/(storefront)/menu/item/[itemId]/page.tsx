@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
 import { useCart } from "@/hooks/use-cart";
+import { useDineIn } from "@/hooks/use-dine-in";
 import { useLocationStore } from "@/hooks/use-location-store";
 import { flash } from "@/features/storefront/hooks/use-storefront-flash";
 import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
@@ -159,8 +160,16 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ itemI
       return { ...prev, [groupId]: [optionId] };
     });
 
+  // This page is normal browsing only (the dine-in menu adds inline via
+  // MenuItemCard and never routes here), so adding drops a stale QR dine-in
+  // session — otherwise checkout would lock the order to a scanned table.
+  const leaveDineIn = () => {
+    if (useDineIn.getState().active) useDineIn.getState().clear();
+  };
+
   const handleAdd = () => {
     if (!item || missingRequired.length > 0) return;
+    leaveDineIn();
     if (!cartBranchId) {
       const seed = locationBranchId ?? firstBranchId;
       if (seed) setCartBranch(seed);
@@ -179,6 +188,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ itemI
   };
 
   const quickAdd = (m: MenuItem) => {
+    leaveDineIn();
     if (!cartBranchId) {
       const seed = locationBranchId ?? firstBranchId;
       if (seed) setCartBranch(seed);

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { Building2, MapPin, Plus, Printer, Settings2 } from "lucide-react";
 import { BrandingSettings } from "@/features/settings/components/branding-settings";
-import { BuffetSettings } from "@/features/settings/components/buffet-settings";
 import { MenuDisplaySettings } from "@/features/settings/components/menu-display-settings";
 import { ReservationSettings } from "@/features/settings/components/reservation-settings";
 import { BranchDialog } from "@/features/settings/components/branch-dialog";
@@ -191,8 +190,6 @@ export function SettingsManager() {
       <MenuDisplaySettings />
 
       <ReservationSettings />
-
-      <BuffetSettings />
 
       {/* Branches */}
       <section>

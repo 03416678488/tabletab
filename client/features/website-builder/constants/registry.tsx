@@ -10,6 +10,7 @@ import {
   PromoConfigForm,
   PromotionsConfigForm,
   ReservationConfigForm,
+  EventsConfigForm,
   RichCtaConfigForm,
   RichTextConfigForm,
 } from "@/features/website-builder/components/config-forms";
@@ -37,4 +38,5 @@ export const BLOCK_REGISTRY: Record<BlockType, BlockRegistryEntry> = {
   "rich-cta": { ...BLOCK_META["rich-cta"], ConfigForm: RichCtaConfigForm },
   "rich-text": { ...BLOCK_META["rich-text"], ConfigForm: RichTextConfigForm },
   reservation: { ...BLOCK_META.reservation, ConfigForm: ReservationConfigForm },
+  events: { ...BLOCK_META.events, ConfigForm: EventsConfigForm },
 };

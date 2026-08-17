@@ -9,6 +9,7 @@ import { AppImage } from "@/components/ui/app-image";
 import { ProductDetailsDialog } from "@/features/storefront/components/product-details-dialog";
 import { useFavoritesStore } from "@/features/storefront/hooks/use-favorites";
 import { useCart } from "@/hooks/use-cart";
+import { useDineIn } from "@/hooks/use-dine-in";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useLocationStore } from "@/hooks/use-location-store";
@@ -99,6 +100,13 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
   );
   const qty = hydrated ? (baseLine?.quantity ?? 0) : 0;
 
+  // This card only appears in normal browsing (the dine-in menu uses
+  // MenuItemCard), so any add here means the guest isn't ordering at a scanned
+  // table — drop a stale QR dine-in session so checkout doesn't lock to a table.
+  const leaveDineIn = () => {
+    if (useDineIn.getState().active) useDineIn.getState().clear();
+  };
+
   // Quick, unmodified add — used by the on-card quantity stepper and by any
   // caller that supplies its own `onAdd`.
   const add = () => {
@@ -106,6 +114,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
       onAdd(item);
       return;
     }
+    leaveDineIn();
     if (!cartBranchId && locationBranchId) setCartBranch(locationBranchId);
     addItem({
       menuItemId: item.id,
@@ -125,6 +134,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
       onAdd(item);
       return;
     }
+    leaveDineIn();
     setDetailsOpen(true);
   };
 

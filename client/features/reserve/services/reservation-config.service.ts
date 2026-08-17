@@ -6,7 +6,8 @@ import { settingsService } from "@/features/app-settings/services/settings.servi
  * window, turn time, party limit, booking window, notice, and table hold.
  */
 export interface ReservationConfig {
-  enabled: boolean;
+  /** False when the admin hasn't set up the reservation window (open/close time). */
+  configured: boolean;
   /** Booking window opens/closes each day — "HH:mm" (24h). */
   openTime: string;
   closeTime: string;
@@ -34,8 +35,8 @@ export async function fetchReservationConfig(): Promise<ReservationConfig> {
   const minNoticeMins = (Number.isFinite(noticeHours) && noticeHours >= 0 ? noticeHours : 1) * 60;
 
   return {
-    // Unconfigured or "enable" → on; only an explicit "disable" turns it off.
-    enabled: r.enabled !== "disable",
+    // Reservations are "configured" only once the daily window is set.
+    configured: Boolean(r.open_time && r.close_time),
     openTime: r.open_time || "11:00",
     closeTime: r.close_time || "22:00",
     slotDurationMins: posInt(r.slot_duration, 90),

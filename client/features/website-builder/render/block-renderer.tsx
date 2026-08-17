@@ -5,6 +5,7 @@ import {
   ProductCarouselRender,
   PromotionsRender,
   ReservationRender,
+  EventsRender,
 } from "@/features/website-builder/render/data-blocks";
 import {
   BannerSliderRender,
@@ -35,6 +36,7 @@ const RENDERERS: Record<BlockType, (config: never) => React.ReactNode> = {
   "rich-cta": (config) => <RichCtaRender config={config} />,
   "rich-text": (config) => <RichTextRender config={config} />,
   reservation: (config) => <ReservationRender config={config} />,
+  events: (config) => <EventsRender config={config} />,
 };
 
 /** Render a single block, coercing its stored config through the zod schema. */

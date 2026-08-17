@@ -87,7 +87,7 @@ export function AddressForm({ onSave, onCancel, saving, initial }: AddressFormPr
       {/* Address type */}
       <div className="space-y-2">
         <Label>
-          Address Type <span className="text-brand">*</span>
+          Address Type <span className="text-destructive">*</span>
         </Label>
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {ADDRESS_TYPES.map((t) => {

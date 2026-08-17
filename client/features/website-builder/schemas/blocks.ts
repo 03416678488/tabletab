@@ -18,6 +18,7 @@ export const BLOCK_TYPES = [
   "rich-cta",
   "rich-text",
   "reservation",
+  "events",
   "menu-slider",
 ] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
@@ -190,6 +191,20 @@ export const reservationConfigSchema = z.object({
   tone: z.enum(["brand", "dark", "light"]).default("light"),
 });
 
+/**
+ * An "enquire about an event" widget — birthdays, weddings, private parties.
+ * Sends guests to the public event booking flow (`/events`); the bookable event
+ * types come live from the admin catalogue, so this block only stores copy.
+ */
+export const eventsConfigSchema = z.object({
+  title: z.string().default("Host your event with us"),
+  subtitle: z
+    .string()
+    .default("Birthdays, weddings, private parties — tell us what you're planning."),
+  buttonLabel: z.string().default("Plan an event"),
+  tone: z.enum(["brand", "dark", "light"]).default("brand"),
+});
+
 /** Map of block type → its config schema. */
 export const BLOCK_CONFIG_SCHEMAS = {
   hero: heroConfigSchema,
@@ -203,6 +218,7 @@ export const BLOCK_CONFIG_SCHEMAS = {
   "rich-cta": richCtaConfigSchema,
   "rich-text": richTextConfigSchema,
   reservation: reservationConfigSchema,
+  events: eventsConfigSchema,
   "menu-slider": menuSliderConfigSchema,
 } satisfies Record<BlockType, z.ZodTypeAny>;
 
@@ -286,6 +302,7 @@ export type PromotionsConfig = z.infer<typeof promotionsConfigSchema>;
 export type RichCtaConfig = z.infer<typeof richCtaConfigSchema>;
 export type RichTextConfig = z.infer<typeof richTextConfigSchema>;
 export type ReservationConfig = z.infer<typeof reservationConfigSchema>;
+export type EventsConfig = z.infer<typeof eventsConfigSchema>;
 
 export type Block = z.infer<typeof blockSchema>;
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;

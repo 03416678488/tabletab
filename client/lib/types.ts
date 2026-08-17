@@ -177,70 +177,6 @@ export interface OrderItem {
   notes?: string;
 }
 
-export type BuffetDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-
-export interface BuffetTier {
-  id: ID;
-  label: string;
-  price: number;
-}
-
-export interface BuffetAddOn {
-  id: ID;
-  name: string;
-  price: number;
-}
-
-export interface BuffetAvailability {
-  days: BuffetDay[];
-  /** HH:mm (24h) service window start */
-  startTime: string;
-  /** HH:mm (24h) service window end */
-  endTime: string;
-}
-
-export interface BuffetPackage {
-  id: ID;
-  /** When omitted, package is available at all branches. */
-  branchId?: ID;
-  name: string;
-  description: string;
-  /** Per-head tiers (e.g. Adult / Child). Use when not using flat pricePerPerson. */
-  tiers?: BuffetTier[];
-  /** Flat per-person price when tiers are not used. */
-  pricePerPerson?: number;
-  availability: BuffetAvailability;
-  addOns?: BuffetAddOn[];
-  minGuests?: number;
-  maxGuests?: number;
-  isActive: boolean;
-  imageUrl?: string;
-}
-
-export interface BuffetTierSelection {
-  tierId: ID;
-  label: string;
-  count: number;
-  unitPrice: number;
-}
-
-export interface BuffetAddOnSelection {
-  addOnId: ID;
-  name: string;
-  quantity: number;
-  unitPrice: number;
-}
-
-/** Covers-based buffet attached to an order or reservation. */
-export interface BuffetSelection {
-  packageId: ID;
-  packageName: string;
-  tiers: BuffetTierSelection[];
-  addOns: BuffetAddOnSelection[];
-  totalCovers: number;
-  subtotal: number;
-}
-
 export interface Order {
   id: ID;
   reference: string;
@@ -250,8 +186,6 @@ export interface Order {
   tableId?: ID;
   status: OrderStatus;
   items: OrderItem[];
-  /** Covers-based buffet — priced separately from à la carte items. */
-  buffet?: BuffetSelection;
   customerName: string;
   customerId?: ID;
   subtotal: number;
@@ -414,7 +348,6 @@ export interface CreateVenueOrderInput {
   tableId: ID;
   customerName: string;
   items: OrderItem[];
-  buffet?: BuffetSelection;
   subtotal: number;
   tax: number;
   total: number;
@@ -456,7 +389,6 @@ export interface Reservation {
   guestEmail?: string;
   specialRequests?: string;
   preOrder?: OrderItem[];
-  buffet?: BuffetSelection;
   preOrderId?: ID;
   status: ReservationStatus;
   source: ReservationSource;
@@ -498,7 +430,6 @@ export interface CreateReservationInput {
   guestEmail?: string;
   specialRequests?: string;
   preOrder?: OrderItem[];
-  buffet?: BuffetSelection;
 }
 
 export type ServiceRequestType = "waiter" | "manager" | "bill" | "water";

@@ -151,7 +151,7 @@ export function EventInquiryFlow() {
         <CardContent className="p-5 sm:p-6">
           <form onSubmit={onSubmit} className="space-y-5" noValidate>
             <div className="space-y-1.5">
-              <Label>Event type</Label>
+              <Label required>Event type</Label>
               <Dropdown
                 value={watch("eventTypeId") ?? ""}
                 onChange={(v) =>
@@ -173,7 +173,7 @@ export function EventInquiryFlow() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Location</Label>
+              <Label required>Location</Label>
               <Dropdown
                 value={watch("branchId") ?? ""}
                 onChange={(v) =>
@@ -194,7 +194,7 @@ export function EventInquiryFlow() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Event title</Label>
+              <Label required>Event title</Label>
               <Input
                 {...register("title")}
                 placeholder="e.g. Sarah's 30th Birthday"
@@ -205,12 +205,12 @@ export function EventInquiryFlow() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label>Date</Label>
+                <Label required>Date</Label>
                 <Input type="date" {...register("date")} aria-invalid={!!errors.date} />
                 {errors.date && <p className="text-xs text-destructive">{errors.date.message}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label>Start</Label>
+                <Label required>Start</Label>
                 <Input type="time" {...register("startTime")} aria-invalid={!!errors.startTime} />
                 {errors.startTime && (
                   <p className="text-xs text-destructive">{errors.startTime.message}</p>
@@ -224,7 +224,7 @@ export function EventInquiryFlow() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Number of guests</Label>
+                <Label required>Number of guests</Label>
                 <Input
                   type="number"
                   min={1}
@@ -246,14 +246,14 @@ export function EventInquiryFlow() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Your name</Label>
+                <Label required>Your name</Label>
                 <Input {...register("guestName")} aria-invalid={!!errors.guestName} />
                 {errors.guestName && (
                   <p className="text-xs text-destructive">{errors.guestName.message}</p>
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label>Phone</Label>
+                <Label required>Phone</Label>
                 <Input {...register("guestPhone")} aria-invalid={!!errors.guestPhone} />
                 {errors.guestPhone && (
                   <p className="text-xs text-destructive">{errors.guestPhone.message}</p>

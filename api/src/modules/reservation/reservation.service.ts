@@ -19,6 +19,7 @@ import { Table } from '@modules/table/entities/table.entity';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { ReservationValidatorService } from './services/reservation-validator.service';
 import { ReservationHelperService } from './services/reservation.helper.service';
+import { ReservationMailService } from './services/reservation-mail.service';
 import {
   CreateReservationDto,
   UpdateReservationDto,
@@ -45,6 +46,7 @@ export class ReservationService extends AbstractService<Reservation> {
     private readonly _realtime: RealtimeService,
     private readonly _notifications: NotificationService,
     private readonly _transactions: TransactionService,
+    private readonly _mail: ReservationMailService,
     @Inject(REQUEST) private readonly _req: TenantRequest,
   ) {
     super(repository, pagination);
@@ -187,6 +189,7 @@ export class ReservationService extends AbstractService<Reservation> {
     const reservation = await this.getById(saved.id);
     this.emit(reservation, 'reservation.created');
     await this.notifyNew(reservation);
+    await this._mail.notify(reservation, true);
     return reservation;
   }
 
@@ -225,6 +228,10 @@ export class ReservationService extends AbstractService<Reservation> {
     await this.repository.update(id, this._helper.resolveUpdatePayload(dto));
     const reservation = await this.getById(id);
     this.emit(reservation, 'reservation.updated');
+    // Email the guest only when the status actually changed.
+    if (dto.status && dto.status !== existing.status) {
+      await this._mail.notify(reservation, false);
+    }
     return reservation;
   }
 

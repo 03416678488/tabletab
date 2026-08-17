@@ -111,7 +111,7 @@ export function FoodTypeFormDialog({
 
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <Label>Name</Label>
+            <Label required>Name</Label>
             <Input {...register("name")} aria-invalid={!!errors.name} />
             {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>

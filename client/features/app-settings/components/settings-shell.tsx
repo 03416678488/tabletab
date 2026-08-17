@@ -7,13 +7,11 @@ import {
   CalendarClock,
   Clock,
   Coins,
-  Cookie,
   CreditCard,
   Globe,
   Mail,
   Palette,
   ShieldCheck,
-  ShoppingCart,
   SlidersHorizontal,
 } from "lucide-react";
 
@@ -36,8 +34,6 @@ type SectionKey =
   | "opening_times"
   | "reservation"
   | "mail"
-  | "order"
-  | "cookies"
   | "theme"
   | "payment"
   | "currencies"
@@ -56,8 +52,6 @@ const SECTIONS: { key: SectionKey; i18n: string; label: string; icon: typeof Bui
     icon: CalendarClock,
   },
   { key: "mail", i18n: "settings.mail", label: "Mail", icon: Mail },
-  { key: "order", i18n: "settings.order", label: "Order Setup", icon: ShoppingCart },
-  { key: "cookies", i18n: "settings.cookies", label: "Cookies", icon: Cookie },
   { key: "analytics", i18n: "settings.analytics", label: "Analytics", icon: BarChart3 },
   { key: "theme", i18n: "settings.theme", label: "Branding", icon: Palette },
   { key: "payment", i18n: "settings.payment", label: "Payment Gateway", icon: CreditCard },
@@ -113,7 +107,6 @@ export function SettingsShell() {
               group="reservation"
               title="Reservation Time"
               fields={[
-                { key: "enabled", label: "Reservations Enabled", type: "toggle" },
                 { key: "open_time", label: "Reservations From", type: "time" },
                 { key: "close_time", label: "Reservations Until", type: "time" },
                 { key: "slot_duration", label: "Slot Duration (min)", type: "number" },
@@ -148,27 +141,6 @@ export function SettingsShell() {
               ]}
             />
           )}
-          {active === "order" && (
-            <SettingsForm
-              group="order"
-              title="Order Setup"
-              fields={[
-                { key: "food_prep_time", label: "Food Preparation Time (min)", type: "number" },
-                {
-                  key: "schedule_slot_duration",
-                  label: "Schedule Order Slot Duration (min)",
-                  type: "number",
-                },
-              ]}
-            />
-          )}
-          {active === "cookies" && (
-            <SettingsForm
-              group="cookies"
-              title="Cookies"
-              fields={[{ key: "cookies_summary", label: "Cookies Summary", type: "textarea" }]}
-            />
-          )}
           {active === "theme" && <ThemeForm />}
           {active === "payment" && (
             <ProviderTabs
@@ -178,7 +150,7 @@ export function SettingsShell() {
                   label: "Stripe",
                   group: "payment_stripe",
                   fields: [
-                    { key: "enabled", label: "Enabled", type: "toggle" },
+                    { key: "enabled", label: "Status", type: "toggle" },
                     {
                       key: "mode",
                       label: "Mode",
@@ -197,7 +169,7 @@ export function SettingsShell() {
                   label: "PayPal",
                   group: "payment_paypal",
                   fields: [
-                    { key: "enabled", label: "Enabled", type: "toggle" },
+                    { key: "enabled", label: "Status", type: "toggle" },
                     {
                       key: "mode",
                       label: "Mode",
@@ -216,7 +188,7 @@ export function SettingsShell() {
                   label: "Razorpay",
                   group: "payment_razorpay",
                   fields: [
-                    { key: "enabled", label: "Enabled", type: "toggle" },
+                    { key: "enabled", label: "Status", type: "toggle" },
                     { key: "key_id", label: "Key ID" },
                     { key: "key_secret", label: "Key Secret", type: "password" },
                   ],
@@ -226,7 +198,7 @@ export function SettingsShell() {
                   label: "Cash on Delivery",
                   group: "payment_cod",
                   fields: [
-                    { key: "enabled", label: "Enabled", type: "toggle" },
+                    { key: "enabled", label: "Status", type: "toggle" },
                     { key: "instructions", label: "Instructions", type: "textarea" },
                   ],
                 },

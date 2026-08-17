@@ -2,7 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { BadgePercent, CalendarCheck, ChevronRight, UtensilsCrossed } from "lucide-react";
+import {
+  BadgePercent,
+  CalendarCheck,
+  ChevronRight,
+  PartyPopper,
+  UtensilsCrossed,
+} from "lucide-react";
 
 import { AppImage } from "@/components/ui/app-image";
 import type { MenuItem } from "@/lib/types";
@@ -14,6 +20,7 @@ import { useStorefrontCategories } from "@/features/storefront/hooks/use-storefr
 import { useStorefrontProducts } from "@/features/storefront/hooks/use-storefront-products";
 import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 import { useLocationStore } from "@/hooks/use-location-store";
+import { nearestBranch } from "@/lib/geo";
 import { useActivePromotions } from "@/features/promotion/hooks/use-active-promotions";
 import type { Promotion } from "@/features/promotion/types/promotion.types";
 import type {
@@ -23,6 +30,7 @@ import type {
   ProductCarouselConfig,
   PromotionsConfig,
   ReservationConfig,
+  EventsConfig,
 } from "@/features/website-builder/schemas/blocks";
 
 const shell = "mx-auto max-w-6xl px-4 sm:px-6";
@@ -182,10 +190,15 @@ export function MenuSliderRender({ config }: { config: MenuSliderConfig }) {
 }
 
 export function ReservationRender({ config }: { config: ReservationConfig }) {
-  // Book at the branch the customer is currently ordering from.
+  // Book at the branch the customer is ordering from — falling back to their
+  // nearest/first branch when none is picked yet, same as the rest of the home.
   const { branches } = useStorefrontBranches();
   const selectedBranchId = useLocationStore((s) => s.branchId);
-  const branch = branches.find((b) => b.id === selectedBranchId);
+  const coords = useLocationStore((s) => s.coords);
+  const setFulfillment = useLocationStore((s) => s.setFulfillment);
+  const branch = selectedBranchId
+    ? (branches.find((b) => b.id === selectedBranchId) ?? null)
+    : nearestBranch(branches, coords);
 
   // Reservations off (or flag unknown) at this branch → hide the widget.
   if (!branch || !branch.reservationsEnabled) return null;
@@ -217,14 +230,64 @@ export function ReservationRender({ config }: { config: ReservationConfig }) {
             </p>
           )}
           <div className="mt-6 flex justify-center">
-            <Link
-              href={`/reserve/${branch.id}`}
+            <button
+              type="button"
+              onClick={() => {
+                setFulfillment("reserve");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className={cn(
                 "inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold shadow-sm transition-transform",
                 button,
               )}
             >
               <CalendarCheck className="size-4" /> {config.buttonLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function EventsRender({ config }: { config: EventsConfig }) {
+  // Sends guests to the public event booking flow (`/events`), which loads the
+  // bookable event types + locations live. Presentation-only, like Reservation.
+  const onLight = config.tone === "light";
+  const tone =
+    config.tone === "dark"
+      ? "bg-ink text-white"
+      : config.tone === "brand"
+        ? "bg-brand text-primary-foreground"
+        : "bg-subtle text-ink";
+  const button = onLight
+    ? "bg-brand text-primary-foreground hover:bg-brand-hover"
+    : "bg-white text-ink hover:-translate-y-0.5";
+
+  return (
+    <section className={cn(shell, "py-4")}>
+      <div className={cn("overflow-hidden rounded-3xl px-6 py-10 sm:px-10", tone)}>
+        <div className="mx-auto max-w-xl text-center">
+          <h2 className="font-display text-2xl font-bold sm:text-3xl">{config.title}</h2>
+          {config.subtitle && (
+            <p
+              className={cn(
+                "mt-2 text-sm sm:text-base",
+                onLight ? "text-muted-foreground" : "opacity-90",
+              )}
+            >
+              {config.subtitle}
+            </p>
+          )}
+          <div className="mt-6 flex justify-center">
+            <Link
+              href="/events"
+              className={cn(
+                "inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold shadow-sm transition-transform",
+                button,
+              )}
+            >
+              <PartyPopper className="size-4" /> {config.buttonLabel}
             </Link>
           </div>
         </div>

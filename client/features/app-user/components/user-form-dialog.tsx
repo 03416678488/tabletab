@@ -130,14 +130,14 @@ export function UserFormDialog({
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>First name</Label>
+              <Label required>First name</Label>
               <Input {...register("firstName")} aria-invalid={!!errors.firstName} />
               {errors.firstName && (
                 <p className="text-xs text-destructive">{errors.firstName.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Last name</Label>
+              <Label required>Last name</Label>
               <Input {...register("lastName")} aria-invalid={!!errors.lastName} />
               {errors.lastName && (
                 <p className="text-xs text-destructive">{errors.lastName.message}</p>
@@ -146,13 +146,13 @@ export function UserFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Email</Label>
+            <Label required>Email</Label>
             <Input type="email" {...register("email")} aria-invalid={!!errors.email} />
             {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label>Phone</Label>
+            <Label required>Phone</Label>
             <Input {...register("phoneNumber")} aria-invalid={!!errors.phoneNumber} />
             {errors.phoneNumber && (
               <p className="text-xs text-destructive">{errors.phoneNumber.message}</p>
@@ -160,7 +160,7 @@ export function UserFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>{isEdit ? "New password" : "Password"}</Label>
+            <Label required={!isEdit}>{isEdit ? "New password" : "Password"}</Label>
             <Input
               type="password"
               autoComplete="new-password"
@@ -175,7 +175,7 @@ export function UserFormDialog({
 
           {showBranch && (
             <div className="space-y-1.5">
-              <Label>Branch</Label>
+              <Label required>Branch</Label>
               <Dropdown
                 value={branchId}
                 onChange={(v) => setValue("branchId", v, { shouldDirty: true })}

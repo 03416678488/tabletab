@@ -44,6 +44,7 @@ import {
   promoConfigSchema,
   promotionsConfigSchema,
   reservationConfigSchema,
+  eventsConfigSchema,
   richCtaConfigSchema,
   richTextConfigSchema,
 } from "@/features/website-builder/schemas/blocks";
@@ -667,6 +668,32 @@ export function ReservationConfigForm({ config, onChange }: ConfigFormProps) {
       <p className="rounded-lg border border-border bg-subtle/50 px-3 py-2 text-xs text-muted-foreground">
         Branches come live from your settings — only locations with reservations enabled appear
         here. Manage them in Settings → Reservations.
+      </p>
+      <TextField register={register} name="title" label="Title" />
+      <TextAreaField register={register} name="subtitle" label="Subtitle" rows={2} />
+      <TextField register={register} name="buttonLabel" label="Button label" />
+      <SelectField
+        control={control}
+        name="tone"
+        label="Colour"
+        options={[
+          { value: "light", label: "Light" },
+          { value: "brand", label: "Brand" },
+          { value: "dark", label: "Dark" },
+        ]}
+      />
+    </div>
+  );
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+export function EventsConfigForm({ config, onChange }: ConfigFormProps) {
+  const { register, control } = useLiveForm(eventsConfigSchema, config, onChange);
+  return (
+    <div className="space-y-3">
+      <p className="rounded-lg border border-border bg-subtle/50 px-3 py-2 text-xs text-muted-foreground">
+        Guests are sent to your event booking form. Event types + locations come live from your
+        catalogue — manage them in Events → Event Types.
       </p>
       <TextField register={register} name="title" label="Title" />
       <TextAreaField register={register} name="subtitle" label="Subtitle" rows={2} />

@@ -198,13 +198,13 @@ export function QrCodeFormDialog({
 
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <div className="space-y-1.5">
-            <Label>Name</Label>
+            <Label required>Name</Label>
             <Input placeholder="e.g. Guest WiFi" {...register("label")} />
             {errors.label && <p className="text-xs text-destructive">{errors.label.message}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label required>Type</Label>
             <Dropdown
               value={customType}
               onChange={(v) =>
@@ -220,7 +220,7 @@ export function QrCodeFormDialog({
 
           {valueField ? (
             <div className="space-y-1.5">
-              <Label>{valueField.label}</Label>
+              <Label required>{valueField.label}</Label>
               <Input
                 type={valueField.type}
                 inputMode={customType === "phone" ? "tel" : undefined}
@@ -232,7 +232,7 @@ export function QrCodeFormDialog({
           ) : (
             <>
               <div className="space-y-1.5">
-                <Label>Network name (SSID)</Label>
+                <Label required>Network name (SSID)</Label>
                 <Input placeholder="MyRestaurant-Guest" {...register("ssid")} />
                 {errors.ssid && <p className="text-xs text-destructive">{errors.ssid.message}</p>}
               </div>
@@ -253,7 +253,7 @@ export function QrCodeFormDialog({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Password</Label>
+                  <Label required>Password</Label>
                   <Input
                     type="text"
                     placeholder="••••••••"
