@@ -1,9 +1,9 @@
 "use client";
 
-import { CalendarDays, ShoppingBag, Truck } from "lucide-react";
+import { CalendarDays, PartyPopper, ShoppingBag, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type OrderMode = "delivery" | "pickup" | "reserve";
+export type OrderMode = "delivery" | "pickup" | "reserve" | "events";
 
 const MODES: {
   id: OrderMode;
@@ -13,6 +13,7 @@ const MODES: {
   { id: "delivery", label: "Delivery", icon: Truck },
   { id: "pickup", label: "Pickup", icon: ShoppingBag },
   { id: "reserve", label: "Reserve", icon: CalendarDays },
+  { id: "events", label: "Events", icon: PartyPopper },
 ];
 
 interface OrderModePickerProps {

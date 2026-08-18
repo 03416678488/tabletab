@@ -3,10 +3,10 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { HomeLanding } from "@/features/storefront/components/home-landing";
 import { LandingSkeleton } from "@/features/storefront/components/landing-skeleton";
-import { LocationPermissionDialog } from "@/features/storefront/components/location-permission-dialog";
 import type { Block } from "@/features/website-builder/schemas/blocks";
 import { websiteService } from "@/features/website-builder/services/website.service";
 import { useAutoGeolocate } from "@/hooks/use-auto-geolocate";
+import { useBranchPicker } from "@/hooks/use-branch-picker";
 import { useLocationStore } from "@/hooks/use-location-store";
 
 /** Interactive storefront home. Rendered by the server home page (which owns metadata). */
@@ -20,7 +20,8 @@ export function HomeClient() {
     () => useLocationStore.persist.hasHydrated(),
     () => false,
   );
-  const [askOpen, setAskOpen] = useState(false);
+  // The branch picker dialog is mounted globally in the storefront header; open it via the shared store.
+  const openPicker = useBranchPicker((s) => s.setOpen);
 
   // First landing: once the store has rehydrated, if the visitor hasn't chosen a
   // branch or shared location and the permission is still undecided, open the
@@ -32,9 +33,9 @@ export function HomeClient() {
   const geoStatus = useLocationStore((s) => s.geoStatus);
   useEffect(() => {
     if (hydrated && !confirmed && !branchId && !coords && geoStatus === "prompt") {
-      setAskOpen(true);
+      openPicker(true);
     }
-  }, [hydrated, confirmed, branchId, coords, geoStatus]);
+  }, [hydrated, confirmed, branchId, coords, geoStatus, openPicker]);
 
   // Published website-builder layout — replaces the default home once set.
   const [published, setPublished] = useState<Block[] | null | undefined>(undefined);
@@ -58,15 +59,8 @@ export function HomeClient() {
   // Avoid flashing the default home before we know whether a custom one exists.
   if (!hydrated || published === undefined) return <LandingSkeleton />;
 
-  return (
-    <>
-      {/* Published custom blocks replace only the default body — the branch
-          context bar, search, and filters stay intact (and searching/filtering
-          falls back to the live menu results, exactly as before). */}
-      <HomeLanding onChangeBranch={() => setAskOpen(true)} publishedBlocks={published} />
-      {/* Location is auto-detected on load; this only opens when the user taps
-          "Set location"/"Change" to pick or refresh their branch manually. */}
-      <LocationPermissionDialog open={askOpen} onOpenChange={setAskOpen} />
-    </>
-  );
+  // Published custom blocks replace only the default body — the fulfillment tabs,
+  // search, and filters stay intact. Branch context + change live in the header
+  // strip; the picker dialog itself is mounted once in the header.
+  return <HomeLanding onChangeBranch={() => openPicker(true)} publishedBlocks={published} />;
 }

@@ -51,15 +51,14 @@ export function CartMenu() {
       <Button
         type="button"
         variant="outline"
-        size="sm"
-        className="relative"
+        size="icon"
+        className="relative size-9"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="View cart"
+        aria-label={`View cart, ${count} item${count === 1 ? "" : "s"}`}
         onClick={() => setOpen((v) => !v)}
       >
         <ShoppingBag className="size-4" />
-        <span className="hidden sm:inline">Cart</span>
         {count > 0 && (
           <span className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-primary-foreground">
             {count}
@@ -80,7 +79,13 @@ export function CartMenu() {
             <div className="px-4 py-8 text-center">
               <ShoppingBag className="mx-auto mb-2 size-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">Your cart is empty.</p>
-              <Button asChild variant="outline" size="sm" className="mt-3" onClick={() => setOpen(false)}>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => setOpen(false)}
+              >
                 <Link href="/">Browse the menu</Link>
               </Button>
             </div>
@@ -90,11 +95,19 @@ export function CartMenu() {
                 {items.map((item) => (
                   <li key={item.id} className="flex items-center gap-3 px-4 py-3">
                     <span className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-subtle">
-                      <AppImage src={item.imageUrl} alt={item.name} fill className="object-cover" sizes="48px" />
+                      <AppImage
+                        src={item.imageUrl}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-1 text-sm font-medium text-ink">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatCurrency(lineItemTotal(item))}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(lineItemTotal(item))}
+                      </p>
                       <div className="mt-1 flex items-center gap-1">
                         <button
                           type="button"

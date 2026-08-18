@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Coords } from "@/lib/geo";
 
-export type Fulfillment = "delivery" | "pickup" | "reserve";
+export type Fulfillment = "delivery" | "pickup" | "reserve" | "events";
 
 /** Where the user is in the "find my branch" flow. */
 export type GeoStatus =

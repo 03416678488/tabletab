@@ -197,7 +197,8 @@ export default function BranchMenuPage({ params }: { params: Promise<{ branchId:
             {/* Sticky search + category nav */}
             <div
               ref={stickyRef}
-              className="sticky top-16 z-30 -mx-4 mb-4 border-b border-border bg-subtle/95 backdrop-blur-sm sm:-mx-6 sm:mb-6"
+              className="sticky z-30 -mx-4 mb-4 border-b border-border bg-subtle/95 backdrop-blur-sm sm:-mx-6 sm:mb-6"
+              style={{ top: "var(--sf-header-h, 4rem)" }}
             >
               <div className="px-4 pt-3 sm:px-6">
                 <div className="relative">

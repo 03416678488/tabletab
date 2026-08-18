@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, RotateCcw } from "lucide-react";
+import { EventInquiryFlow } from "@/features/event/components/event-inquiry-flow";
 import { ReservationBookingFlow } from "@/features/reserve/components/reservation-booking-flow";
 import { BlockList } from "@/features/website-builder/render/block-renderer";
 import { useSiteHeaderConfig } from "@/features/website-builder/render/site-chrome";
@@ -93,6 +94,7 @@ export function HomeLanding({
       delivery: (online?.deliveryAvailable ?? true) && isOpen,
       pickup: (online?.pickupAvailable ?? true) && isOpen,
       reserve: branch ? branch.reservationsEnabled !== false : true,
+      events: branch ? branch.eventsEnabled !== false : true,
     }),
     [online, branch, isOpen],
   );
@@ -101,7 +103,9 @@ export function HomeLanding({
   useEffect(() => {
     if (!branch) return;
     if (availability[fulfillment] === false) {
-      const next = (["delivery", "pickup", "reserve"] as const).find((m) => availability[m]);
+      const next = (["delivery", "pickup", "reserve", "events"] as const).find(
+        (m) => availability[m],
+      );
       if (next) setFulfillment(next);
     }
   }, [availability, fulfillment, branch, setFulfillment]);
@@ -231,7 +235,7 @@ export function HomeLanding({
     // Browse-all mode: fall back to the first branch so checkout still works.
     const seed = branchId ?? allBranches[0]?.id;
     if (seed) setCartBranch(seed);
-    if (fulfillment !== "reserve") setFulfillmentType(fulfillment);
+    if (fulfillment === "delivery" || fulfillment === "pickup") setFulfillmentType(fulfillment);
     addItem({
       menuItemId: item.id,
       name: item.name,
@@ -262,7 +266,8 @@ export function HomeLanding({
       {/* Tabs + location — sticky under the header while scrolling */}
       <div
         ref={stickyRef}
-        className="sticky top-16 z-30 border-b border-border bg-subtle md:bg-subtle/95 md:backdrop-blur-md"
+        className="sticky z-30 border-b border-border bg-subtle md:bg-subtle/95 md:backdrop-blur-md"
+        style={{ top: "var(--sf-header-h, 4rem)" }}
       >
         <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -278,7 +283,7 @@ export function HomeLanding({
               />
             </div>
 
-            {/* Branch context */}
+            {/* Branch context + change */}
             {showLocation && (
               <div className="order-1 flex items-center gap-2.5 rounded-full border border-border bg-surface px-3 py-1.5 shadow-[var(--shadow-card)] md:order-2 md:min-w-[19rem]">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
@@ -291,7 +296,9 @@ export function HomeLanding({
                         ? "Delivering from"
                         : fulfillment === "pickup"
                           ? "Pickup from"
-                          : "Reserve at"
+                          : fulfillment === "events"
+                            ? "Event at"
+                            : "Reserve at"
                       : "Your location"}
                   </p>
                   {loading ? (
@@ -322,7 +329,9 @@ export function HomeLanding({
         </div>
       </div>
 
-      {fulfillment === "reserve" ? (
+      {fulfillment === "events" ? (
+        <EventInquiryFlow />
+      ) : fulfillment === "reserve" ? (
         <ReservationPane
           branchId={branchId}
           branch={branch}
@@ -463,7 +472,7 @@ export function HomeLanding({
               {itemsByCategory.some(({ items: ci }) => ci.length > 0) && (
                 <div
                   className="sticky z-20 border-y border-border bg-surface md:bg-surface/95 md:backdrop-blur-md"
-                  style={{ top: `calc(4rem + ${stickyHeight}px)` }}
+                  style={{ top: `calc(var(--sf-header-h, 4rem) + ${stickyHeight}px)` }}
                 >
                   <div className="mx-auto max-w-6xl px-4 sm:px-6">
                     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
@@ -505,7 +514,9 @@ export function HomeLanding({
                       // reserves their space (auto = remember real height after first
                       // paint) so the scrollbar and category jumps stay accurate.
                       className="mx-auto max-w-6xl px-4 py-4 sm:px-6 [content-visibility:auto] [contain-intrinsic-size:auto_500px]"
-                      style={{ scrollMarginTop: `calc(7rem + ${stickyHeight}px)` }}
+                      style={{
+                        scrollMarginTop: `calc(var(--sf-header-h, 4rem) + ${stickyHeight}px + 3rem)`,
+                      }}
                     >
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <h2 className="font-display text-lg font-bold text-ink">{category.name}</h2>
