@@ -9,12 +9,14 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
 import { ReviewService } from './review.service';
 import { CreateReviewDto, UpdateReviewDto, GetReviewQueryDto } from './dto';
 
+@RequirePermission('menu')
 @Controller('reviews')
 export class ReviewController {
   constructor(private readonly _reviews: ReviewService) {}

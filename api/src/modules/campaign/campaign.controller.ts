@@ -9,6 +9,7 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { CampaignService } from './campaign.service';
 import {
@@ -18,6 +19,7 @@ import {
   WhatsappConfigDto,
 } from './dto';
 
+@RequirePermission('campaigns')
 @Controller('campaigns')
 export class CampaignController {
   constructor(private readonly _campaignService: CampaignService) {}
@@ -65,7 +67,10 @@ export class CampaignController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCampaignDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCampaignDto,
+  ) {
     return this._campaignService.updateCampaign(id, dto);
   }
 

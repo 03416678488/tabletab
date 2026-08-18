@@ -11,6 +11,7 @@ import {
   Query,
   Sse,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { type Observable } from 'rxjs';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
@@ -29,6 +30,7 @@ import {
   canChangePaymentStatus,
 } from './order-status.policy';
 
+@RequirePermission('orders')
 @Controller('orders')
 export class OrderController {
   constructor(

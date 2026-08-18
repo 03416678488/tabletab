@@ -8,7 +8,7 @@ import {
   Req,
 } from '@nestjs/common';
 
-import { AccessControl } from '@cor/decorators/authorization/authorization.decorator';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { AuthenticatedUser } from '@modules/auth/strategies/jwt.strategy';
 
 import { RolePermissionService } from './role-permission.service';
@@ -27,18 +27,15 @@ export class RolePermissionController {
     );
   }
 
-  /** Roles + module catalog + current grants — everything the UI needs. */
+  /** Roles + module catalog + current grants — the permissions manager (Settings). */
+  @RequirePermission('settings')
   @Get('matrix')
   getMatrix() {
     return this._service.getMatrix();
   }
 
-  /** Replace one role's grants. Only admins (or a role granted roles:update) may edit. */
-  @AccessControl({
-    roles: [
-      { name: 'Owner', permissions: { resource: 'roles', actions: 'update' } },
-    ],
-  })
+  /** Replace one role's grants — an owner-level Settings action. */
+  @RequirePermission('settings')
   @Put(':roleId')
   update(
     @Param('roleId', ParseIntPipe) roleId: number,

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 
 import { AuthenticatedUser } from '@modules/auth/strategies/jwt.strategy';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { TransactionService } from './transaction.service';
 import {
@@ -17,6 +18,8 @@ import {
   GetTransactionQueryDto,
 } from './dto/transaction.dto';
 
+// The ledger/transactions view maps to the `reports` module (manager/owner only).
+@RequirePermission('reports')
 @Controller('transactions')
 export class TransactionController {
   constructor(private readonly _service: TransactionService) {}

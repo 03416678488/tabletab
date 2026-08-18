@@ -56,4 +56,6 @@ export const PUBLIC_GROUPS = [
   'social_media',
   'theme',
   'reservation',
+  // Opening hours power the storefront footer/hours display + rich-text {{hours.*}}.
+  'opening_times',
 ];

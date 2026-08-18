@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 import { WebsiteService } from './website.service';
@@ -9,6 +18,7 @@ import {
   UpdateSeoDto,
 } from './dto/website-page.dto';
 
+@RequirePermission('settings')
 @Controller('website')
 export class WebsiteController {
   constructor(private readonly _service: WebsiteService) {}

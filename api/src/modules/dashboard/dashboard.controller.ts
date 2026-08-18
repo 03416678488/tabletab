@@ -1,4 +1,5 @@
 import { Controller, DefaultValuePipe, Get, Query } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { RequiresFeature } from '@modules/tenancy/plan-feature.guard';
 import {
@@ -13,6 +14,7 @@ const PERIODS: Period[] = ['day', 'month', 'year'];
  * (the global JWT guard authenticates; tenant middleware routes to the right DB)
  * and gated behind the `analytics` plan feature.
  */
+@RequirePermission('dashboard')
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly _analytics: DashboardAnalyticsService) {}

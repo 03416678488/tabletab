@@ -9,10 +9,12 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { AreaService } from './area.service';
 import { CreateAreaDto, UpdateAreaDto, GetAreaQueryDto } from './dto';
 
+@RequirePermission('areas')
 @Controller('areas')
 export class AreaController {
   constructor(private readonly _areaService: AreaService) {}

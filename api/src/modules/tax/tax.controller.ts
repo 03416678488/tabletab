@@ -9,12 +9,14 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
 import { TaxService } from './tax.service';
 import { CreateTaxDto, UpdateTaxDto } from './dto/tax.dto';
 
+@RequirePermission('vat')
 @Controller('taxes')
 export class TaxController {
   constructor(private readonly _service: TaxService) {}

@@ -1,7 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
 
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
+
 import { ReportService } from './report.service';
 
+// Financial reports — manager/owner only (they hold the `reports` grant).
+@RequirePermission('reports')
 @Controller('reports')
 export class ReportController {
   constructor(private readonly _service: ReportService) {}

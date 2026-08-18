@@ -14,6 +14,7 @@ import {
 import { type Observable } from 'rxjs';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { CurrentTenant } from '@modules/tenancy/current-tenant.decorator';
 import { TenantRecord } from '@modules/tenancy/tenancy.types';
 import { RealtimeService } from '@modules/realtime/realtime.service';
@@ -22,6 +23,9 @@ import { sseFromChannel } from '@modules/realtime/sse.util';
 import { BranchService } from './branch.service';
 import { CreateBranchDto, UpdateBranchDto, GetBranchQueryDto } from './dto';
 
+// Reads are @Public (storefront + branch switcher); the guard skips those, so
+// only the mutations below are gated on the `branches` module.
+@RequirePermission('branches')
 @Controller('branches')
 export class BranchController {
   constructor(
@@ -37,7 +41,9 @@ export class BranchController {
    */
   @Public()
   @Sse('stream')
-  streamBranches(@CurrentTenant() tenant: TenantRecord | null): Observable<MessageEvent> {
+  streamBranches(
+    @CurrentTenant() tenant: TenantRecord | null,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, branchesChannel(tenant?.id));
   }
 

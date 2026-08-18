@@ -11,6 +11,7 @@ import {
   Query,
   Sse,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { type Observable } from 'rxjs';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
@@ -30,6 +31,7 @@ import {
   GetReservationQueryDto,
 } from './dto';
 
+@RequirePermission('reservations')
 @Controller('reservations')
 export class ReservationController {
   constructor(

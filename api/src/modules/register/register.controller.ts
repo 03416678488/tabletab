@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { AuthenticatedUser } from '@modules/auth/strategies/jwt.strategy';
 
@@ -9,6 +10,7 @@ import {
   OpenRegisterDto,
 } from './dto/register.dto';
 
+@RequirePermission('reports')
 @Controller('register')
 export class RegisterController {
   constructor(private readonly _service: RegisterService) {}

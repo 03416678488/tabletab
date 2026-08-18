@@ -8,12 +8,14 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
 import { TimeSlotService } from './time-slot.service';
 import { CreateTimeSlotDto, UpdateTimeSlotDto } from './dto/time-slot.dto';
 
+@RequirePermission('reservations')
 @Controller('time-slots')
 export class TimeSlotController {
   constructor(private readonly _service: TimeSlotService) {}
@@ -30,7 +32,10 @@ export class TimeSlotController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTimeSlotDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTimeSlotDto,
+  ) {
     return this._service.update(id, dto);
   }
 

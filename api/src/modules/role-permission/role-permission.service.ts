@@ -74,13 +74,19 @@ export class RolePermissionService {
     };
   }
 
-  /** Collapse a user's role-scoped grants into one effective permission map. */
+  /**
+   * Collapse a user's role-scoped grants into one effective permission map.
+   *
+   * Module/page access is grant-driven for EVERY role — including the Owner — so
+   * the permissions manager actually governs what each role can open. We do NOT
+   * short-circuit on `isSuperAdmin` here: that flag still governs API/business
+   * logic (branch scoping, payment overrides) elsewhere, but it must never bypass
+   * module gating, or unchecking a module for the Owner would have no effect.
+   */
   buildMyAccess(
     roles: Record<string, Record<string, string[]>>,
     isSuperAdmin: boolean,
   ): MyAccess {
-    if (isSuperAdmin) return { isSuperAdmin: true, grants: {} };
-
     const grants: Record<string, string[]> = {};
     for (const perResource of Object.values(roles ?? {})) {
       for (const [resource, actions] of Object.entries(perResource)) {
@@ -89,7 +95,7 @@ export class RolePermissionService {
         grants[resource] = Array.from(set);
       }
     }
-    return { isSuperAdmin: false, grants };
+    return { isSuperAdmin, grants };
   }
 
   /** Replace a role's full grant set. Unknown modules/actions are dropped. */
@@ -104,6 +110,13 @@ export class RolePermissionService {
     }
 
     const sanitized = this.sanitize(grants);
+
+    // Lockout guardrail: the Owner must always retain access to Settings (which
+    // hosts this very permissions manager), so they can never remove their own
+    // way back in. Every other module is freely toggleable.
+    if (role?.name === 'Owner') {
+      sanitized.settings = ALL_ACTIONS;
+    }
 
     const rows = Object.entries(sanitized)
       .filter(([, actions]) => actions.length > 0)

@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import { useAccessMatrix } from "@/features/role-permission/hooks/use-access-matrix";
+import { resetMyAccessCache } from "@/features/role-permission/hooks/use-my-access";
 import { rolePermissionService } from "@/features/role-permission/services/role-permission.service";
 import { ACTION_LABELS } from "@/features/role-permission/constants/role-permission.constants";
 import type {
@@ -108,6 +109,9 @@ export function RolePermissionManager() {
       }
       await rolePermissionService.updateRole(roleId, grants);
       await refetch();
+      // Editing a role changes what its users may open — drop the cached
+      // effective access so nav + page guards re-fetch (covers editing your own).
+      resetMyAccessCache();
     } catch {
     } finally {
       setSaving(false);

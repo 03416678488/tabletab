@@ -117,6 +117,7 @@ export const navItems: NavItem[] = [
     icon: CalendarCheck,
     roles: [...MANAGERS, "waiter"],
     section: "Operations",
+    module: "reservations",
     badgeCategory: "reservations",
   },
   {
@@ -233,8 +234,8 @@ export const navItems: NavItem[] = [
     roles: MANAGERS,
     section: "Management",
     children: [
-      { label: "VAT Listing", slug: "vat", roles: MANAGERS },
-      { label: "VAT Group", slug: "vat-groups", roles: MANAGERS },
+      { label: "VAT Listing", slug: "vat", roles: MANAGERS, module: "vat" },
+      { label: "VAT Group", slug: "vat-groups", roles: MANAGERS, module: "vat" },
     ],
   },
   {
@@ -251,8 +252,8 @@ export const navItems: NavItem[] = [
     roles: MANAGERS,
     section: "Management",
     children: [
-      { label: "Bookings", slug: "events", roles: MANAGERS },
-      { label: "Event Types", slug: "event-types", roles: MANAGERS },
+      { label: "Bookings", slug: "events", roles: MANAGERS, module: "events" },
+      { label: "Event Types", slug: "event-types", roles: MANAGERS, module: "events" },
     ],
   },
   {
@@ -286,7 +287,7 @@ export const navItems: NavItem[] = [
     icon: Percent,
     roles: MANAGERS,
     section: "Management",
-    module: "settings",
+    module: "promotions",
   },
   {
     label: "Campaigns",
@@ -294,7 +295,7 @@ export const navItems: NavItem[] = [
     icon: MessageCircle,
     roles: MANAGERS,
     section: "Management",
-    module: "settings",
+    module: "campaigns",
   },
 
   // USERS — one listing per fixed role.
@@ -359,6 +360,27 @@ export const navItems: NavItem[] = [
 /** Build the role-prefixed href for a feature slug, e.g. ("admin","branches") → "/admin/branches". */
 export function hrefFor(role: StaffRole, slug: string): string {
   return `/${role}/${slug}`;
+}
+
+/**
+ * Route slug → permission module key. Built from the nav (single source of truth
+ * for the mapping), so a page's grant-gating matches the menu item that opens it.
+ * Slugs with no entry aren't permission-gated (only role-gated).
+ */
+const MODULE_FOR_SLUG: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const item of navItems) {
+    if (item.slug && item.module) map[item.slug] = item.module;
+    for (const child of item.children ?? []) {
+      if (child.module) map[child.slug] = child.module;
+    }
+  }
+  return map;
+})();
+
+/** The permission module a route slug belongs to, or undefined if not gated. */
+export function moduleForSlug(slug: string): string | undefined {
+  return MODULE_FOR_SLUG[slug || "dashboard"];
 }
 
 /** Nav items visible to a role, with dropdown children also role-filtered. */

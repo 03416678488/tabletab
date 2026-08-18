@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { AppImage } from "@/components/ui/app-image";
 import { cn, isLocalUpload } from "@/lib/utils";
 import { EmblaSlider } from "@/features/website-builder/render/embla-slider";
+import { RichTextBody } from "@/features/website-builder/render/rich-text-body";
 import type {
   BannerSliderConfig,
   HeroConfig,
@@ -230,14 +231,12 @@ export function RichTextRender({ config }: { config: RichTextConfig }) {
   if (!config.html?.trim()) return null;
   return (
     <section className={cn(shell, "py-4")}>
-      <div
+      <RichTextBody
+        html={config.html}
         className={cn(
-          "rich-text",
           config.width === "prose" && "mx-auto max-w-2xl",
           config.align === "center" && "text-center",
         )}
-        // Authored by staff in the builder's WYSIWYG editor (trusted source).
-        dangerouslySetInnerHTML={{ __html: config.html }}
       />
     </section>
   );

@@ -8,12 +8,14 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
 import { LanguageService } from './language.service';
 import { CreateLanguageDto, UpdateLanguageDto } from './dto/language.dto';
 
+@RequirePermission('settings')
 @Controller('languages')
 export class LanguageController {
   constructor(private readonly _service: LanguageService) {}
@@ -30,7 +32,10 @@ export class LanguageController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateLanguageDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateLanguageDto,
+  ) {
     return this._service.update(id, dto);
   }
 

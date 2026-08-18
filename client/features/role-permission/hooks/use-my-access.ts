@@ -27,8 +27,9 @@ export function useMyAccess() {
         if (alive) setAccess(a);
       })
       .catch(() => {
-        // On failure, fail open (don't lock the user out of their own UI).
-        if (alive) setAccess({ isSuperAdmin: true, grants: {} });
+        // On failure, fail open: leave `access` null so `can()`/`canView()`
+        // return true (grants:{} would instead fail closed and lock the UI).
+        inflight = null;
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -41,7 +42,8 @@ export function useMyAccess() {
   const can = useCallback(
     (module: string, action: PermissionAction) => {
       if (!access) return true; // don't flash-hide while loading
-      if (access.isSuperAdmin) return true;
+      // Grant-driven for every role (Owner included) so the permissions manager
+      // actually governs access. `isSuperAdmin` intentionally does NOT bypass here.
       return (access.grants[module] ?? []).includes(action);
     },
     [access],

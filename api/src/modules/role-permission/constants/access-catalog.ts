@@ -18,6 +18,8 @@ export const MODULES: { key: string; label: string; group: string }[] = [
   { key: 'pos', label: 'POS', group: 'Operations' },
   { key: 'kds', label: 'Kitchen (KDS)', group: 'Operations' },
   { key: 'oss', label: 'Order Status (OSS)', group: 'Operations' },
+  { key: 'reservations', label: 'Reservations', group: 'Operations' },
+  { key: 'events', label: 'Events', group: 'Operations' },
   { key: 'menu', label: 'Menu', group: 'Catalog' },
   { key: 'categories', label: 'Categories', group: 'Catalog' },
   { key: 'tables', label: 'Tables', group: 'Catalog' },
@@ -26,6 +28,9 @@ export const MODULES: { key: string; label: string; group: string }[] = [
   { key: 'branches', label: 'Branches', group: 'Management' },
   { key: 'users', label: 'Users', group: 'Management' },
   { key: 'customers', label: 'Customers', group: 'Management' },
+  { key: 'vat', label: 'VAT / Tax', group: 'Management' },
+  { key: 'promotions', label: 'Promotions', group: 'Management' },
+  { key: 'campaigns', label: 'Campaigns', group: 'Management' },
   { key: 'reports', label: 'Reports', group: 'Management' },
   { key: 'settings', label: 'Settings', group: 'Management' },
 ];

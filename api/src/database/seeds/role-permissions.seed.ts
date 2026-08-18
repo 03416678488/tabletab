@@ -22,6 +22,8 @@ const ALL_MODULES = [
   'pos',
   'kds',
   'oss',
+  'reservations',
+  'events',
   'menu',
   'categories',
   'tables',
@@ -30,6 +32,9 @@ const ALL_MODULES = [
   'branches',
   'users',
   'customers',
+  'vat',
+  'promotions',
+  'campaigns',
   'reports',
   'settings',
 ];
@@ -40,19 +45,28 @@ const ALL_MODULES = [
  */
 export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
   // Owner — top admin, full access to every module.
-  Owner: [ANCHOR, ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD }))],
+  Owner: [
+    ANCHOR,
+    ...ALL_MODULES.map((resource) => ({ resource, actions: CRUD })),
+  ],
 
   // Multi Branch Manager — same access as Branch Manager, scoped across all
   // branches (branch scoping is enforced elsewhere, not via module grants).
   'Multi Branch Manager': [
     ANCHOR,
-    ...ALL_MODULES.filter((m) => m !== 'settings').map((resource) => ({ resource, actions: CRUD })),
+    ...ALL_MODULES.filter((m) => m !== 'settings').map((resource) => ({
+      resource,
+      actions: CRUD,
+    })),
   ],
 
   // Branch Manager — runs a single branch: everything operational, no settings.
   'Branch Manager': [
     ANCHOR,
-    ...ALL_MODULES.filter((m) => m !== 'settings').map((resource) => ({ resource, actions: CRUD })),
+    ...ALL_MODULES.filter((m) => m !== 'settings').map((resource) => ({
+      resource,
+      actions: CRUD,
+    })),
   ],
 
   Waiter: [
@@ -63,13 +77,19 @@ export const ROLE_PERMISSIONS_SEED: Record<string, RolePermissionMapping[]> = {
     { resource: 'tables', actions: R },
     { resource: 'kds', actions: R },
     { resource: 'customers', actions: CRUD },
+    // Waiters see the Reservations screen (seat walk-ins, manage today's bookings).
+    { resource: 'reservations', actions: CRUD },
   ],
 
   Chef: [
     ANCHOR,
     { resource: 'dashboard', actions: R },
     { resource: 'kds', actions: CRUD },
-    { resource: 'orders', actions: R },
+    // Chef advances a ticket's kitchen status via PUT /orders/:id → needs update.
+    {
+      resource: 'orders',
+      actions: [PermissionsEnum.READ, PermissionsEnum.UPDATE],
+    },
     { resource: 'menu', actions: R },
   ],
 

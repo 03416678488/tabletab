@@ -11,11 +11,15 @@ import {
 } from '@nestjs/common';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { MenusService } from './menus.service';
 import { CreateMenuDto, UpdateMenuDto, GetMenuQueryDto } from './dto';
 import { BulkActiveDto, BulkIdsDto } from '@modules/common/dto/bulk.dto';
 
+// Storefront reads menus via the @Public routes (guard skips those); all
+// mutations below are gated on the `menu` module.
+@RequirePermission('menu')
 @Controller('menus')
 export class MenusController {
   constructor(private readonly _menusService: MenusService) {}

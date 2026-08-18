@@ -11,6 +11,7 @@ import {
   Query,
   Sse,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { type Observable } from 'rxjs';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
@@ -23,6 +24,7 @@ import { sseFromChannel } from '@modules/realtime/sse.util';
 import { EventService } from './event.service';
 import { CreateEventDto, UpdateEventDto, GetEventQueryDto } from './dto';
 
+@RequirePermission('events')
 @Controller('events')
 export class EventController {
   constructor(

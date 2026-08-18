@@ -14,6 +14,7 @@ import {
 import { type Observable } from 'rxjs';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { CurrentTenant } from '@modules/tenancy/current-tenant.decorator';
 import { TenantRecord } from '@modules/tenancy/tenancy.types';
 import { RealtimeService } from '@modules/realtime/realtime.service';
@@ -34,6 +35,9 @@ import {
   BulkDeleteDto,
 } from './dto/bulk-menu.dto';
 
+// Storefront/POS read the menu via the @Public routes below (guard skips those);
+// the remaining admin reads + all mutations are gated on the `menu` module.
+@RequirePermission('menu')
 @Controller('menu-items')
 export class MenuController {
   constructor(

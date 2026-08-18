@@ -9,10 +9,16 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { CustomerService } from './customer.service';
-import { CreateCustomerDto, UpdateCustomerDto, GetCustomerQueryDto } from './dto';
+import {
+  CreateCustomerDto,
+  UpdateCustomerDto,
+  GetCustomerQueryDto,
+} from './dto';
 
+@RequirePermission('customers')
 @Controller('customers')
 export class CustomerController {
   constructor(private readonly _customerService: CustomerService) {}
@@ -33,7 +39,10 @@ export class CustomerController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCustomerDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCustomerDto,
+  ) {
     return this._customerService.updateCustomer(id, dto);
   }
 

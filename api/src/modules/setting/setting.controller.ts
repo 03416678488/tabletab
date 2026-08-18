@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { SettingService } from './setting.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
@@ -35,6 +36,9 @@ export class SettingController {
     return this._service.getGroup(group);
   }
 
+  // Reads stay open — settings (currency, theme, config) are consumed app-wide by
+  // every role and the storefront. Only writing settings is owner-gated.
+  @RequirePermission('settings')
   @Put(':group')
   saveGroup(@Param('group') group: string, @Body() dto: UpdateSettingsDto) {
     return this._service.saveGroup(group, dto.values);

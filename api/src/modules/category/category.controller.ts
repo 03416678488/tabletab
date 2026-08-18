@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { CategoryService } from './category.service';
 import {
@@ -20,6 +21,9 @@ import {
 } from './dto';
 import { BulkActiveDto, BulkIdsDto } from '@modules/common/dto/bulk.dto';
 
+// Reads are @Public (storefront + POS); the guard skips those, so only the
+// mutations below are gated on the `categories` module.
+@RequirePermission('categories')
 @Controller('categories')
 export class CategoryController {
   constructor(private readonly _categoryService: CategoryService) {}

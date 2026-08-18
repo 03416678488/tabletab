@@ -9,6 +9,7 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
@@ -20,6 +21,7 @@ import {
   ValidatePromotionDto,
 } from './dto';
 
+@RequirePermission('promotions')
 @Controller('promotions')
 export class PromotionController {
   constructor(private readonly _promotionService: PromotionService) {}
@@ -65,7 +67,10 @@ export class PromotionController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdatePromotionDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePromotionDto,
+  ) {
     return this._promotionService.updatePromotion(id, dto);
   }
 

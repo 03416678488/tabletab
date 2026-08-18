@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Bold,
+  Braces,
+  ChevronDown,
   Heading2,
   Heading3,
   ImagePlus,
@@ -16,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { ImageGalleryDialog } from "@/features/media/components/image-gallery-dialog";
+import { MERGE_VAR_GROUPS, mergeToken } from "@/features/website-builder/constants/merge-vars";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,6 +37,23 @@ export function RichTextEditor({
   const ref = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [varsOpen, setVarsOpen] = useState(false);
+  const varsRef = useRef<HTMLDivElement>(null);
+
+  // Close the variables menu on outside click / Escape.
+  useEffect(() => {
+    if (!varsOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (varsRef.current && !varsRef.current.contains(e.target as Node)) setVarsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setVarsOpen(false);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [varsOpen]);
 
   // Seed the editor once. We deliberately don't sync `value` back in on every
   // render — doing so would reset the caret to the start mid-typing.
@@ -70,6 +90,13 @@ export function RichTextEditor({
   const addLink = () => {
     const url = window.prompt("Link URL", "https://");
     if (url) exec("createLink", url);
+  };
+
+  // Insert a merge token (e.g. "{{company.name}}") at the caret; it resolves to
+  // the matching Settings value when the page renders.
+  const insertVar = (group: string, key: string) => {
+    exec("insertText", mergeToken(group, key));
+    setVarsOpen(false);
   };
 
   const insertImage = (url: string) => {
@@ -124,6 +151,59 @@ export function RichTextEditor({
         >
           <ImagePlus className="size-4" />
         </ToolButton>
+
+        <Divider />
+
+        {/* Business Info variables — insert a token that resolves at render. */}
+        <div ref={varsRef} className="relative">
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={varsOpen}
+            title="Insert variable"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setVarsOpen((o) => !o)}
+            className={cn(
+              "flex h-8 items-center gap-1 rounded-lg px-2 text-muted-foreground transition-colors",
+              "hover:bg-white hover:text-ink hover:shadow-sm",
+              varsOpen && "bg-white text-ink shadow-sm",
+            )}
+          >
+            <Braces className="size-4" />
+            <span className="text-xs font-medium">Variable</span>
+            <ChevronDown className={cn("size-3 transition-transform", varsOpen && "rotate-180")} />
+          </button>
+
+          {varsOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 z-50 mt-1.5 max-h-80 w-60 origin-top-right overflow-y-auto rounded-xl border border-border bg-white p-1.5 shadow-[var(--shadow-elevated)]"
+            >
+              {MERGE_VAR_GROUPS.map((g) => (
+                <div key={g.token} className="mb-1 last:mb-0">
+                  <p className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {g.label}
+                  </p>
+                  {g.vars.map((v) => (
+                    <button
+                      key={v.key}
+                      type="button"
+                      role="menuitem"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => insertVar(g.token, v.key)}
+                      className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left text-sm text-ink transition-colors hover:bg-secondary"
+                    >
+                      <span className="font-medium">{v.label}</span>
+                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                        {mergeToken(g.token, v.key)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Editable surface — shares the `.rich-text` prose style with the render. */}

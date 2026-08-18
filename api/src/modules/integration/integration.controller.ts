@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { Response } from 'express';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
@@ -7,6 +8,7 @@ import { IntegrationService } from './integration.service';
 import { AggregatorService } from './services/integration-aggregator.service';
 import { ConnectIntegrationDto } from './dto/connect-integration.dto';
 
+@RequirePermission('settings')
 @Controller('integrations')
 export class IntegrationController {
   constructor(
@@ -49,7 +51,10 @@ export class IntegrationController {
   }
 
   @Post(':provider/connect')
-  connect(@Param('provider') provider: string, @Body() dto: ConnectIntegrationDto) {
+  connect(
+    @Param('provider') provider: string,
+    @Body() dto: ConnectIntegrationDto,
+  ) {
     return this._service.connect(provider, dto.config);
   }
 

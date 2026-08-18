@@ -9,6 +9,7 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 
@@ -16,6 +17,7 @@ import { QrCodeService } from './qr-code.service';
 import { CreateQrCodeDto, UpdateQrCodeDto, GetQrCodeQueryDto } from './dto';
 import { CreateTableOrderDto } from './dto/create-table-order.dto';
 
+@RequirePermission('qr-codes')
 @Controller('qr-codes')
 export class QrCodeController {
   constructor(private readonly _qrCodeService: QrCodeService) {}

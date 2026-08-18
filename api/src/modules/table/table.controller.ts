@@ -11,6 +11,7 @@ import {
   Query,
   Sse,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 import { type Observable } from 'rxjs';
 
 import { CurrentTenant } from '@modules/tenancy/current-tenant.decorator';
@@ -22,6 +23,7 @@ import { sseFromChannel } from '@modules/realtime/sse.util';
 import { TableService } from './table.service';
 import { CreateTableDto, UpdateTableDto, GetTableQueryDto } from './dto';
 
+@RequirePermission('tables')
 @Controller('tables')
 export class TableController {
   constructor(
@@ -36,7 +38,9 @@ export class TableController {
    * before `:id` so `stream` isn't captured as a table id.
    */
   @Sse('stream')
-  streamTables(@CurrentTenant() tenant: TenantRecord | null): Observable<MessageEvent> {
+  streamTables(
+    @CurrentTenant() tenant: TenantRecord | null,
+  ): Observable<MessageEvent> {
     return sseFromChannel(this._realtime, tablesChannel(tenant?.id));
   }
 

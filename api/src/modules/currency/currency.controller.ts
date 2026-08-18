@@ -8,6 +8,7 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 import { SettingService } from '@modules/setting/setting.service';
@@ -21,6 +22,7 @@ import {
   UpdateFxSettingsDto,
 } from './dto/currency.dto';
 
+@RequirePermission('settings')
 @Controller('currencies')
 export class CurrencyController {
   constructor(
@@ -70,7 +72,10 @@ export class CurrencyController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCurrencyDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCurrencyDto,
+  ) {
     return this._service.update(id, dto);
   }
 

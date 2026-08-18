@@ -14,7 +14,7 @@ import { RolePermission } from '@modules/role-permission/entities/role-permissio
 /** Role names that bypass permission checks (they administer the system). */
 const SUPER_ROLES = ['Owner'];
 
-/** Shape of `req.user` after authentication (used by RolesGuard + controllers). */
+/** Shape of `req.user` after authentication (used by PermissionGuard + controllers). */
 export interface AuthenticatedUser {
   id: string;
   isActive: boolean;
@@ -55,12 +55,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // DB (the middleware set req.tenantDataSource from the verified claim).
     const ds = req.tenantDataSource;
     const userRepo = ds ? ds.getRepository(User) : this.userRepository;
-    const userRolesRepo = ds ? ds.getRepository(UserRolePermissions) : this.userRolesRepository;
-    const rolePermRepo = ds ? ds.getRepository(RolePermission) : this.rolePermissionRepository;
+    const userRolesRepo = ds
+      ? ds.getRepository(UserRolePermissions)
+      : this.userRolesRepository;
+    const rolePermRepo = ds
+      ? ds.getRepository(RolePermission)
+      : this.rolePermissionRepository;
 
     const user = await userRepo
       .createQueryBuilder('user')
-      .select(['user.id', 'user.isActive', 'user.isDeleted', 'user.passwordChangedAt'])
+      .select([
+        'user.id',
+        'user.isActive',
+        'user.isDeleted',
+        'user.passwordChangedAt',
+      ])
       .where('user.id = :userId', { userId: payload.id })
       .getOne();
 

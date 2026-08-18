@@ -8,6 +8,7 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
+import { RequirePermission } from '@cor/decorators/authorization/require-permission.decorator';
 
 import { Public } from '@modules/auth/guards/public/public.decorator';
 import { RequiresFeature } from '@modules/tenancy/plan-feature.guard';
@@ -15,6 +16,7 @@ import { RequiresFeature } from '@modules/tenancy/plan-feature.guard';
 import { AnalyticsService } from './analytics.service';
 import { CreateAnalyticsDto, UpdateAnalyticsDto } from './dto/analytics.dto';
 
+@RequirePermission('settings')
 @Controller('analytics')
 export class AnalyticsController {
   constructor(private readonly _service: AnalyticsService) {}
@@ -32,7 +34,10 @@ export class AnalyticsController {
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAnalyticsDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAnalyticsDto,
+  ) {
     return this._service.update(id, dto);
   }
 
