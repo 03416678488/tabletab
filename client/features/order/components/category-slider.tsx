@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { UtensilsCrossed } from "lucide-react";
 
 import { AppImage } from "@/components/ui/app-image";
@@ -19,8 +20,47 @@ interface CategorySliderProps {
  * browse, tap to jump — the pattern every major food app uses on mobile.
  */
 export function CategorySlider({ categories, activeId, onSelect }: CategorySliderProps) {
+  const railRef = useRef<HTMLDivElement>(null);
+  // Click-and-drag to scroll on desktop (mouse only — touch/trackpad keep native
+  // scrolling). `moved` suppresses the click so a drag never selects a category.
+  const drag = useRef({ down: false, startX: 0, scrollLeft: 0, moved: false });
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse" || !railRef.current) return;
+    drag.current = {
+      down: true,
+      startX: e.clientX,
+      scrollLeft: railRef.current.scrollLeft,
+      moved: false,
+    };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current.down || !railRef.current) return;
+    const dx = e.clientX - drag.current.startX;
+    if (Math.abs(dx) > 4) drag.current.moved = true;
+    railRef.current.scrollLeft = drag.current.scrollLeft - dx;
+  };
+  const endDrag = () => {
+    drag.current.down = false;
+  };
+  const onClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (drag.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      drag.current.moved = false;
+    }
+  };
+
   return (
-    <div className="no-scrollbar flex gap-3.5 overflow-x-auto px-4 py-3 sm:px-6">
+    <div
+      ref={railRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerLeave={endDrag}
+      onClickCapture={onClickCapture}
+      className="no-scrollbar flex gap-3.5 overflow-x-auto px-4 py-3 sm:px-6 cursor-grab select-none active:cursor-grabbing"
+    >
       {categories.map((cat) => {
         const active = cat.id === activeId;
         return (

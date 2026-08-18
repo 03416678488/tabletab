@@ -24,12 +24,20 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 /** Applies the configured currency (symbol/position/decimals) to formatMoney. */
 function applyCurrency(settings: SettingsGroups, currencies: CurrencyRow[]) {
   const site = settings.site ?? {};
-  const code = site.default_currency || "USD";
-  const match = currencies.find((c) => c.code === code);
+  // Prices are stored in the BASE currency; everything is shown in the DEFAULT
+  // (display) currency, converted at runtime. base == default → no conversion.
+  const baseCode = (site.base_currency || site.default_currency || "USD").toUpperCase();
+  const displayCode = (site.default_currency || "USD").toUpperCase();
+  const find = (code: string) => currencies.find((c) => c.code.toUpperCase() === code);
+  const base = find(baseCode);
+  const display = find(displayCode);
+  // Ratio is anchor-independent: works whatever the stored rates are relative to.
+  const rate = base && display ? (display.exchangeRate || 1) / (base.exchangeRate || 1) : 1;
   setCurrencyConfig({
-    symbol: match?.symbol ?? "$",
+    symbol: display?.symbol ?? base?.symbol ?? "$",
     position: site.currency_position === "right" ? "right" : "left",
     decimals: Number(site.digit_after_decimal ?? 2) || 0,
+    rate,
   });
 }
 

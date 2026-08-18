@@ -18,7 +18,6 @@ import {
 import { CartSummary } from "@/features/order/components/cart-summary";
 import { AddressForm } from "@/features/storefront/components/address-form";
 import { usePaymentMethods } from "@/features/storefront/hooks/use-payment-methods";
-import { useSettings } from "@/features/app-settings/components/settings-provider";
 import { CheckoutPaymentDialog } from "@/features/storefront/components/checkout-payment-dialog";
 
 // Read-only map for the selected delivery address (Leaflet → client-only).
@@ -81,17 +80,9 @@ function CheckoutContent() {
   const [guestPhone, setGuestPhone] = useState("");
   const [showGuestErrors, setShowGuestErrors] = useState(false);
 
-  // Payment methods (enabled ones only; no secrets). Dine-in pays at the table.
-  const { methods: rawPaymentMethods } = usePaymentMethods();
-  const { get } = useSettings();
-  // Settings → System: when the Online Payment Gateway is disabled, hide online
-  // gateway methods (those carrying a public key, e.g. Stripe/PayPal) — leaving
-  // offline options like cash-on-delivery.
-  const gatewayEnabled = get("site", "online_payment_gateway") === "enable";
-  const paymentMethods = useMemo(
-    () => (gatewayEnabled ? rawPaymentMethods : rawPaymentMethods.filter((m) => !m.publicKey)),
-    [rawPaymentMethods, gatewayEnabled],
-  );
+  // Payment methods (enabled ones only; no secrets). Each provider's own
+  // enable/disable (Settings → Payment Gateway) governs what shows here.
+  const { methods: paymentMethods } = usePaymentMethods();
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const selectedPayment = paymentMethods.find((m) => m.id === paymentMethodId) ?? null;
   // Cash on Delivery collects no payment now — it places an order, not a payment.

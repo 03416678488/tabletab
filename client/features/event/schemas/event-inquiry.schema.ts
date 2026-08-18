@@ -14,7 +14,7 @@ export const eventInquirySchema = z.object({
   guestCount: z.string().regex(/^\d+$/, "Enter the number of guests"),
   guestName: z.string().min(1, "Your name is required"),
   guestPhone: z.string().min(6, "A contact number is required"),
-  guestEmail: z.string().email("Enter a valid email").or(z.literal("")).optional(),
+  guestEmail: z.string().min(1, "Email is required").email("Enter a valid email"),
   budget: z
     .string()
     .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid amount")

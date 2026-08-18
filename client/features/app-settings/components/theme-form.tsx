@@ -30,7 +30,7 @@ export function ThemeForm() {
 
   const onSave = async () => {
     const ok = await save();
-    toast(ok ? "Theme saved" : "Save failed", { tone: ok ? "success" : "error" });
+    if (!ok) toast("Save failed", { tone: "error" });
   };
 
   if (loading) return <Skeleton className="h-96 w-full rounded-2xl" />;
@@ -40,8 +40,8 @@ export function ThemeForm() {
       <Card className="p-5">
         <h2 className="font-display text-lg font-semibold text-ink">Branding</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Logo and favicon for the admin panel. The storefront footer logo lives in Website
-          Settings → Footer.
+          Logo and favicon for the admin panel. The storefront footer logo lives in Website Settings
+          → Footer.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">

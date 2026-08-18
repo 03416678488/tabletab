@@ -69,6 +69,7 @@ function toDefaults(branch: Branch | null): BranchFormValues {
     deliveryEnabled: branch?.deliveryEnabled ?? true,
     pickupEnabled: branch?.pickupEnabled ?? true,
     reservationsEnabled: branch?.reservationsEnabled ?? true,
+    eventsEnabled: branch?.eventsEnabled ?? true,
     reservationTurnMins: branch?.reservationTurnMins ?? undefined,
     dineInPaymentMode: branch?.dineInPaymentMode ?? "pay_after",
   };
@@ -147,6 +148,7 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
       pickupEnabled: values.pickupEnabled,
       dineInPaymentMode: values.dineInPaymentMode,
       reservationsEnabled: values.reservationsEnabled,
+      eventsEnabled: values.eventsEnabled,
       ...(values.reservationTurnMins !== undefined
         ? { reservationTurnMins: values.reservationTurnMins }
         : {}),
@@ -198,7 +200,7 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
               <Input {...register("phone")} aria-invalid={!!errors.phone} />
             </Field>
           </div>
-          {/* Location — pan the map under the crosshair, type, or use device GPS. */}
+          {/* Location — pin the map under the crosshair, type, or use device GPS. */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label>Location</Label>
@@ -211,7 +213,7 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Pan the map so the crosshair sits on the exact spot. Used to find each customer&apos;s
+              Pin the map so the crosshair sits on the exact spot. Used to find each customer&apos;s
               nearest branch.
             </p>
             <BranchMapPicker lat={lat} lng={lng} onChange={setPoint} />
@@ -299,6 +301,7 @@ export function BranchFormDialog({ open, onOpenChange, branch, onSaved }: Branch
             <Toggle label="Delivery" {...register("deliveryEnabled")} />
             <Toggle label="Pickup" {...register("pickupEnabled")} />
             <Toggle label="Reservations" {...register("reservationsEnabled")} />
+            <Toggle label="Event bookings" {...register("eventsEnabled")} />
           </div>
 
           <Field label="Dine-in (QR) payment">

@@ -11,7 +11,11 @@ import { Currency } from './entities/currency.entity';
 const JOB_NAME = 'currency-rates-sync';
 
 /** Sync frequency → cron expression. */
-export const FX_FREQUENCIES: { value: string; label: string; cron: string | null }[] = [
+export const FX_FREQUENCIES: {
+  value: string;
+  label: string;
+  cron: string | null;
+}[] = [
   { value: 'off', label: 'Off (manual only)', cron: null },
   { value: 'hourly', label: 'Every hour', cron: '0 * * * *' },
   { value: '6h', label: 'Every 6 hours', cron: '0 */6 * * *' },
@@ -112,7 +116,12 @@ export class CurrencyRatesService implements OnModuleInit {
   /** Pull rates from the configured provider (with fallback) and update rows. */
   async syncRates(): Promise<SyncResult> {
     const site = await this._settings.getGroup('site');
-    const base = (site.default_currency || 'USD').toUpperCase();
+    // Rates are anchored to the base (pricing) currency; prices convert base → display.
+    const base = (
+      site.base_currency ||
+      site.default_currency ||
+      'USD'
+    ).toUpperCase();
     const { provider, keys } = await this.getSettings();
 
     const currencies = await this._repo.find();
@@ -147,7 +156,9 @@ export class CurrencyRatesService implements OnModuleInit {
     }
 
     const syncedAt = new Date().toISOString();
-    await this._settings.saveGroup('site', { currency_rates_synced_at: syncedAt });
+    await this._settings.saveGroup('site', {
+      currency_rates_synced_at: syncedAt,
+    });
     await this._settings.saveGroup('fx', {
       last_provider: result.providerUsed ?? '',
     });

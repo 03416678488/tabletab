@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, Search, User } from "lucide-react";
 import { CartMenu } from "@/features/storefront/components/cart-menu";
+import { CurrencySwitcher } from "@/features/storefront/components/currency-switcher";
 import { SearchDialog } from "@/features/storefront/components/search-dialog";
 import { TenantLogo } from "@/components/brand/tenant-logo";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { useCart } from "@/hooks/use-cart";
 import { useCustomerSession } from "@/hooks/use-customer-session";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useSiteHeaderConfig } from "@/features/website-builder/render/site-chrome";
+import { useLocationStore } from "@/hooks/use-location-store";
+import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 
 export function StorefrontHeader() {
   const itemCount = useCart((s) => s.itemCount());
@@ -19,9 +22,16 @@ export function StorefrontHeader() {
   const hydrated = useHydrated();
   const [searchOpen, setSearchOpen] = useState(false);
 
+  // Hide the Events link when the selected branch has event bookings switched off.
+  const branchId = useLocationStore((s) => s.branchId);
+  const { branches } = useStorefrontBranches();
+  const eventsOff = !!branchId && branches.find((b) => b.id === branchId)?.eventsEnabled === false;
+
   // Header customisation from the website builder (nav links, toggles).
   const headerCfg = useSiteHeaderConfig();
-  const navLinks = headerCfg?.links ?? [];
+  const navLinks = (headerCfg?.links ?? []).filter(
+    (l) => !(eventsOff && /^\/events(\/|$|\?)/.test(l.href || "")),
+  );
   const showSearch = headerCfg?.showSearch ?? true;
 
   return (
@@ -45,6 +55,7 @@ export function StorefrontHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <CurrencySwitcher />
           {showSearch && (
             <button
               type="button"

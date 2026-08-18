@@ -82,6 +82,10 @@ export class CreateBranchDto {
   @IsOptional()
   reservationsEnabled?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  eventsEnabled?: boolean;
+
   @IsNumber()
   @Min(0)
   @IsOptional()

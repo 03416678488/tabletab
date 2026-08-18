@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 
 import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-group";
+import { useSettings } from "@/features/app-settings/components/settings-provider";
 
 const DATE_FORMATS = ["DD-MM-YYYY", "MM-DD-YYYY", "YYYY-MM-DD", "DD/MM/YYYY"];
 const TIME_FORMATS = ["hh:mm A", "HH:mm"];
@@ -49,12 +50,6 @@ const TIMEZONES: string[] = (() => {
 })();
 const TOGGLES: { key: string; label: string; hint: string; example: string }[] = [
   {
-    key: "online_payment_gateway",
-    label: "Online Payment Gateway",
-    hint: "Let customers pay online (card/wallet) at checkout. When off, only offline options like cash-on-delivery are shown.",
-    example: "Off → checkout shows just “Cash on delivery”.",
-  },
-  {
     key: "language_switch",
     label: "Language Switch",
     hint: "Show the language picker so visitors can change the site language. When off, the switcher is hidden everywhere.",
@@ -76,6 +71,7 @@ const TOGGLES: { key: string; label: string; hint: string; example: string }[] =
 
 export function SiteForm() {
   const { values, set, unset, save, loading, saving } = useSettingsGroup("site");
+  const { currencies } = useSettings();
 
   // Retired fields — drop any stale values so a save never re-writes them.
   useEffect(() => {
@@ -86,7 +82,7 @@ export function SiteForm() {
 
   const onSave = async () => {
     const ok = await save();
-    toast(ok ? "Site settings saved" : "Save failed", { tone: ok ? "success" : "error" });
+    if (!ok) toast("Save failed", { tone: "error" });
   };
 
   if (loading) return <Skeleton className="h-96 w-full rounded-2xl" />;
@@ -143,6 +139,40 @@ export function SiteForm() {
             max={4}
             value={values.digit_after_decimal ?? "2"}
             onChange={(e) => set("digit_after_decimal", e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Base Currency"
+          hint="The currency item prices are entered, stored, and charged in. Set once at setup — changing it later re-values every existing price."
+          example="Base $ · you enter an item as $3 and it's charged as $3."
+        >
+          <Dropdown
+            value={(values.base_currency ?? values.default_currency ?? "USD").toUpperCase()}
+            onChange={(v) => set("base_currency", v)}
+            aria-label="Base currency"
+            searchable={currencies.length > 8}
+            placeholder="Select a currency…"
+            options={currencies.map((c) => ({
+              value: c.code.toUpperCase(),
+              label: `${c.code.toUpperCase()} — ${c.name} (${c.symbol})`,
+            }))}
+          />
+        </Field>
+        <Field
+          label="Default Currency"
+          hint="The currency prices are shown in (admin + storefront), converted from the base currency at the current exchange rate. Orders are still charged in the base currency."
+          example="Base $, Default Rs · a $3 item shows as ₨350."
+        >
+          <Dropdown
+            value={(values.default_currency ?? "USD").toUpperCase()}
+            onChange={(v) => set("default_currency", v)}
+            aria-label="Default currency"
+            searchable={currencies.length > 8}
+            placeholder="Select a currency…"
+            options={currencies.map((c) => ({
+              value: c.code.toUpperCase(),
+              label: `${c.code.toUpperCase()} — ${c.name} (${c.symbol})`,
+            }))}
           />
         </Field>
         <Field

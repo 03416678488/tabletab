@@ -20,6 +20,7 @@ export const branchSchema = z.object({
   deliveryEnabled: z.boolean(),
   pickupEnabled: z.boolean(),
   reservationsEnabled: z.boolean(),
+  eventsEnabled: z.boolean(),
   reservationTurnMins: z.number().min(0, "Must be 0 or more").optional(),
   dineInPaymentMode: z.enum(["pay_first", "pay_after"]),
 });

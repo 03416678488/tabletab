@@ -19,6 +19,8 @@ interface EmblaSliderProps {
   fill?: boolean;
   /** Show the prev/next arrow buttons (the dot pagination is unaffected). */
   showArrows?: boolean;
+  /** Show the dot pagination. Set false (with showArrows) for a drag-only slider. */
+  showDots?: boolean;
 }
 
 /**

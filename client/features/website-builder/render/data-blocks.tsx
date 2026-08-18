@@ -253,6 +253,16 @@ export function ReservationRender({ config }: { config: ReservationConfig }) {
 export function EventsRender({ config }: { config: EventsConfig }) {
   // Sends guests to the public event booking flow (`/events`), which loads the
   // bookable event types + locations live. Presentation-only, like Reservation.
+  const { branches } = useStorefrontBranches();
+  const selectedBranchId = useLocationStore((s) => s.branchId);
+  const coords = useLocationStore((s) => s.coords);
+  const branch = selectedBranchId
+    ? (branches.find((b) => b.id === selectedBranchId) ?? null)
+    : nearestBranch(branches, coords);
+
+  // Event bookings off (or flag unknown) at this branch → hide the widget.
+  if (!branch || branch.eventsEnabled === false) return null;
+
   const onLight = config.tone === "light";
   const tone =
     config.tone === "dark"

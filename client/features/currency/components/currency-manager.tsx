@@ -36,8 +36,6 @@ import {
   FRANKFURTER_CODES,
 } from "@/features/currency/constants/currency-catalog";
 import { ExchangeRateSettings } from "@/features/currency/components/exchange-rate-settings";
-import { useSettings } from "@/features/app-settings/components/settings-provider";
-import { settingsService } from "@/features/app-settings/services/settings.service";
 import { useClientPagination } from "@/hooks/use-client-pagination";
 import type { Currency } from "@/features/currency/types/currency.types";
 
@@ -51,8 +49,6 @@ export function CurrencyManager() {
   }, [currencies, search]);
   const { page, setPage, perPage, setPerPage, totalPages, totalItems, pageItems } =
     useClientPagination(filtered);
-  const { get, refresh } = useSettings();
-  const defaultCode = (get("site", "default_currency") || "").toUpperCase();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Currency | null>(null);
   const [saving, setSaving] = useState(false);
@@ -132,13 +128,6 @@ export function CurrencyManager() {
     } catch {}
   };
 
-  const setDefault = async (c: Currency) => {
-    try {
-      await settingsService.saveGroup("site", { default_currency: c.code });
-      await refresh(); // re-apply the app-wide currency symbol/position/decimals
-    } catch {}
-  };
-
   const confirm = useConfirm();
 
   const remove = async (c: Currency) => {
@@ -193,7 +182,6 @@ export function CurrencyManager() {
                 <TableHead>Symbol</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Exchange Rate</TableHead>
-                <TableHead>Default</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead>Auto</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -208,16 +196,6 @@ export function CurrencyManager() {
                     <TableCell>{c.symbol}</TableCell>
                     <TableCell className="text-muted-foreground">{c.code}</TableCell>
                     <TableCell className="text-muted-foreground">{c.exchangeRate}</TableCell>
-                    <TableCell>
-                      <input
-                        type="radio"
-                        name="default-currency"
-                        className="size-4 accent-brand"
-                        aria-label={`Set ${c.code} as default`}
-                        checked={defaultCode === c.code.toUpperCase()}
-                        onChange={() => setDefault(c)}
-                      />
-                    </TableCell>
                     <TableCell>
                       <button
                         type="button"

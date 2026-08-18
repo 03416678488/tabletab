@@ -58,6 +58,10 @@ export class Branch extends AbstractEntity {
   @Column({ type: 'int', default: 90 })
   reservationTurnMins: number;
 
+  /** Whether guests can request event bookings (birthdays, weddings, …). */
+  @Column({ type: 'boolean', default: true })
+  eventsEnabled: boolean;
+
   /** How long before the slot to remind the guest (minutes). */
   @Column({ type: 'int', default: 30 })
   reservationReminderLeadMins: number;

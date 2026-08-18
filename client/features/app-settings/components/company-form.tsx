@@ -68,7 +68,7 @@ export function CompanyForm() {
 
   const onSave = async () => {
     const ok = await save();
-    toast(ok ? "Company settings saved" : "Save failed", { tone: ok ? "success" : "error" });
+    if (!ok) toast("Save failed", { tone: "error" });
   };
 
   if (loading) return <Skeleton className="h-96 w-full rounded-2xl" />;

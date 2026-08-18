@@ -20,6 +20,7 @@ export interface Branch {
   pickupEnabled: boolean;
   deliveryEtaMinutes: number | null;
   reservationsEnabled: boolean;
+  eventsEnabled: boolean;
   reservationTurnMins: number;
   /** Dine-in (QR) payment timing: 'pay_after' (default) or 'pay_first' (prepay). */
   dineInPaymentMode: "pay_first" | "pay_after";
@@ -55,6 +56,7 @@ export interface CreateBranchInput {
   pickupEnabled?: boolean;
   deliveryEtaMinutes?: number;
   reservationsEnabled?: boolean;
+  eventsEnabled?: boolean;
   reservationTurnMins?: number;
   dineInPaymentMode?: "pay_first" | "pay_after";
 }

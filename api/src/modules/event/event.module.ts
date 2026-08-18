@@ -9,6 +9,7 @@ import { EventController } from './event.controller';
 import { EventService } from './event.service';
 import { EventValidatorService } from './services/event-validator.service';
 import { EventHelperService } from './services/event.helper.service';
+import { EventMailService } from './services/event-mail.service';
 
 import { EventTypeController } from './event-type.controller';
 import { EventTypeService } from './event-type.service';
@@ -20,6 +21,8 @@ import { ErrorModule } from '@modules/common/error/error.module';
 import { tenantRepositoryProvider } from '@modules/tenancy/tenant-repository.provider';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { TransactionModule } from '@modules/transaction/transaction.module';
+import { MailModule } from '@modules/mail/mail.module';
+import { SettingModule } from '@modules/setting/setting.module';
 
 @Module({
   imports: [
@@ -28,12 +31,15 @@ import { TransactionModule } from '@modules/transaction/transaction.module';
     ErrorModule,
     NotificationModule,
     TransactionModule,
+    MailModule,
+    SettingModule,
   ],
   controllers: [EventController, EventTypeController],
   providers: [
     EventService,
     EventValidatorService,
     EventHelperService,
+    EventMailService,
     EventTypeService,
     EventTypeValidatorService,
     EventTypeHelperService,

@@ -60,6 +60,7 @@ export interface Branch {
   deliveryEnabled?: boolean;
   pickupEnabled?: boolean;
   reservationsEnabled?: boolean;
+  eventsEnabled?: boolean;
   deliveryEtaMinutes?: number;
 }
 

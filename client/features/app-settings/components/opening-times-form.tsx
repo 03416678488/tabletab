@@ -24,7 +24,7 @@ export function OpeningTimesForm() {
 
   const onSave = async () => {
     const ok = await save();
-    toast(ok ? "Opening times saved" : "Save failed", { tone: ok ? "success" : "error" });
+    if (!ok) toast("Save failed", { tone: "error" });
   };
 
   if (loading) return <Skeleton className="h-96 w-full rounded-2xl" />;

@@ -7,9 +7,11 @@ export interface CurrencyConfig {
   symbol: string;
   position: "left" | "right";
   decimals: number;
+  /** Multiplier applied to base-currency amounts for display-only conversion. */
+  rate: number;
 }
 
-let config: CurrencyConfig = { symbol: "$", position: "left", decimals: 2 };
+let config: CurrencyConfig = { symbol: "$", position: "left", decimals: 2, rate: 1 };
 
 export function setCurrencyConfig(next: Partial<CurrencyConfig>) {
   config = { ...config, ...next };
@@ -23,11 +25,12 @@ export function getCurrencyConfig(): CurrencyConfig {
 }
 
 export function formatMoney(amount: number): string {
-  // Group thousands and honour the configured decimal places; the symbol and
-  // its side come from the tenant's Site settings (set by SettingsProvider).
+  // Prices are stored in the base currency; `rate` converts them to the visitor's
+  // chosen display currency (1 = base). Symbol/side/decimals come from settings.
+  const converted = (amount ?? 0) * (config.rate || 1);
   const n = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: config.decimals,
     maximumFractionDigits: config.decimals,
-  }).format(amount ?? 0);
+  }).format(converted);
   return config.position === "right" ? `${n}${config.symbol}` : `${config.symbol}${n}`;
 }

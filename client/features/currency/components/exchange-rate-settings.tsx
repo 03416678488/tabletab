@@ -48,7 +48,7 @@ export function ExchangeRateSettings({ onChange }: { onChange?: () => void }) {
     [data, provider],
   );
 
-  const base = get("site", "default_currency") || "USD";
+  const base = get("site", "base_currency") || get("site", "default_currency") || "USD";
 
   const save = async () => {
     setSaving(true);

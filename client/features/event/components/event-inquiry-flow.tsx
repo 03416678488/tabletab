@@ -23,6 +23,8 @@ import {
   type EventInquiryFormValues,
 } from "@/features/event/schemas/event-inquiry.schema";
 import { fetchPublicEventTypes, submitEventInquiry } from "@/features/event/services/event.service";
+import { useLocationStore } from "@/hooks/use-location-store";
+import { useStorefrontBranches } from "@/features/storefront/hooks/use-storefront-branches";
 
 interface PublicEventType {
   id: string;
@@ -37,6 +39,13 @@ export function EventInquiryFlow() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [eventTypes, setEventTypes] = useState<PublicEventType[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Guard direct URL access: block when the selected branch has events off.
+  const selectedBranchId = useLocationStore((s) => s.branchId);
+  const { branches: liveBranches } = useStorefrontBranches();
+  const eventsOff =
+    !!selectedBranchId &&
+    liveBranches.find((b) => b.id === selectedBranchId)?.eventsEnabled === false;
 
   const form = useForm<EventInquiryFormValues>({
     resolver: zodResolver(eventInquirySchema),
@@ -118,6 +127,20 @@ export function EventInquiryFlow() {
       <div className="mx-auto max-w-2xl px-4 py-10">
         <Skeleton className="mb-6 h-8 w-56" />
         <Skeleton className="h-[28rem] w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (eventsOff) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <PartyPopper className="mx-auto mb-4 size-12 text-brand" />
+        <h1 className="font-display text-2xl font-bold text-ink">
+          Event bookings aren&apos;t available
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          This location isn&apos;t taking event bookings right now. Please check back later.
+        </p>
       </div>
     );
   }
@@ -262,11 +285,14 @@ export function EventInquiryFlow() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Email (optional)</Label>
-              <Input type="email" {...register("guestEmail")} />
+              <Label required>Email</Label>
+              <Input type="email" {...register("guestEmail")} aria-invalid={!!errors.guestEmail} />
               {errors.guestEmail && (
                 <p className="text-xs text-destructive">{errors.guestEmail.message}</p>
               )}
+              <p className="text-xs text-muted-foreground">
+                We&apos;ll email your booking details and status updates here — no account needed.
+              </p>
             </div>
 
             <div className="space-y-1.5">

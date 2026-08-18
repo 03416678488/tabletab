@@ -25,9 +25,9 @@ export const DEFAULT_SETTINGS: Record<string, Record<string, string>> = {
     digit_after_decimal: '2',
     default_ai_agent: '',
     default_currency: 'USD',
+    base_currency: 'USD',
     default_phone_digit_length: '',
     currency_position: 'left', // left | right
-    online_payment_gateway: 'disable',
     language_switch: 'enable',
     email_verification: 'disable',
     phone_verification: 'disable',

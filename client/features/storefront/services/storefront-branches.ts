@@ -51,6 +51,7 @@ function toBranch(b: ApiBranch): Branch {
     deliveryEnabled: b.deliveryEnabled,
     pickupEnabled: b.pickupEnabled,
     reservationsEnabled: b.reservationsEnabled,
+    eventsEnabled: b.eventsEnabled,
     deliveryEtaMinutes: b.deliveryEtaMinutes ?? undefined,
   };
 }

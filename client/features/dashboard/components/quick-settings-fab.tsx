@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarClock,
+  PartyPopper,
   ClipboardList,
   DoorOpen,
   GripHorizontal,
@@ -436,7 +437,12 @@ function SettingToggles({
 
 // ── Branch toggles (per-branch operational flags) ────────────────────────────
 type BranchFlag =
-  "isOpen" | "onlineOrderingEnabled" | "deliveryEnabled" | "pickupEnabled" | "reservationsEnabled";
+  | "isOpen"
+  | "onlineOrderingEnabled"
+  | "deliveryEnabled"
+  | "pickupEnabled"
+  | "reservationsEnabled"
+  | "eventsEnabled";
 const BRANCH_FLAGS: {
   key: BranchFlag;
   label: string;
@@ -458,6 +464,13 @@ const BRANCH_FLAGS: {
     key: "reservationsEnabled",
     label: "Reservations",
     icon: CalendarClock,
+    on: "Enabled",
+    off: "Off",
+  },
+  {
+    key: "eventsEnabled",
+    label: "Event bookings",
+    icon: PartyPopper,
     on: "Enabled",
     off: "Off",
   },
