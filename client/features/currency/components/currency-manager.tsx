@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { useCurrencies } from "@/features/currency/hooks/use-currencies";
 import { currencyService } from "@/features/currency/services/currency.service";
@@ -139,199 +140,203 @@ export function CurrencyManager() {
   };
 
   return (
-    <div className="space-y-5">
-      {/* Exchange-rate provider / frequency / base + Sync now */}
-      <ExchangeRateSettings onChange={refetch} />
+    <TooltipProvider delayDuration={150}>
+      <div className="space-y-5">
+        {/* Exchange-rate provider / frequency / base + Sync now */}
+        <ExchangeRateSettings onChange={refetch} />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold text-ink">Currencies</h2>
-        <div className="flex items-center gap-2">
-          <div className="relative sm:w-56">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search currencies…"
-              className="h-9 pl-9"
-              aria-label="Search currencies"
-            />
-          </div>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="size-4" /> Add Currency
-          </Button>
-        </div>
-      </div>
-
-      <Card className="overflow-hidden p-0">
-        {loading ? (
-          <TableRowsSkeleton />
-        ) : error ? (
-          <EmptyState className="py-10" icon={Coins} title="Couldn't load" description={error} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            className="py-10"
-            icon={Coins}
-            title={search.trim() ? "No matches" : "No currencies"}
-            description={search.trim() ? "Try a different search." : "Add one to get started."}
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Name</TableHead>
-                <TableHead>Symbol</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Exchange Rate</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead>Auto</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pageItems.map((c) => {
-                const supported = FRANKFURTER_CODES.has(c.code.toUpperCase());
-                return (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>{c.symbol}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.code}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.exchangeRate}</TableCell>
-                    <TableCell>
-                      <button
-                        type="button"
-                        onClick={() => toggleActive(c)}
-                        aria-label="Toggle active"
-                      >
-                        <StatusPill tone={c.isActive ? "green" : "neutral"}>
-                          {c.isActive ? "Active" : "Inactive"}
-                        </StatusPill>
-                      </button>
-                    </TableCell>
-                    <TableCell>
-                      <label
-                        className="inline-flex items-center gap-2"
-                        title={
-                          supported
-                            ? "Auto-update daily from Frankfurter"
-                            : "Not on Frankfurter — will be skipped by sync"
-                        }
-                      >
-                        <input
-                          type="checkbox"
-                          className="size-4 rounded border-border accent-brand disabled:opacity-40"
-                          checked={c.autoUpdate}
-                          disabled={!supported}
-                          onChange={() => toggleAuto(c)}
-                        />
-                        {!supported && (
-                          <StatusPill tone="neutral" dot={false} className="text-[10px]">
-                            manual
-                          </StatusPill>
-                        )}
-                      </label>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Edit"
-                          onClick={() => openEdit(c)}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Delete"
-                          onClick={() => remove(c)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
-
-      {!loading && !error && filtered.length > 0 && (
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          onPageChange={setPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage}
-        />
-      )}
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{editing ? `Edit ${editing.name}` : "Add currency"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            {editing ? (
-              <Field label="Currency">
-                <Input value={`${editing.name} (${editing.code})`} disabled />
-              </Field>
-            ) : (
-              <Field label="Currency">
-                <Dropdown
-                  value={pickCode}
-                  onChange={(v) => setPickCode(v)}
-                  searchable
-                  placeholder="— Select a currency —"
-                  aria-label="Currency"
-                  options={options.map((c) => ({
-                    value: c.code,
-                    label: `${c.name} (${c.code}) ${c.symbol}`,
-                    sublabel: FRANKFURTER_CODES.has(c.code) ? undefined : "manual rate",
-                  }))}
-                />
-              </Field>
-            )}
-
-            <Field label="Exchange Rate">
-              <Input type="number" value={rate} onChange={(e) => setRate(e.target.value)} />
-            </Field>
-
-            <div className="flex items-center gap-5 pt-1">
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border-border accent-brand"
-                  checked={autoUpdate}
-                  onChange={(e) => setAutoUpdate(e.target.checked)}
-                />
-                Auto-update rate
-              </label>
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border-border accent-brand"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                />
-                Active
-              </label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg font-semibold text-ink">Currencies</h2>
+          <div className="flex items-center gap-2">
+            <div className="relative sm:w-56">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search currencies…"
+                className="h-9 pl-9"
+                aria-label="Search currencies"
+              />
             </div>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="size-4" /> Add Currency
+            </Button>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button disabled={saving || (!editing && !pickCode)} onClick={save}>
-              {saving && <Loader2 className="size-4 animate-spin" />} Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        <Card className="overflow-hidden p-0">
+          {loading ? (
+            <TableRowsSkeleton />
+          ) : error ? (
+            <EmptyState className="py-10" icon={Coins} title="Couldn't load" description={error} />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              className="py-10"
+              icon={Coins}
+              title={search.trim() ? "No matches" : "No currencies"}
+              description={search.trim() ? "Try a different search." : "Add one to get started."}
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Name</TableHead>
+                  <TableHead>Symbol</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Exchange Rate</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead>Auto</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageItems.map((c) => {
+                  const supported = FRANKFURTER_CODES.has(c.code.toUpperCase());
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell>{c.symbol}</TableCell>
+                      <TableCell className="text-muted-foreground">{c.code}</TableCell>
+                      <TableCell className="text-muted-foreground">{c.exchangeRate}</TableCell>
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => toggleActive(c)}
+                          aria-label="Toggle active"
+                        >
+                          <StatusPill tone={c.isActive ? "green" : "neutral"}>
+                            {c.isActive ? "Active" : "Inactive"}
+                          </StatusPill>
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <label className="inline-flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="size-4 rounded border-border accent-brand disabled:opacity-40"
+                                checked={c.autoUpdate}
+                                disabled={!supported}
+                                onChange={() => toggleAuto(c)}
+                              />
+                              {!supported && (
+                                <StatusPill tone="neutral" dot={false} className="text-[10px]">
+                                  manual
+                                </StatusPill>
+                              )}
+                            </label>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {supported
+                              ? "Auto-update daily from Frankfurter"
+                              : "Not on Frankfurter — will be skipped by sync"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Edit"
+                            onClick={() => openEdit(c)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Delete"
+                            onClick={() => remove(c)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
+
+        {!loading && !error && filtered.length > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            perPage={perPage}
+            onPerPageChange={setPerPage}
+          />
+        )}
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{editing ? `Edit ${editing.name}` : "Add currency"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              {editing ? (
+                <Field label="Currency">
+                  <Input value={`${editing.name} (${editing.code})`} disabled />
+                </Field>
+              ) : (
+                <Field label="Currency">
+                  <Dropdown
+                    value={pickCode}
+                    onChange={(v) => setPickCode(v)}
+                    searchable
+                    placeholder="— Select a currency —"
+                    aria-label="Currency"
+                    options={options.map((c) => ({
+                      value: c.code,
+                      label: `${c.name} (${c.code}) ${c.symbol}`,
+                      sublabel: FRANKFURTER_CODES.has(c.code) ? undefined : "manual rate",
+                    }))}
+                  />
+                </Field>
+              )}
+
+              <Field label="Exchange Rate">
+                <Input type="number" value={rate} onChange={(e) => setRate(e.target.value)} />
+              </Field>
+
+              <div className="flex items-center gap-5 pt-1">
+                <label className="flex items-center gap-2 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-border accent-brand"
+                    checked={autoUpdate}
+                    onChange={(e) => setAutoUpdate(e.target.checked)}
+                  />
+                  Auto-update rate
+                </label>
+                <label className="flex items-center gap-2 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-border accent-brand"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                  />
+                  Active
+                </label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button disabled={saving || (!editing && !pickCode)} onClick={save}>
+                {saving && <Loader2 className="size-4 animate-spin" />} Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   );
 }
 

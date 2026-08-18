@@ -32,7 +32,6 @@ export const DEFAULT_SETTINGS: Record<string, Record<string, string>> = {
     email_verification: 'disable',
     phone_verification: 'disable',
     app_debug: 'disable',
-    guest_login: 'enable',
   },
   social_media: {
     facebook: '',

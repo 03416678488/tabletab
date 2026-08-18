@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 
 import { useSettingsGroup } from "@/features/app-settings/hooks/use-settings-group";
@@ -61,12 +62,6 @@ const TOGGLES: { key: string; label: string; hint: string; example: string }[] =
     hint: "Show detailed technical error info (message + stack trace) when something crashes. Turn on only while troubleshooting.",
     example: "On → crash screen shows the real error, not just “Something went wrong”.",
   },
-  {
-    key: "guest_login",
-    label: "Guest Login",
-    hint: "Allow customers to order without creating an account. When off, they must sign in first.",
-    example: "On → “Continue as guest” is available at checkout.",
-  },
 ];
 
 export function SiteForm() {
@@ -78,6 +73,7 @@ export function SiteForm() {
     if ("email_verification" in values) unset("email_verification");
     if ("phone_verification" in values) unset("phone_verification");
     if ("default_language" in values) unset("default_language");
+    if ("guest_login" in values) unset("guest_login");
   }, [values, unset]);
 
   const onSave = async () => {
@@ -253,27 +249,25 @@ function Field({
 }
 
 /**
- * Small "!" info icon that reveals a description (and example) on hover/focus.
- * Pure CSS visibility via `group` so there's no extra state; focusable for
- * keyboard/touch users.
+ * Small "!" info icon that reveals a description (and example) on hover/focus,
+ * using the shadcn Tooltip (Radix-backed) — keyboard- and touch-accessible.
  */
 function InfoHint({ text, example }: { text: string; example?: string }) {
   return (
-    <span className="group relative inline-flex">
-      <button
-        type="button"
-        aria-label={example ? `${text} Example: ${example}` : text}
-        className="flex size-4 items-center justify-center rounded-full border border-muted-foreground/40 text-[10px] font-bold leading-none text-muted-foreground transition-colors hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-      >
-        !
-      </button>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-60 -translate-x-1/2 rounded-lg bg-ink px-3 py-2 text-left text-xs leading-relaxed text-white opacity-0 shadow-[var(--shadow-elevated)] transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        <span className="block">{text}</span>
-        {example && <span className="mt-1 block text-white/70">e.g. {example}</span>}
-      </span>
-    </span>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger
+          type="button"
+          aria-label={example ? `${text} Example: ${example}` : text}
+          className="flex size-4 items-center justify-center rounded-full border border-muted-foreground/40 text-[10px] font-bold leading-none text-muted-foreground transition-colors hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+        >
+          !
+        </TooltipTrigger>
+        <TooltipContent>
+          <span className="block">{text}</span>
+          {example && <span className="mt-1 block text-white/70">e.g. {example}</span>}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
